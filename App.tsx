@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -38,7 +38,22 @@ import {
   userCopyExtension,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
-import { createNeuroPro2Device, downloadControllerFiles, saveControllerFiles } from './src/core/device';
+import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './src/core/device';
+import {
+  addRunnerFolder,
+  addToRunner,
+  createId,
+  emptyRunnerData,
+  formatClock,
+  moveRunnerItem,
+  parseRunnerData,
+  removeFromRunner,
+  removeRunnerFolder,
+  renameRunnerFile,
+  renameRunnerFolder,
+  setRunnerItemFolder,
+} from './src/core/runner';
+import type { JournalEntry, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
 
@@ -81,6 +96,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadPromptOpen, setDownloadPromptOpen] = useState(false);
   const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
+  const [appMode, setAppMode] = useState<'editor' | 'runner'>('editor');
+  const [runnerData, setRunnerData] = useState<RunnerData>(emptyRunnerData);
+  const [runnerLoaded, setRunnerLoaded] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [journalExpanded, setJournalExpanded] = useState(false);
+  const [session, setSession] = useState<RunSession | null>(null);
+  const [clock, setClock] = useState(Date.now());
+  const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
@@ -105,6 +128,29 @@ export default function App() {
     const timer = setTimeout(() => void persistFiles(files), 400);
     return () => clearTimeout(timer);
   }, [files, filesLoaded]);
+
+  useEffect(() => {
+    void loadStoredRunner().then((saved) => {
+      setRunnerData((current) => (current.runner.items.length > 0 || current.journal.length > 0 ? current : saved));
+      setRunnerLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!runnerLoaded) {
+      return undefined;
+    }
+    const timer = setTimeout(() => void persistRunner(runnerData), 400);
+    return () => clearTimeout(timer);
+  }, [runnerData, runnerLoaded]);
+
+  useEffect(() => {
+    if (!session) {
+      return undefined;
+    }
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [session !== null]);
 
   function updateSettings(change: Partial<Settings>): void {
     const next = { ...settings, ...change };
@@ -317,6 +363,7 @@ export default function App() {
     });
     setCurrentFileName(unique);
     setProtocol(renamed);
+    setRunnerData((current) => ({ ...current, runner: renameRunnerFile(current.runner, oldName, unique) }));
   }
 
   async function readAssetBytes(asset: DocumentPicker.DocumentPickerAsset): Promise<Uint8Array> {
@@ -585,10 +632,252 @@ export default function App() {
       delete remaining[name];
       return remaining;
     });
+    setRunnerData((current) => ({ ...current, runner: removeFromRunner(current.runner, name) }));
     if (currentFileName === name) {
       setCurrentFileName('');
       setProtocol(createEmptyProtocol());
     }
+  }
+
+  function updateRunner(change: (state: RunnerState) => RunnerState): void {
+    setRunnerData((current) => ({ ...current, runner: change(current.runner) }));
+  }
+
+  function updateJournalEntry(id: string, change: Partial<JournalEntry>): void {
+    setRunnerData((current) => ({ ...current, journal: current.journal.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)) }));
+  }
+
+  function runnerDurationMinutes(name: string): number | undefined {
+    const value = files[name];
+    if (!value) {
+      return undefined;
+    }
+    if (value.filenames === undefined) {
+      return calculateTotalDuration(value);
+    }
+    const stages = value.filenames.filter((stage) => stage !== '' && files[stage] !== undefined);
+    const total = stages.reduce((sum, stage) => sum + (calculateTotalDuration(files[stage] as Protocol) ?? 0), 0);
+    return total > 0 ? total : undefined;
+  }
+
+  async function startRun(name: string): Promise<void> {
+    const value = files[name];
+    if (session || !value) {
+      return;
+    }
+    const entryId = createId('journal');
+    const minutes = runnerDurationMinutes(name);
+    const controller = new AbortController();
+    runAbort.current = controller;
+    setError('');
+    setClock(Date.now());
+    setSession({ file: name, entryId, message: `Connecting to ${settings.deviceAddress}…`, totalSeconds: minutes === undefined ? undefined : minutes * 60 });
+    setRunnerData((current) => ({
+      ...current,
+      journal: [{ id: entryId, file: name, startedAt: new Date().toISOString(), status: 'running', note: '' }, ...current.journal],
+    }));
+    let outcome: JournalStatus = 'completed';
+    try {
+      const stages = value.filenames === undefined ? [] : value.filenames.filter((stage) => /\.vnp0$/i.test(stage) && files[stage] !== undefined);
+      const uploads = [...new Set(stages)].map((stage) => ({ name: stage, protocol: files[stage] as Protocol }));
+      if (/\.vnp[04]$/i.test(name)) {
+        uploads.push({ name, protocol: value });
+      }
+      await runControllerProtocol(
+        connectToController(),
+        uploads,
+        name,
+        controller.signal,
+        (message) => setSession((current) => (current ? { ...current, message } : current)),
+        () => {
+          setClock(Date.now());
+          setSession((current) => (current ? { ...current, startedAt: Date.now(), message: 'Protocol running' } : current));
+        },
+      );
+    } catch (reason) {
+      if (controller.signal.aborted) {
+        outcome = 'stopped';
+      } else {
+        outcome = 'failed';
+        setError(`Unable to run ${name} on ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+      }
+    } finally {
+      runAbort.current = null;
+      setSession(null);
+      updateJournalEntry(entryId, { status: outcome });
+    }
+  }
+
+  function stopRun(): void {
+    runAbort.current?.abort();
+    setSession((current) => (current ? { ...current, message: 'Stopping…' } : current));
+    void connectToController().stop().catch(() => undefined);
+  }
+
+  function renderRunStatus(): React.JSX.Element | null {
+    if (!session) {
+      return null;
+    }
+    const elapsed = session.startedAt === undefined ? 0 : (clock - session.startedAt) / 1000;
+    const progress = session.totalSeconds ? Math.min(1, elapsed / session.totalSeconds) : undefined;
+    return (
+      <View accessibilityLiveRegion="polite" style={styles.panel}>
+        <Text style={styles.panelTitle}>Running</Text>
+        <Text style={styles.runnerTitle}>{session.file}</Text>
+        <View style={styles.runnerButtons}>
+          <ActivityIndicator color="#f9a01b" />
+          <Text style={styles.statusText}>{session.message}</Text>
+        </View>
+        {session.startedAt !== undefined && (
+          <>
+            {progress !== undefined && (
+              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} /></View>
+            )}
+            <Text style={styles.runnerMeta}>
+              Elapsed {formatClock(elapsed)}{session.totalSeconds ? ` of ${formatClock(session.totalSeconds)} · ${formatClock(session.totalSeconds - elapsed)} remaining` : ''}
+            </Text>
+          </>
+        )}
+        <ActionButton title="⏹ STOP" onPress={stopRun} />
+      </View>
+    );
+  }
+
+  function describeRunnerItem(name: string): string {
+    const value = files[name];
+    if (!value) {
+      return 'Not found in the app. Remove it or add the file again.';
+    }
+    const minutes = runnerDurationMinutes(name);
+    const length = minutes === undefined ? '' : `${Math.round(minutes * 10) / 10} minute(s)`;
+    if (value.filenames !== undefined) {
+      return `Batch · ${value.filenames.filter((stage) => stage !== '').length} protocol(s)${length ? ` · ${length}` : ''}`;
+    }
+    return length || 'Duration not set';
+  }
+
+  function renderRunnerItem(item: RunnerItem, folderCount: number): React.JSX.Element {
+    const { runner } = runnerData;
+    const canRun = !session && files[item.file] !== undefined;
+    return (
+      <View key={item.id} style={styles.runnerRow}>
+        <Text style={styles.runnerTitle}>{item.file}</Text>
+        <Text style={styles.runnerMeta}>{describeRunnerItem(item.file)}</Text>
+        <View style={styles.runnerButtons}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item.file); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
+            <Text style={styles.actionText}>▶ RUN</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.file} up`} onPress={() => updateRunner((state) => moveRunnerItem(state, item.id, -1))} style={styles.thumbButton}>
+            <Text style={styles.runnerButtonText}>▲</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.file} down`} onPress={() => updateRunner((state) => moveRunnerItem(state, item.id, 1))} style={styles.thumbButton}>
+            <Text style={styles.runnerButtonText}>▼</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeFromRunner(state, item.file))} style={styles.thumbButton}>
+            <Text style={styles.deleteText}>✕ REMOVE</Text>
+          </Pressable>
+        </View>
+        {folderCount > 0 && (
+          <Select
+            label={`Folder for ${item.file}`}
+            value={item.folderId && runner.folders.some((folder) => folder.id === item.folderId) ? item.folderId : ''}
+            options={[{ value: '', label: 'No folder' }, ...runner.folders.map((folder) => ({ value: folder.id, label: folder.name || 'Untitled folder' }))]}
+            onChange={(value) => updateRunner((state) => setRunnerItemFolder(state, item.id, value === '' ? undefined : value))}
+          />
+        )}
+      </View>
+    );
+  }
+
+  function renderRunner(): React.JSX.Element {
+    const { runner, journal } = runnerData;
+    const runnerWide = width >= 860;
+    const knownFolder = (item: RunnerItem) => item.folderId !== undefined && runner.folders.some((folder) => folder.id === item.folderId);
+    const shownJournal = journalExpanded ? journal : journal.slice(0, 3);
+    return (
+      <ScrollView contentContainerStyle={styles.workspace}>
+        <View style={styles.runnerBrand}>
+          <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
+          <Text style={styles.brandCaption}>Device: {settings.deviceAddress}</Text>
+        </View>
+        <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
+          <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
+            {renderRunStatus()}
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>Protocols</Text>
+              <View style={styles.runnerButtons}>
+                <TextInput
+                  accessibilityLabel="New folder name"
+                  placeholder="New folder name"
+                  placeholderTextColor="#94a3b8"
+                  value={newFolderName}
+                  onChangeText={setNewFolderName}
+                  onSubmitEditing={() => { updateRunner((state) => addRunnerFolder(state, newFolderName)); setNewFolderName(''); }}
+                  style={[styles.textInput, styles.runnerInput]}
+                />
+                <ActionButton title="NEW FOLDER" onPress={() => { updateRunner((state) => addRunnerFolder(state, newFolderName)); setNewFolderName(''); }} />
+              </View>
+              {runner.items.length === 0 && (
+                <Text style={styles.emptyList}>No protocols yet. Switch to the Protocol Editor and press ☆ next to a file in the file list to add it here.</Text>
+              )}
+              {runner.folders.map((folder) => (
+                <View key={folder.id} style={styles.runnerFolder}>
+                  <View style={styles.runnerButtons}>
+                    <TextInput
+                      accessibilityLabel="Folder name"
+                      value={folder.name}
+                      onChangeText={(text) => updateRunner((state) => renameRunnerFolder(state, folder.id, text))}
+                      style={[styles.textInput, styles.runnerInput]}
+                    />
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))} style={styles.thumbButton}>
+                      <Text style={styles.deleteText}>DELETE FOLDER</Text>
+                    </Pressable>
+                  </View>
+                  {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item, runner.folders.length))}
+                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Pick this folder on a protocol below.</Text>}
+                </View>
+              ))}
+              {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item, runner.folders.length))}
+            </View>
+          </View>
+          <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>Journal</Text>
+              {journal.length === 0 && <Text style={styles.emptyList}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
+              {shownJournal.map((entry) => (
+                <View key={entry.id} style={styles.runnerRow}>
+                  <Text style={styles.runnerTitle}>{entry.file}</Text>
+                  <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()} · {entry.status}</Text>
+                  <View style={styles.runnerButtons}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { rating: entry.rating === 'up' ? undefined : 'up' })} style={[styles.thumbButton, entry.rating === 'up' && styles.thumbUp]}>
+                      <Text style={styles.runnerButtonText}>👍</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { rating: entry.rating === 'down' ? undefined : 'down' })} style={[styles.thumbButton, entry.rating === 'down' && styles.thumbDown]}>
+                      <Text style={styles.runnerButtonText}>👎</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.thumbButton}>
+                      <Text style={styles.deleteText}>✕ DELETE</Text>
+                    </Pressable>
+                  </View>
+                  <TextInput
+                    accessibilityLabel="Journal entry"
+                    multiline
+                    placeholder="Journal entry: how did it go?"
+                    placeholderTextColor="#94a3b8"
+                    value={entry.note}
+                    onChangeText={(text) => updateJournalEntry(entry.id, { note: text })}
+                    style={[styles.textInput, styles.noteInput]}
+                  />
+                </View>
+              ))}
+              {journal.length > 3 && (
+                <ActionButton title={journalExpanded ? 'SHOW RECENT RECORDS ONLY' : `VIEW ALL ${journal.length} JOURNAL RECORDS`} onPress={() => setJournalExpanded((value) => !value)} />
+              )}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    );
   }
 
   function renderFileList(): React.JSX.Element {
@@ -624,6 +913,13 @@ export default function App() {
                     style={[styles.fileButton, currentFileName === name && styles.selectedFile]}
                   >
                     <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={runnerData.runner.items.some((item) => item.file === name) ? `Remove ${name} from the runner` : `Add ${name} to the runner`}
+                    onPress={() => updateRunner((state) => (state.items.some((item) => item.file === name) ? removeFromRunner(state, name) : addToRunner(state, name)))}
+                  >
+                    <Text style={styles.copyText}>{runnerData.runner.items.some((item) => item.file === name) ? '★' : '☆'}</Text>
                   </Pressable>
                   {isReadOnlyFile(name) ? (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${userCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
@@ -1159,16 +1455,29 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.appShell}>
-          {wideSidebar && sidebar}
+          {wideSidebar && appMode === 'editor' && sidebar}
           <View style={styles.main}>
             <View style={styles.toolbar}>
               <View style={styles.toolbarHeading}>
-                {!wideSidebar && (
+                {!wideSidebar && appMode === 'editor' && (
                   <Pressable accessibilityRole="button" onPress={() => setSidebarOpen(true)} style={styles.menuButton}>
                     <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
                 )}
-                <Text numberOfLines={1} style={styles.currentFile}>{currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
+                <Text numberOfLines={1} style={styles.currentFile}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
+                <View accessibilityRole="tablist" style={styles.modeToggle}>
+                  {(['editor', 'runner'] as const).map((value) => (
+                    <Pressable
+                      key={value}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: appMode === value }}
+                      onPress={() => setAppMode(value)}
+                      style={[styles.modeToggleButton, appMode === value && styles.modeToggleButtonActive]}
+                    >
+                      <Text style={styles.actionText}>{value === 'editor' ? (wideSidebar ? 'Protocol Editor' : 'Editor') : (wideSidebar ? 'Protocol Runner' : 'Runner')}</Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </View>
             {busy && (
@@ -1178,7 +1487,7 @@ export default function App() {
               </View>
             )}
             {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-            {readOnly && (
+            {appMode === 'editor' && readOnly && (
               <View style={styles.readOnlyBanner}>
                 <Text style={styles.readOnlyText}>
                   {isReadOnlyFile(currentFileName)
@@ -1192,6 +1501,7 @@ export default function App() {
                 )}
               </View>
             )}
+            {appMode === 'runner' ? renderRunner() : (
             <ScrollView contentContainerStyle={styles.workspace}>
               <View style={[styles.editorLayout, wideEditor && styles.editorLayoutWide]}>
                 <View style={[styles.diagramPanel, wideEditor && styles.diagramPanelWide]}>
@@ -1268,6 +1578,7 @@ export default function App() {
                 </View>
               </View>
             </ScrollView>
+            )}
           </View>
           {!wideSidebar && renderSidebarModal()}
           {renderBatchDialog()}
@@ -1475,6 +1786,23 @@ const styleDefs = {
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
   toolbar: { backgroundColor: '#2f5d1f', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 8, paddingHorizontal: 18, paddingVertical: 10 },
+  modeToggle: { borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', overflow: 'hidden' },
+  modeToggleButton: { paddingHorizontal: 12, paddingVertical: 9 },
+  modeToggleButtonActive: { backgroundColor: '#f9a01b' },
+  runnerBrand: { alignItems: 'center', gap: 4, marginBottom: 14 },
+  runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
+  runnerFolder: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
+  runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700' },
+  runnerMeta: { color: '#64748b', fontSize: 12, lineHeight: 18 },
+  runnerButtons: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  runnerButtonText: { color: '#334155', fontSize: 13, fontWeight: '700' },
+  runnerInput: { flex: 1, minWidth: 140 },
+  thumbButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  thumbUp: { backgroundColor: '#dcfce7' },
+  thumbDown: { backgroundColor: '#fee2e2' },
+  noteInput: { minHeight: 56, textAlignVertical: 'top' },
+  progressTrack: { backgroundColor: '#e2e8f0', borderRadius: 5, height: 10, overflow: 'hidden' },
+  progressFill: { backgroundColor: '#7bc043', height: 10 },
   toolbarHeading: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   headingText: { flex: 1, minWidth: 0 },
   currentFile: { color: '#fdfdfd', flex: 1, fontSize: 18, fontWeight: '600' },
@@ -1666,6 +1994,8 @@ function buildTheme(scheme: Scheme): Theme {
 const ThemeContext = createContext<Theme>(buildTheme('brand'));
 const ReadOnlyContext = createContext(false);
 
+type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
+
 type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string };
 const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local' };
 const settingsKey = 'brainbroccoli.settings';
@@ -1731,5 +2061,35 @@ async function persistSettings(settings: Settings): Promise<void> {
     }
   } catch {
     // Settings are a convenience; failing to save should not interrupt editing.
+  }
+}
+
+const runnerKey = 'brainbroccoli.runner';
+const runnerPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}runner.json` : '';
+
+async function loadStoredRunner(): Promise<RunnerData> {
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      raw = window.localStorage.getItem(runnerKey);
+    } else if (runnerPath && (await FileSystem.getInfoAsync(runnerPath)).exists) {
+      raw = await FileSystem.readAsStringAsync(runnerPath);
+    }
+    return raw ? parseRunnerData(JSON.parse(raw) as unknown) : emptyRunnerData;
+  } catch {
+    return emptyRunnerData;
+  }
+}
+
+async function persistRunner(data: RunnerData): Promise<void> {
+  try {
+    const raw = JSON.stringify(data);
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(runnerKey, raw);
+    } else if (runnerPath) {
+      await FileSystem.writeAsStringAsync(runnerPath, raw);
+    }
+  } catch {
+    // The runner list and journal are conveniences; failing to save should not interrupt running.
   }
 }

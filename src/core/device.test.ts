@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNeuroPro2Device, downloadControllerFiles, saveControllerFiles } from './device';
+import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './device';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -86,5 +86,18 @@ describe('saveControllerFiles', () => {
     expect(protocol.updateExisting).toBe(true);
     expect(listFiles.mock.calls.map((call) => call[0])).toEqual(['vnp0', 'vnp3']);
     expect(messages).toHaveLength(3);
+  });
+});
+
+describe('runControllerProtocol', () => {
+  it('uploads first and then runs the file', async () => {
+    const calls: string[] = [];
+    const device = {
+      listFiles: async () => [],
+      saveFile: async (name: string) => { calls.push(`save ${name}`); },
+      runFile: async (name: string) => { calls.push(`run ${name}`); },
+    };
+    await runControllerProtocol(device as never, [{ name: 'a.vnp0', protocol: { filename: 'a' } as never }], 'a.vnp0', new AbortController().signal);
+    expect(calls).toEqual(['save a.vnp0', 'run a.vnp0']);
   });
 });

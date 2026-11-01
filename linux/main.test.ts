@@ -96,7 +96,7 @@ describe('desktop shell', () => {
     const handler = ipcHandlers.get('device-request')!;
     await expect(handler({}, 'http://np1.local/getlistfile?msg=vnp0')).resolves.toEqual({ ok: true, status: 200, body: '["a.vnp0"]' });
     await expect(handler({}, 'http://np1.local/deletefile?data=a.vnp0')).resolves.toMatchObject({ ok: true });
-    await expect(handler({}, 'http://np1.local/run?msg=x')).rejects.toThrow('Unsupported');
+    await expect(handler({}, 'http://np1.local/reboot')).rejects.toThrow('Unsupported');
     await expect(handler({}, 'https://np1.local/getlistfile')).rejects.toThrow('Unsupported');
   });
 });

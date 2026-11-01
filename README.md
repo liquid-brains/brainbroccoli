@@ -53,7 +53,7 @@ browser the device must allow CORS. The editor otherwise modifies protocol files
 locally. **Save to Controller** and **Delete** (user `.vnp0`/`.vnp4`
 files only) are the only commands that change a device. They call brainlight's
 `saveFile` and `deleteFile`, and the bridge also allows the file save, delete and
-list-update commands they use; running and stopping stay blocked. Saving a batch
+list-update commands they use, plus `stop`, `filedatarun`, `run` and `activate` for the Protocol Runner. Saving a batch
 uploads its referenced user `.vnp0` stage files first.
 
 ## Validation and builds

@@ -16,11 +16,12 @@ const mimeTypes = {
 };
 
 const deviceReadPaths = new Set(['/getlistfile', '/getlistbatchfile', '/filedata', '/batchfiledata']);
-// Only the commands that save or delete user files; running and stopping stay unsupported.
+// Only the commands for saving, deleting, running and stopping protocols.
 const deviceWritePaths = new Set([
   '/deletefile', '/deletebatchModule', '/updatelistbatchfile', '/updatelistfile',
   '/filename', '/savenewfile', '/datafileExisting',
   '/batchfilename', '/savenewbatchfile', '/batchdatafileExisting', '/usedBatchFileTrue',
+  '/stop', '/filedatarun', '/run', '/activate',
 ]);
 
 ipcMain.handle('device-request', async (_event, urlText) => {
