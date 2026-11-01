@@ -44,9 +44,9 @@ type SectionName = 'frequency' | 'power' | 'cross';
 const fileGroups = [
   { extension: '.vnp0', label: 'User Protocols' },
   { extension: '.vnp4', label: 'User Batch Protocols' },
-  { extension: '.vnp1', label: 'Vielight Protocols' },
-  { extension: '.vnp3', label: 'Vielight Batch Protocols' },
-  { extension: '.vnp2', label: 'Gracefire Protocols' },
+  { extension: '.vnp1', label: 'Vielight Basic Protocols' },
+  { extension: '.vnp3', label: 'Gracefire Protocols' },
+  { extension: '.vnp2', label: 'Extended Gracefire Protocols' },
   { extension: '.json', label: 'Legacy JSON' },
 ];
 const batchStageCount = 8;
@@ -500,7 +500,7 @@ export default function App() {
                 accessibilityState={{ expanded }}
                 onPress={() => setExpandedGroups((current) => ({ ...current, [group.extension]: !expanded }))}
               >
-                <Text style={styles.groupTitle}>{expanded ? '▼' : '▶'} {group.label} ({group.extension.slice(1)})</Text>
+                <Text style={styles.groupTitle}>{expanded ? '▼' : '▶'} {group.label}</Text>
               </Pressable>
               {expanded && names.map((name) => (
                 <View key={name} style={styles.fileRow}>
