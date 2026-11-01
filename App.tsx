@@ -676,6 +676,24 @@ export default function App() {
     setRunnerData((current) => ({ ...current, runner: change(current.runner) }));
   }
 
+  // A batch cannot run on its own, so starring one adds a sequence with the same name and steps.
+  function isStarred(name: string): boolean {
+    const isBatchFile = files[name]?.filenames !== undefined;
+    return runnerData.runner.items.some((item) => item.file === name && (item.sequence !== undefined) === isBatchFile);
+  }
+
+  function toggleStar(name: string): void {
+    const batchStages = files[name]?.filenames;
+    if (batchStages === undefined) {
+      updateRunner((state) => (isStarred(name) ? removeFromRunner(state, name) : addToRunner(state, name)));
+      return;
+    }
+    updateRunner((state) => {
+      const existing = state.items.find((item) => item.sequence !== undefined && item.file === name);
+      return existing ? removeRunnerItem(state, existing.id) : addRunnerSequence(state, name, batchStages.filter((stage) => stage !== '').map((stage) => ({ file: stage })));
+    });
+  }
+
   function updateJournalEntry(id: string, change: Partial<JournalEntry>): void {
     setRunnerData((current) => ({ ...current, journal: current.journal.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)) }));
   }
@@ -702,7 +720,7 @@ export default function App() {
         return `${name} is not in the app.`;
       }
       if (value.filenames !== undefined) {
-        return `${name} is a batch. Batches cannot be run directly; add its protocols to a sequence instead.`;
+        return `${name} is a batch. Batches cannot be run directly; star the batch to create a sequence from it.`;
       }
     }
     return undefined;
@@ -1104,10 +1122,7 @@ export default function App() {
                     accessibilityRole="button"
                     onPress={() => {
                       if (appMode === 'runner') {
-                        if (files[name]?.filenames !== undefined) {
-                          return;
-                        }
-                        updateRunner((state) => (state.items.some((item) => item.sequence === undefined && item.file === name) ? removeFromRunner(state, name) : addToRunner(state, name)));
+                        toggleStar(name);
                         return;
                       }
                       const selected = files[name];
@@ -1121,11 +1136,10 @@ export default function App() {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={runnerData.runner.items.some((item) => item.sequence === undefined && item.file === name) ? `Remove ${name} from the runner` : files[name]?.filenames !== undefined ? `${name} is a batch; create a sequence to run it` : `Add ${name} to the runner`}
-                    disabled={files[name]?.filenames !== undefined}
-                    onPress={() => updateRunner((state) => (state.items.some((item) => item.sequence === undefined && item.file === name) ? removeFromRunner(state, name) : addToRunner(state, name)))}
+                    accessibilityLabel={isStarred(name) ? `Remove ${name} from the runner` : `Add ${name} to the runner`}
+                    onPress={() => toggleStar(name)}
                   >
-                    <Text style={[styles.copyText, files[name]?.filenames !== undefined && styles.fieldDisabled]}>{runnerData.runner.items.some((item) => item.sequence === undefined && item.file === name) ? '★' : '☆'}</Text>
+                    <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
                   </Pressable>
                   {appMode === 'runner' ? null : isReadOnlyFile(name) ? (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${userCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
