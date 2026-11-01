@@ -99,7 +99,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadPromptOpen, setDownloadPromptOpen] = useState(false);
   const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
-  const [appMode, setAppMode] = useState<'editor' | 'runner'>('editor');
   const [runnerData, setRunnerData] = useState<RunnerData>(emptyRunnerData);
   const [runnerLoaded, setRunnerLoaded] = useState(false);
   const dragId = useRef<string | undefined>(undefined);
@@ -156,6 +155,9 @@ export default function App() {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [session !== null]);
+
+  const appMode = settings.appMode;
+  const setAppMode = (mode: AppMode): void => updateSettings({ appMode: mode });
 
   function updateSettings(change: Partial<Settings>): void {
     const next = { ...settings, ...change };
@@ -2069,8 +2071,9 @@ const ReadOnlyContext = createContext(false);
 
 type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
 
-type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string };
-const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local' };
+type AppMode = 'editor' | 'runner';
+type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode };
+const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor' };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
 
@@ -2087,6 +2090,7 @@ async function loadSettings(): Promise<Settings> {
       useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
       showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
+      appMode: saved.appMode === 'runner' ? 'runner' : 'editor',
     };
   } catch {
     return defaultSettings;
