@@ -1,4 +1,4 @@
-import { createElement, useMemo, useState } from 'react';
+import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Modal,
@@ -6,11 +6,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
+  useColorScheme,
   useWindowDimensions,
 } from 'react-native';
+import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -65,6 +68,22 @@ export default function App() {
   const [jsonExpanded, setJsonExpanded] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const systemScheme = useColorScheme();
+  const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
+  const theme = useMemo(() => buildTheme(scheme), [scheme]);
+  const { styles } = theme;
+
+  useEffect(() => {
+    void loadSettings().then(setSettings);
+  }, []);
+
+  function updateSettings(change: Partial<Settings>): void {
+    const next = { ...settings, ...change };
+    setSettings(next);
+    void persistSettings(next);
+  }
 
   const isBatch = currentFileName.toLowerCase().endsWith('.vnp4') || protocol.filenames !== undefined;
   const stageFileName = isBatch ? protocol.filenames?.[activeBatchStage] : undefined;
@@ -412,17 +431,18 @@ export default function App() {
         <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void exportZip(); })} />
         <ActionButton menu title="📥 Save to Controller" onPress={run(saveToController)} />
         <ActionButton menu title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
+        <ActionButton menu title="⚙️ Settings" onPress={run(() => setSettingsOpen(true))} />
       </View>
     );
   }
 
   function renderBrand(): React.JSX.Element {
     if (!wideSidebar) {
-      return <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo} />;
+      return <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo as ImageStyle} />;
     }
     return (
       <View style={styles.brand}>
-        <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo} />
+        <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
         <Text style={styles.brandCaption}>Vielight Neuro Pro 2 Protocol Editor</Text>
       </View>
     );
@@ -717,6 +737,52 @@ export default function App() {
     );
   }
 
+  function renderSettingsDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={settingsOpen} onRequestClose={() => setSettingsOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Settings</Text>
+            <ScrollView>
+              <View style={styles.settingsSection}>
+                <Text style={styles.sectionTitle}>Appearance</Text>
+                <View style={styles.settingsToggleRow}>
+                  <Text style={styles.moduleName}>Use system colors</Text>
+                  <Switch
+                    accessibilityLabel="Use system colors"
+                    value={settings.useSystemColors}
+                    onValueChange={(value) => updateSettings({ useSystemColors: value })}
+                    trackColor={{ true: theme.accent }}
+                  />
+                </View>
+                <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
+              </View>
+              <View style={styles.settingsSection}>
+                <Text style={styles.sectionTitle}>Devices</Text>
+                <Text style={styles.moduleName}>IP address of Neuro Pro 2</Text>
+                <TextInput
+                  accessibilityLabel="IP address of Neuro Pro 2"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="np1.local"
+                  placeholderTextColor="#94a3b8"
+                  value={settings.deviceAddress}
+                  onChangeText={(value) => updateSettings({ deviceAddress: value.trim() })}
+                  style={styles.textInput}
+                />
+              </View>
+            </ScrollView>
+            <View style={styles.dialogButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>BACK</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderSidebarModal(): React.JSX.Element {
     return (
       <Modal transparent animationType="slide" visible={sidebarOpen} onRequestClose={() => setSidebarOpen(false)}>
@@ -729,6 +795,7 @@ export default function App() {
   }
 
   return (
+    <ThemeContext.Provider value={theme}>
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.appShell}>
@@ -820,14 +887,17 @@ export default function App() {
           </View>
           {!wideSidebar && renderSidebarModal()}
           {renderBatchDialog()}
+          {renderSettingsDialog()}
         </View>
-        <StatusBar style="auto" />
+        <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>
     </SafeAreaProvider>
+    </ThemeContext.Provider>
   );
 }
 
 function ActionButton(props: { title: string; onPress: () => void; menu?: boolean }): React.JSX.Element {
+  const { styles } = useContext(ThemeContext);
   return (
     <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : styles.actionButton}>
       <Text style={props.menu ? styles.menuItemText : styles.actionText}>{props.title}</Text>
@@ -836,6 +906,7 @@ function ActionButton(props: { title: string; onPress: () => void; menu?: boolea
 }
 
 function ToggleButton(props: { active: boolean; title: string; onPress: () => void }): React.JSX.Element {
+  const { styles } = useContext(ThemeContext);
   return (
     <Pressable accessibilityRole="switch" accessibilityState={{ checked: props.active }} onPress={props.onPress} style={[styles.toggle, props.active && styles.toggleActive]}>
       <Text style={props.active ? styles.toggleActiveText : styles.toggleText}>{props.title}</Text>
@@ -880,6 +951,7 @@ function describeModule(protocol: Protocol, module: ProtocolModule): string {
 }
 
 function SettingRow(props: { label: string; accent: boolean; children: React.ReactNode }): React.JSX.Element {
+  const { styles } = useContext(ThemeContext);
   return (
     <View style={styles.settingRow}>
       <Text style={[styles.settingLabel, props.accent && styles.settingLabelAccent]}>{props.label}</Text>
@@ -889,6 +961,7 @@ function SettingRow(props: { label: string; accent: boolean; children: React.Rea
 }
 
 function Select(props: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }): React.JSX.Element {
+  const { styles, inputBackground, inputBorder, inputText } = useContext(ThemeContext);
   if (Platform.OS === 'web') {
     return createElement(
       'select',
@@ -897,10 +970,10 @@ function Select(props: { label: string; value: string; options: { value: string;
         value: props.value,
         onChange: (event: { target: { value: string } }) => props.onChange(event.target.value),
         style: {
-          backgroundColor: '#f8fafc',
-          border: '1px solid #cbd5e1',
+          backgroundColor: inputBackground,
+          border: `1px solid ${inputBorder}`,
           borderRadius: 6,
-          color: '#1e293b',
+          color: inputText,
           fontSize: 15,
           padding: '10px 12px',
           width: '100%',
@@ -923,6 +996,7 @@ function Select(props: { label: string; value: string; options: { value: string;
 }
 
 function NumberField(props: { label: string; value: unknown; unit: string; onChange: (value: number) => void }): React.JSX.Element {
+  const { styles } = useContext(ThemeContext);
   const value = typeof props.value === 'number' && Number.isFinite(props.value) ? String(props.value) : '0';
   return (
     <View style={styles.settingRow}>
@@ -958,7 +1032,7 @@ function decodeUtf8(bytes: Uint8Array): string {
   return decodeURIComponent(encoded);
 }
 
-const styles = StyleSheet.create({
+const styleDefs = {
   safeArea: { flex: 1, backgroundColor: '#eaf2e8' },
   appShell: { flex: 1, flexDirection: 'row', backgroundColor: '#eaf2e8' },
   sidebar: { width: 300, backgroundColor: '#fff', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
@@ -1089,4 +1163,111 @@ const styles = StyleSheet.create({
   backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
   addButton: { backgroundColor: '#7bc043', borderRadius: 6, paddingHorizontal: 22, paddingVertical: 12 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-});
+  settingsHint: { color: '#64748b', fontSize: 12, lineHeight: 18, marginBottom: 6 },
+  settingsSection: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 6, paddingBottom: 14, paddingTop: 10 },
+  settingsToggleRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
+} satisfies Record<string, ViewStyle & TextStyle>;
+
+type Styles = Record<keyof typeof styleDefs, ViewStyle & TextStyle>;
+type Scheme = 'brand' | 'light' | 'dark';
+type Theme = { styles: Styles; accent: string; inputBackground: string; inputBorder: string; inputText: string };
+type ColorMap = Record<string, string>;
+
+const ACCENT_GREEN = '#7bc043';
+const ACCENT_ORANGE = '#f9a01b';
+// Phase colors, tiles, and the JSON box keep their colors in every scheme.
+const fixedStyles = new Set<string>([
+  'phaseASwatch', 'phaseBSwatch', 'phaseA', 'phaseB', 'phaseAButton', 'phaseBButton', 'moduleTile', 'moduleTitle',
+  'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
+]);
+const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
+
+const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap; text: ColorMap }> = {
+  light: {
+    accent: '#007aff',
+    fill: {
+      '#eaf2e8': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5f0ff',
+      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#dcfce7': '#d6e8ff', '#e2e8f0': '#e5e5ea',
+      '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea',
+    },
+    text: {
+      '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
+      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#166534': '#007aff',
+    },
+  },
+  dark: {
+    accent: '#0a84ff',
+    fill: {
+      '#eaf2e8': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
+      '#f0fdf4': '#0a2540', [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#dcfce7': '#0a2540',
+      '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c',
+    },
+    text: {
+      '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
+      [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#166534': '#64a8ff', '#b91c1c': '#ff6b6b',
+    },
+  },
+};
+
+function buildTheme(scheme: Scheme): Theme {
+  if (scheme === 'brand') {
+    return { styles: StyleSheet.create(styleDefs) as Styles, accent: ACCENT_GREEN, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
+  }
+  const palette = systemPalettes[scheme];
+  const mapped: Record<string, Record<string, unknown>> = {};
+  for (const [name, style] of Object.entries(styleDefs)) {
+    mapped[name] = fixedStyles.has(name)
+      ? style
+      : Object.fromEntries(Object.entries(style).map(([prop, value]) => {
+        if (typeof value !== 'string') return [prop, value];
+        if (fillProps.has(prop)) return [prop, palette.fill[value] ?? value];
+        if (prop === 'color') return [prop, palette.text[value] ?? value];
+        return [prop, value];
+      }));
+  }
+  return {
+    styles: StyleSheet.create(mapped) as unknown as Styles,
+    accent: palette.accent,
+    inputBackground: palette.fill['#f8fafc'] ?? '#f8fafc',
+    inputBorder: palette.fill['#cbd5e1'] ?? '#cbd5e1',
+    inputText: palette.text['#1e293b'] ?? '#1e293b',
+  };
+}
+
+const ThemeContext = createContext<Theme>(buildTheme('brand'));
+
+type Settings = { useSystemColors: boolean; deviceAddress: string };
+const defaultSettings: Settings = { useSystemColors: false, deviceAddress: 'np1.local' };
+const settingsKey = 'brainbroccoli.settings';
+const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
+
+async function loadSettings(): Promise<Settings> {
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      raw = window.localStorage.getItem(settingsKey);
+    } else if (settingsPath && (await FileSystem.getInfoAsync(settingsPath)).exists) {
+      raw = await FileSystem.readAsStringAsync(settingsPath);
+    }
+    const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
+    return {
+      useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
+      deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
+    };
+  } catch {
+    return defaultSettings;
+  }
+}
+
+async function persistSettings(settings: Settings): Promise<void> {
+  try {
+    const raw = JSON.stringify(settings);
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(settingsKey, raw);
+    } else if (settingsPath) {
+      await FileSystem.writeAsStringAsync(settingsPath, raw);
+    }
+  } catch {
+    // Settings are a convenience; failing to save should not interrupt editing.
+  }
+}
