@@ -272,6 +272,18 @@ export default function App() {
     loadProtocol(copyName, copy, true);
   }
 
+  function copyUserFile(name: string): void {
+    const source = files[name];
+    if (!source || isReadOnlyFile(name)) {
+      return;
+    }
+    const copyName = createUniqueImportedFileName(name, Object.keys(files));
+    const copy = { ...(JSON.parse(JSON.stringify(source)) as Protocol), filename: splitFileName(copyName).base };
+    setFiles((current) => ({ ...current, [copyName]: copy }));
+    setExpandedGroups((current) => ({ ...current, [splitFileName(copyName).extension]: true }));
+    loadProtocol(copyName, copy, true);
+  }
+
   function renameFile(text: string): void {
     if (!currentFileName || fileReadOnly) {
       return;
@@ -594,9 +606,14 @@ export default function App() {
                       <Text style={styles.copyText}>⧉</Text>
                     </Pressable>
                   ) : (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => requestDelete(name)}>
-                      <Text style={styles.deleteText}>✕</Text>
-                    </Pressable>
+                    <>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name}`} onPress={() => copyUserFile(name)}>
+                        <Text style={styles.copyText}>⧉</Text>
+                      </Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => requestDelete(name)}>
+                        <Text style={styles.deleteText}>✕</Text>
+                      </Pressable>
+                    </>
                   )}
                 </View>
               ))}
@@ -634,6 +651,7 @@ export default function App() {
         <Text style={styles.panelTitle}>Save</Text>
         <View style={styles.fileActions}>
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
+          {!fileReadOnly && <ActionButton title="⧉ Make a Copy" onPress={() => copyUserFile(currentFileName)} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={saveToController} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="🗑️ Delete from Controller" onPress={() => { void deleteFromController(); }} />}
         </View>
