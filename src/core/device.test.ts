@@ -46,6 +46,15 @@ describe('NeuroPro2 client', () => {
     expect(files.map((file) => file.name)).toEqual(['a.vnp0']);
   });
 
+  it('skips files that are already downloaded', async () => {
+    const fetch = vi.fn(async (url: URL) => {
+      const json = url.pathname === '/filedata' ? { single: true } : url.pathname === '/getlistfile' && url.searchParams.get('msg') === 'vnp0' ? ['a.vnp0', 'b.vnp0'] : [];
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }), undefined, ['A.vnp0']);
+    expect(files.map((file) => file.name)).toEqual(['b.vnp0']);
+  });
+
   it('propagates connection failures without sending device commands', async () => {
     const fetch = vi.fn().mockRejectedValue(new Error('Device offline'));
     await expect(createNeuroPro2Device('192.168.0.58', { fetch }).listFiles('vnp2'))

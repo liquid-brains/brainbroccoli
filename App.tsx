@@ -79,6 +79,7 @@ export default function App() {
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [downloadPromptOpen, setDownloadPromptOpen] = useState(false);
   const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
@@ -493,19 +494,20 @@ export default function App() {
     }
   }
 
-  async function downloadFromController(): Promise<void> {
+  async function downloadFromController(wipe: boolean): Promise<void> {
+    setDownloadPromptOpen(false);
     setError('');
     setBusy(true);
     try {
       const device = connectToController();
       setStatus(`Connecting to ${settings.deviceAddress}…`);
-      const downloaded = await downloadControllerFiles(device, setStatus);
+      const downloaded = await downloadControllerFiles(device, setStatus, wipe ? [] : Object.keys(files));
       if (downloaded.length === 0) {
-        setError('No protocol files were found on the controller.');
+        setError(wipe ? 'No protocol files were found on the controller; your files were kept.' : 'No new protocol files were found on the controller.');
         return;
       }
       const nextFiles = Object.fromEntries(downloaded.map(({ name, protocol: value }) => [name, value]));
-      setFiles((current) => ({ ...current, ...nextFiles }));
+      setFiles((current) => (wipe ? nextFiles : { ...current, ...nextFiles }));
       setExpandedGroups((current) => {
         const next = { ...current };
         downloaded.forEach(({ name }) => {
@@ -657,7 +659,7 @@ export default function App() {
       <View style={styles.menuItems}>
         <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
         <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
-        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void downloadFromController(); })} />
+        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => setDownloadPromptOpen(true))} />
         <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
         <ActionButton menu title="⚙️ Settings" onPress={run(() => setSettingsOpen(true))} />
       </View>
@@ -1035,6 +1037,30 @@ export default function App() {
     );
   }
 
+  function renderDownloadDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={downloadPromptOpen} onRequestClose={() => setDownloadPromptOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Download controller files</Text>
+            <Text style={styles.settingsHint}>Download only files that aren't in the app yet, or erase everything in the app and download all files from {settings.deviceAddress} again? Erasing removes every file in the app, including files that were never saved to the controller or disk.</Text>
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setDownloadPromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { void downloadFromController(false); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>NEW FILES ONLY</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { void downloadFromController(true); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>ERASE AND DOWNLOAD ALL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderDeleteDialog(): React.JSX.Element {
     const name = deletePrompt ?? '';
     return (
@@ -1247,6 +1273,7 @@ export default function App() {
           {renderBatchDialog()}
           {renderSettingsDialog()}
           {renderDeleteDialog()}
+          {renderDownloadDialog()}
         </View>
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>
