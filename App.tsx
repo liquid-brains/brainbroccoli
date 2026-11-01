@@ -884,7 +884,7 @@ export default function App() {
     return (
       <ScrollView contentContainerStyle={styles.workspace}>
         {!wideSidebar && <View style={styles.runnerBrand}>
-          <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
+          <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo as ImageStyle} />
           <Text style={styles.brandCaption}>Device: {settings.deviceAddress}</Text>
         </View>}
         <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
