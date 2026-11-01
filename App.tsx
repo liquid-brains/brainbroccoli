@@ -1059,13 +1059,13 @@ const styleDefs = {
   uploadButton: { alignItems: 'center', backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
   uploadTitle: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   uploadHint: { color: '#64748b', fontSize: 12, marginTop: 5, textAlign: 'center' },
-  fileScroll: { flex: 1 },
+  fileScroll: { backgroundColor: '#ffe9cc', flex: 1 },
   fileList: { gap: 8, paddingHorizontal: 12, paddingBottom: 16 },
-  fileGroup: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
-  groupTitle: { backgroundColor: '#f1f5f9', color: '#475569', fontSize: 12, fontWeight: '800', letterSpacing: 0.4, padding: 10, textTransform: 'uppercase' },
+  fileGroup: { backgroundColor: '#fff8ee', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
+  groupTitle: { backgroundColor: '#fcd9a0', color: '#475569', fontSize: 12, fontWeight: '800', letterSpacing: 0.4, padding: 10, textTransform: 'uppercase' },
   fileRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 8 },
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
-  selectedFile: { backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderWidth: 1 },
+  selectedFile: { backgroundColor: '#ffe0b0', borderColor: '#f9a01b', borderWidth: 1 },
   fileName: { color: '#334155', fontSize: 12, fontWeight: '600' },
   deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
@@ -1200,7 +1200,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
     fill: {
       '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5f0ff',
       [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#dcfce7': '#d6e8ff', '#e2e8f0': '#e5e5ea',
-      '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea',
+      '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea', '#ffe9cc': '#f2f2f7', '#fff8ee': '#ffffff', '#fcd9a0': '#e5e5ea', '#ffe0b0': '#e5f0ff',
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
@@ -1212,7 +1212,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
     fill: {
       '#2f5d1f': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
       '#f0fdf4': '#0a2540', [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#dcfce7': '#0a2540',
-      '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c', '#8dc63f': '#1c1c1e', '#6fa82c': '#3a3a3c',
+      '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c', '#8dc63f': '#1c1c1e', '#6fa82c': '#3a3a3c', '#ffe9cc': '#000000', '#fff8ee': '#1c1c1e', '#fcd9a0': '#2c2c2e', '#ffe0b0': '#0a2540',
     },
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
