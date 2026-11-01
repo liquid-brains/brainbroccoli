@@ -2392,9 +2392,24 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string;
   },
 };
 
+// Editor panes that are white in the system themes get a light green fill in the Broccoli theme.
+const brandPaneFills: Record<string, string> = {
+  panel: '#e3f4d0',
+  statusBar: '#e3f4d0',
+  readOnlyBanner: '#e3f4d0',
+  legend: '#eaf7dc',
+  summaryBox: '#eaf7dc',
+  fileGroup: '#eaf7dc',
+  uploadButton: '#eaf7dc',
+  modeButton: '#eaf7dc',
+  activeMode: '#cdeaa9',
+  durationBar: '#d8efbd',
+};
+
 function buildTheme(scheme: Scheme): Theme {
   if (scheme === 'brand') {
-    return { styles: StyleSheet.create(styleDefs) as Styles, accent: ACCENT_GREEN, phaseA: ACCENT_GREEN, phaseB: ACCENT_ORANGE, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
+    const greened = Object.fromEntries(Object.entries(brandPaneFills).map(([name, backgroundColor]) => [name, { ...styleDefs[name as keyof typeof styleDefs], backgroundColor }]));
+    return { styles: StyleSheet.create({ ...styleDefs, ...greened }) as Styles, accent: ACCENT_GREEN, phaseA: ACCENT_GREEN, phaseB: ACCENT_ORANGE, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
