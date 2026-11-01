@@ -55,7 +55,6 @@ import {
   removeRunnerFolder,
   renameRunnerFile,
   renameRunnerFolder,
-  setRunnerItemFolder,
 } from './src/core/runner';
 import type { JournalEntry, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
@@ -765,8 +764,7 @@ export default function App() {
     return length || 'Duration not set';
   }
 
-  function renderRunnerItem(item: RunnerItem, folderCount: number): React.JSX.Element {
-    const { runner } = runnerData;
+  function renderRunnerItem(item: RunnerItem): React.JSX.Element {
     const canRun = !session && files[item.file] !== undefined;
     const hint = dropHint?.id === item.id ? dropHint.after : undefined;
     const row = (
@@ -781,14 +779,6 @@ export default function App() {
             <Text style={styles.actionText}>▶ RUN</Text>
           </Pressable>
         </View>
-        {folderCount > 0 && (
-          <Select
-            label={`Folder for ${item.file}`}
-            value={item.folderId && runner.folders.some((folder) => folder.id === item.folderId) ? item.folderId : ''}
-            options={[{ value: '', label: 'No folder' }, ...runner.folders.map((folder) => ({ value: folder.id, label: folder.name || 'Untitled folder' }))]}
-            onChange={(value) => updateRunner((state) => setRunnerItemFolder(state, item.id, value === '' ? undefined : value))}
-          />
-        )}
       </View>
     );
     if (Platform.OS !== 'web') {
@@ -895,13 +885,13 @@ export default function App() {
                       style={[styles.textInput, styles.runnerInput]}
                     />
                   </View>
-                  {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item, runner.folders.length))}
-                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here or pick this folder on it.</Text>}
+                  {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
+                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here.</Text>}
                 </View>
                 </DropZone>
               ))}
               <DropZone props={folderDropProps(undefined)}>
-                {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item, runner.folders.length))}
+                {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item))}
               </DropZone>
             </View>
           </View>
