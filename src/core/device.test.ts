@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNeuroPro2Device } from './device';
+import { createNeuroPro2Device, downloadControllerFiles } from './device';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -28,10 +28,23 @@ describe('NeuroPro2 client', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it.each(['', 'device.local', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path'])(
+  it.each(['', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path', 'np1.local/x', '-bad.local'])(
     'rejects invalid addresses: %s',
     (ip) => expect(() => createNeuroPro2Device(ip)).toThrow('IPv4 address'),
   );
+
+  it('accepts host names', () => {
+    expect(() => createNeuroPro2Device('np1.local')).not.toThrow();
+  });
+
+  it('downloads every protocol file from the controller', async () => {
+    const fetch = vi.fn(async (url: URL) => {
+      const json = url.pathname === '/filedata' ? { single: true } : url.pathname === '/getlistfile' && url.searchParams.get('msg') === 'vnp0' ? ['a.vnp0'] : [];
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }));
+    expect(files.map((file) => file.name)).toEqual(['a.vnp0']);
+  });
 
   it('propagates connection failures without sending device commands', async () => {
     const fetch = vi.fn().mockRejectedValue(new Error('Device offline'));

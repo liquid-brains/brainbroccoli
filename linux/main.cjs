@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { createServer } = require('node:http');
 const { readFile } = require('node:fs/promises');
 const path = require('node:path');
@@ -14,6 +14,17 @@ const mimeTypes = {
   '.ico': 'image/x-icon',
   '.ttf': 'font/ttf',
 };
+
+const deviceReadPaths = new Set(['/getlistfile', '/getlistbatchfile', '/filedata', '/batchfiledata']);
+
+ipcMain.handle('device-request', async (_event, urlText) => {
+  const url = new URL(urlText);
+  if (url.protocol !== 'http:' || !deviceReadPaths.has(url.pathname)) {
+    throw new Error('Unsupported controller request.');
+  }
+  const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  return { ok: response.ok, status: response.status, body: await response.text() };
+});
 
 let server;
 let origin;
@@ -57,6 +68,7 @@ function openWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, 'preload.cjs'),
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

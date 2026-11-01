@@ -34,6 +34,7 @@ import {
   protocolModules,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
+import { createNeuroPro2Device, downloadControllerFiles } from './src/core/device';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
 
@@ -378,7 +379,46 @@ export default function App() {
   }
 
   function saveToController(): void {
-    setError('Saving to a controller is not available yet; use Save to Disk or Download Controller Files.');
+    setError('Saving to a controller is not available yet; use Save to Disk or Export All as ZIP.');
+  }
+
+  async function downloadFromController(): Promise<void> {
+    setError('');
+    setBusy(true);
+    try {
+      const bridge = (globalThis as { brainBroccoliDevice?: { request: (url: string) => Promise<{ ok: boolean; status: number; body: string }> } }).brainBroccoliDevice;
+      const device = createNeuroPro2Device(settings.deviceAddress, bridge ? {
+        fetch: async (url: URL) => {
+          const { ok, status, body } = await bridge.request(String(url));
+          return { ok, status, text: async () => body, json: async () => JSON.parse(body) as unknown };
+        },
+      } : {});
+      const downloaded = await downloadControllerFiles(device);
+      if (downloaded.length === 0) {
+        setError('No protocol files were found on the controller.');
+        return;
+      }
+      const nextFiles = Object.fromEntries(downloaded.map(({ name, protocol: value }) => [name, value]));
+      setFiles((current) => ({ ...current, ...nextFiles }));
+      setExpandedGroups((current) => {
+        const next = { ...current };
+        downloaded.forEach(({ name }) => {
+          const group = fileGroups.find(({ extension }) => name.toLowerCase().endsWith(extension));
+          if (group) {
+            next[group.extension] = true;
+          }
+        });
+        return next;
+      });
+      const first = downloaded[0];
+      if (first) {
+        loadProtocol(first.name, first.protocol, true);
+      }
+    } catch (reason) {
+      setError(`Unable to download files from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function exportZip(): Promise<void> {
@@ -491,7 +531,8 @@ export default function App() {
       <View style={styles.menuItems}>
         <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
         <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
-        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void exportZip(); })} />
+        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void downloadFromController(); })} />
+        <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
         <ActionButton menu title="📥 Save to Controller" onPress={run(saveToController)} />
         <ActionButton menu title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
         <ActionButton menu title="⚙️ Settings" onPress={run(() => setSettingsOpen(true))} />
