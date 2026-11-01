@@ -57,6 +57,30 @@ export function moveRunnerItem(state: RunnerState, id: string, direction: -1 | 1
   return { ...state, items };
 }
 
+// Drops an item before or after a target item, joining the target's folder.
+export function moveRunnerItemTo(state: RunnerState, id: string, targetId: string, after: boolean): RunnerState {
+  const item = state.items.find((candidate) => candidate.id === id);
+  const target = state.items.find((candidate) => candidate.id === targetId);
+  if (!item || !target || id === targetId) {
+    return state;
+  }
+  const moved: RunnerItem = { id: item.id, file: item.file, ...(target.folderId === undefined ? {} : { folderId: target.folderId }) };
+  const items = state.items.filter((candidate) => candidate.id !== id);
+  const index = items.findIndex((candidate) => candidate.id === targetId);
+  items.splice(after ? index + 1 : index, 0, moved);
+  return { ...state, items };
+}
+
+// Drops an item at the end of a folder, or of the unfiled list when folderId is undefined.
+export function moveRunnerItemToFolderEnd(state: RunnerState, id: string, folderId: string | undefined): RunnerState {
+  const item = state.items.find((candidate) => candidate.id === id);
+  if (!item || (folderId !== undefined && !state.folders.some((folder) => folder.id === folderId))) {
+    return state;
+  }
+  const moved: RunnerItem = { id: item.id, file: item.file, ...(folderId === undefined ? {} : { folderId }) };
+  return { ...state, items: [...state.items.filter((candidate) => candidate.id !== id), moved] };
+}
+
 export function setRunnerItemFolder(state: RunnerState, id: string, folderId: string | undefined): RunnerState {
   const known = folderId === undefined || state.folders.some((folder) => folder.id === folderId);
   if (!known) {

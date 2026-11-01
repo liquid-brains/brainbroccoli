@@ -1,4 +1,5 @@
-import { createContext, createElement, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, createElement, Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -45,7 +46,8 @@ import {
   createId,
   emptyRunnerData,
   formatClock,
-  moveRunnerItem,
+  moveRunnerItemTo,
+  moveRunnerItemToFolderEnd,
   parseRunnerData,
   removeFromRunner,
   removeRunnerFolder,
@@ -99,6 +101,8 @@ export default function App() {
   const [appMode, setAppMode] = useState<'editor' | 'runner'>('editor');
   const [runnerData, setRunnerData] = useState<RunnerData>(emptyRunnerData);
   const [runnerLoaded, setRunnerLoaded] = useState(false);
+  const dragId = useRef<string | undefined>(undefined);
+  const [dropHint, setDropHint] = useState<{ id: string; after: boolean } | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [session, setSession] = useState<RunSession | null>(null);
@@ -753,19 +757,14 @@ export default function App() {
   function renderRunnerItem(item: RunnerItem, folderCount: number): React.JSX.Element {
     const { runner } = runnerData;
     const canRun = !session && files[item.file] !== undefined;
-    return (
-      <View key={item.id} style={styles.runnerRow}>
-        <Text style={styles.runnerTitle}>{item.file}</Text>
+    const hint = dropHint?.id === item.id ? dropHint.after : undefined;
+    const row = (
+      <View style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter]}>
+        <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{item.file}</Text>
         <Text style={styles.runnerMeta}>{describeRunnerItem(item.file)}</Text>
         <View style={styles.runnerButtons}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item.file); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
             <Text style={styles.actionText}>▶ RUN</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.file} up`} onPress={() => updateRunner((state) => moveRunnerItem(state, item.id, -1))} style={styles.thumbButton}>
-            <Text style={styles.runnerButtonText}>▲</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.file} down`} onPress={() => updateRunner((state) => moveRunnerItem(state, item.id, 1))} style={styles.thumbButton}>
-            <Text style={styles.runnerButtonText}>▼</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeFromRunner(state, item.file))} style={styles.thumbButton}>
             <Text style={styles.deleteText}>✕ REMOVE</Text>
@@ -781,6 +780,63 @@ export default function App() {
         )}
       </View>
     );
+    if (Platform.OS !== 'web') {
+      return <Fragment key={item.id}>{row}</Fragment>;
+    }
+    return createElement(
+      'div',
+      {
+        key: item.id,
+        draggable: true,
+        style: { cursor: 'grab' },
+        onDragStart: (event: DragEvent) => {
+          event.stopPropagation();
+          event.dataTransfer?.setData('text/plain', item.id);
+          dragId.current = item.id;
+        },
+        onDragEnd: () => { dragId.current = undefined; setDropHint(undefined); },
+        onDragOver: (event: DragEvent) => {
+          if (dragId.current === undefined) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+          const after = event.clientY > box.top + box.height / 2;
+          setDropHint((current) => (current?.id === item.id && current.after === after ? current : { id: item.id, after }));
+        },
+        onDrop: (event: DragEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const moving = dragId.current;
+          const after = dropHint?.id === item.id ? dropHint.after : false;
+          dragId.current = undefined;
+          setDropHint(undefined);
+          if (moving) {
+            updateRunner((state) => moveRunnerItemTo(state, moving, item.id, after));
+          }
+        },
+      },
+      row,
+    );
+  }
+
+  function folderDropProps(folderId: string | undefined): Record<string, unknown> {
+    if (Platform.OS !== 'web') {
+      return {};
+    }
+    return {
+      onDragOver: (event: DragEvent) => { if (dragId.current !== undefined) { event.preventDefault(); } },
+      onDrop: (event: DragEvent) => {
+        event.preventDefault();
+        const moving = dragId.current;
+        dragId.current = undefined;
+        setDropHint(undefined);
+        if (moving) {
+          updateRunner((state) => moveRunnerItemToFolderEnd(state, moving, folderId));
+        }
+      },
+    };
   }
 
   function renderRunner(): React.JSX.Element {
@@ -815,7 +871,8 @@ export default function App() {
                 <Text style={styles.emptyList}>No protocols yet. Switch to the Protocol Editor and press ☆ next to a file in the file list to add it here.</Text>
               )}
               {runner.folders.map((folder) => (
-                <View key={folder.id} style={styles.runnerFolder}>
+                <DropZone key={folder.id} props={folderDropProps(folder.id)}>
+                <View style={styles.runnerFolder}>
                   <View style={styles.runnerButtons}>
                     <TextInput
                       accessibilityLabel="Folder name"
@@ -828,10 +885,13 @@ export default function App() {
                     </Pressable>
                   </View>
                   {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item, runner.folders.length))}
-                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Pick this folder on a protocol below.</Text>}
+                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here or pick this folder on it.</Text>}
                 </View>
+                </DropZone>
               ))}
-              {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item, runner.folders.length))}
+              <DropZone props={folderDropProps(undefined)}>
+                {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item, runner.folders.length))}
+              </DropZone>
             </View>
           </View>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
@@ -1646,7 +1706,7 @@ function describeModule(protocol: Protocol, module: ProtocolModule): string {
   return `${freq}hz · ${level}%\n${String(Math.round(moduleRunTime(protocol, module) * 10) / 10)}m`;
 }
 
-function SettingRow(props: { label: string; accent: boolean; children: React.ReactNode }): React.JSX.Element {
+function SettingRow(props: { label: string; accent: boolean; children: ReactNode }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
   return (
     <View style={styles.settingRow}>
@@ -1785,6 +1845,8 @@ const styleDefs = {
   modeToggleButtonActive: { backgroundColor: '#f9a01b' },
   runnerBrand: { alignItems: 'center', gap: 4, marginBottom: 14 },
   runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
+  dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
+  dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
   runnerFolder: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700' },
   runnerMeta: { color: '#64748b', fontSize: 12, lineHeight: 18 },
@@ -2060,6 +2122,10 @@ async function persistSettings(settings: Settings): Promise<void> {
 
 const runnerKey = 'brainbroccoli.runner';
 const runnerPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}runner.json` : '';
+
+function DropZone({ props, children }: { props: Record<string, unknown>; children: ReactNode }): React.JSX.Element {
+  return Platform.OS === 'web' ? createElement('div', { ...props, style: { display: 'flex', flexDirection: 'column', gap: 8, minHeight: 16 } }, children) : <Fragment>{children}</Fragment>;
+}
 
 async function loadStoredRunner(): Promise<RunnerData> {
   try {

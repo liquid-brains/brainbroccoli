@@ -4,6 +4,8 @@ import {
   addToRunner,
   formatClock,
   moveRunnerItem,
+  moveRunnerItemTo,
+  moveRunnerItemToFolderEnd,
   parseRunnerData,
   removeFromRunner,
   removeRunnerFolder,
@@ -57,5 +59,26 @@ describe('runner state', () => {
   it('formats a clock', () => {
     expect(formatClock(75)).toBe('1:15');
     expect(formatClock(-3)).toBe('0:00');
+  });
+});
+
+describe('runner drag and drop', () => {
+  const base: RunnerState = {
+    folders: [{ id: 'f', name: 'F' }],
+    items: [{ id: '1', file: 'a' }, { id: '2', file: 'b' }, { id: '3', file: 'c', folderId: 'f' }],
+  };
+
+  it('drops before or after a target and adopts its folder', () => {
+    expect(files(moveRunnerItemTo(base, '1', '2', true))).toEqual(['b', 'a', 'c']);
+    const into = moveRunnerItemTo(base, '1', '3', false);
+    expect(files(into)).toEqual(['b', 'a', 'c']);
+    expect(into.items[1]?.folderId).toBe('f');
+  });
+
+  it('drops at the end of a folder or the unfiled list', () => {
+    const inFolder = moveRunnerItemToFolderEnd(base, '1', 'f');
+    expect(files(inFolder)).toEqual(['b', 'c', 'a']);
+    expect(inFolder.items[2]?.folderId).toBe('f');
+    expect(moveRunnerItemToFolderEnd(base, '3', undefined).items[2]?.folderId).toBeUndefined();
   });
 });
