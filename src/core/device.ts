@@ -37,13 +37,23 @@ export async function downloadControllerFiles(
 }
 
 // Uploads user protocol files; a batch is uploaded after the stage files it uses.
+// The controller rejects an update of a missing file, so updateExisting follows what it already has.
 export async function saveControllerFiles(
   device: VielightDevice,
   files: ProtocolFile[],
   onProgress: (message: string) => void = () => undefined,
 ): Promise<void> {
+  const existing = new Set<string>();
+  for (const extension of ['vnp0', 'vnp4'] as const) {
+    if (files.some(({ name }) => name.toLowerCase().endsWith(`.${extension}`))) {
+      const listed = await device.listFiles(extension === 'vnp4' ? 'vnp3' : extension);
+      listed.forEach((name) => existing.add(name.toLowerCase()));
+    }
+  }
   for (const [index, { name, protocol }] of files.entries()) {
     onProgress(`Saving ${name} to the controller (${index + 1} of ${files.length})…`);
-    await device.saveFile(name, JSON.parse(JSON.stringify(protocol)) as unknown, true);
+    const exists = existing.has(name.toLowerCase());
+    const data = { ...(JSON.parse(JSON.stringify(protocol)) as Record<string, unknown>), updateExisting: exists };
+    await device.saveFile(name, data, exists);
   }
 }

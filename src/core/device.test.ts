@@ -55,13 +55,27 @@ describe('NeuroPro2 client', () => {
 });
 
 describe('saveControllerFiles', () => {
-  it('saves each file in order without mutating the editor copy', async () => {
+  it('sets updateExisting from what the controller already has, without mutating the editor copy', async () => {
     const saveFile = vi.fn().mockResolvedValue(true);
-    const protocol = { filename: 'a' };
+    const listFiles = vi.fn(async (type: string) => (type === 'vnp0' ? ['Old.vnp0'] : []));
+    const protocol = { filename: 'a', updateExisting: true };
     const messages: string[] = [];
-    await saveControllerFiles({ saveFile } as never, [{ name: 'a.vnp0', protocol: protocol as never }, { name: 'b.vnp4', protocol: { filename: 'b' } as never }], (m) => messages.push(m));
-    expect(saveFile.mock.calls.map((call) => call[0])).toEqual(['a.vnp0', 'b.vnp4']);
-    expect(saveFile.mock.calls[0]?.[1]).not.toBe(protocol);
-    expect(messages).toHaveLength(2);
+    await saveControllerFiles(
+      { saveFile, listFiles } as never,
+      [
+        { name: 'old.vnp0', protocol: protocol as never },
+        { name: 'new.vnp0', protocol: { filename: 'new', updateExisting: true } as never },
+        { name: 'b.vnp4', protocol: { filename: 'b' } as never },
+      ],
+      (m) => messages.push(m),
+    );
+    expect(saveFile.mock.calls.map((call) => [call[0], call[1].updateExisting, call[2]])).toEqual([
+      ['old.vnp0', true, true],
+      ['new.vnp0', false, false],
+      ['b.vnp4', false, false],
+    ]);
+    expect(protocol.updateExisting).toBe(true);
+    expect(listFiles.mock.calls.map((call) => call[0])).toEqual(['vnp0', 'vnp3']);
+    expect(messages).toHaveLength(3);
   });
 });
