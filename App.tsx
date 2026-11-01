@@ -1052,10 +1052,10 @@ const styleDefs = {
   menuItems: { backgroundColor: '#2f5d1f' },
   menuItem: { backgroundColor: '#8dc63f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
   menuItemText: { color: '#fefefe', fontSize: 15, fontWeight: '700' },
-  brand: { alignItems: 'center', backgroundColor: '#f8fafc', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, padding: 14 },
+  brand: { alignItems: 'center', backgroundColor: '#2f5d1f', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, padding: 14 },
   mobileLogo: { height: 199, marginBottom: 8, width: 199 },
   logo: { width: 128, height: 128 },
-  brandCaption: { color: '#64748b', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  brandCaption: { color: '#e9f3df', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   uploadButton: { alignItems: 'center', backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
   uploadTitle: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   uploadHint: { color: '#64748b', fontSize: 12, marginTop: 5, textAlign: 'center' },
@@ -1070,10 +1070,10 @@ const styleDefs = {
   deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
-  toolbar: { backgroundColor: '#fff', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 8, paddingHorizontal: 18, paddingVertical: 10 },
+  toolbar: { backgroundColor: '#2f5d1f', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 8, paddingHorizontal: 18, paddingVertical: 10 },
   toolbarHeading: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   headingText: { flex: 1, minWidth: 0 },
-  currentFile: { color: '#334155', flex: 1, fontSize: 18, fontWeight: '600' },
+  currentFile: { color: '#fdfdfd', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
@@ -1204,7 +1204,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#166534': '#007aff', '#fefefe': '#1c1c1e',
+      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#166534': '#007aff', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
     },
   },
   dark: {
@@ -1216,7 +1216,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
     },
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#166534': '#64a8ff', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7',
+      [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#166534': '#64a8ff', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
     },
   },
 };
