@@ -756,6 +756,16 @@ export default function App() {
                   />
                 </View>
                 <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
+                <View style={styles.settingsToggleRow}>
+                  <Text style={styles.moduleName}>Hide JSON code</Text>
+                  <Switch
+                    accessibilityLabel="Hide JSON code"
+                    value={settings.hideJson}
+                    onValueChange={(value) => updateSettings({ hideJson: value })}
+                    trackColor={{ true: theme.accent }}
+                  />
+                </View>
+                <Text style={styles.settingsHint}>Hide the View Raw JSON Code section below the editor.</Text>
               </View>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Devices</Text>
@@ -867,20 +877,22 @@ export default function App() {
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
                   {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {renderSummary()}
-                  <View style={styles.panel}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: jsonExpanded }}
-                      onPress={() => setJsonExpanded((expanded) => !expanded)}
-                    >
-                      <Text style={styles.collapseTitle}>{jsonExpanded ? '▼' : '▶'} View Raw JSON Code</Text>
-                    </Pressable>
-                    {jsonExpanded && (
-                      <ScrollView style={styles.jsonBox} nestedScrollEnabled>
-                        <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
-                      </ScrollView>
-                    )}
-                  </View>
+                  {!settings.hideJson && (
+                    <View style={styles.panel}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: jsonExpanded }}
+                        onPress={() => setJsonExpanded((expanded) => !expanded)}
+                      >
+                        <Text style={styles.collapseTitle}>{jsonExpanded ? '▼' : '▶'} View Raw JSON Code</Text>
+                      </Pressable>
+                      {jsonExpanded && (
+                        <ScrollView style={styles.jsonBox} nestedScrollEnabled>
+                          <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
+                        </ScrollView>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
             </ScrollView>
@@ -1236,8 +1248,8 @@ function buildTheme(scheme: Scheme): Theme {
 
 const ThemeContext = createContext<Theme>(buildTheme('brand'));
 
-type Settings = { useSystemColors: boolean; deviceAddress: string };
-const defaultSettings: Settings = { useSystemColors: false, deviceAddress: 'np1.local' };
+type Settings = { useSystemColors: boolean; hideJson: boolean; deviceAddress: string };
+const defaultSettings: Settings = { useSystemColors: false, hideJson: true, deviceAddress: 'np1.local' };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
 
@@ -1252,6 +1264,7 @@ async function loadSettings(): Promise<Settings> {
     const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
     return {
       useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
+      hideJson: typeof saved.hideJson === 'boolean' ? saved.hideJson : defaultSettings.hideJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
     };
   } catch {
