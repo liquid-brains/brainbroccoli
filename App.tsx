@@ -641,11 +641,11 @@ export default function App() {
           <Text style={styles.collapseTitle}>{summaryExpanded ? '▼' : '▶'} View Protocol Summary Table</Text>
         </Pressable>
         {summaryExpanded && (
-          <ScrollView horizontal style={styles.summaryBox}>
+          <View style={styles.summaryBox}>
             <View>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryCell, styles.summaryHeading]} />
-                {['PWR\n%', 'FREQ\nHZ', 'CROSS\nFREQ', 'PHASE', 'TIME\nDELAY/ACTIVE'].map((title) => (
+                {['PWR\n%', 'FREQ\nHZ', 'CROSS\nFREQ', 'PHASE', 'DELAY/\nACTIVE'].map((title) => (
                   <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
                 ))}
               </View>
@@ -665,7 +665,7 @@ export default function App() {
                 );
               })}
             </View>
-          </ScrollView>
+          </View>
         )}
       </View>
     );
@@ -1055,9 +1055,9 @@ const styles = StyleSheet.create({
   stageFile: { borderColor: '#cbd5e1', borderRadius: 4, borderWidth: 1, maxWidth: 150, padding: 6 },
   stageClear: { justifyContent: 'center' },
   summaryRow: { flexDirection: 'row' },
-  summaryCell: { borderBottomColor: '#e2e8f0', borderBottomWidth: 1, color: '#334155', fontSize: 13, minWidth: 90, paddingHorizontal: 7, paddingVertical: 10, textAlign: 'center' },
+  summaryCell: { borderBottomColor: '#e2e8f0', borderBottomWidth: 1, color: '#334155', flex: 1, fontSize: 13, minWidth: 0, paddingHorizontal: 2, paddingVertical: 9, textAlign: 'center' },
   summaryModule: { color: '#f9a01b', fontWeight: '800' },
-  summaryBox: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, padding: 12 },
+  summaryBox: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 8 },
   summaryHeading: { color: '#7bc043', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   jsonBox: { backgroundColor: '#0f172a', borderRadius: 7, maxHeight: 320, padding: 12 },
   jsonText: { color: '#e2e8f0', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined, fontSize: 11 },
