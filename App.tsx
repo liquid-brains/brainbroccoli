@@ -771,14 +771,14 @@ export default function App() {
     const hint = dropHint?.id === item.id ? dropHint.after : undefined;
     const row = (
       <View style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeFromRunner(state, item.file))} style={styles.cardClose}>
+          <Text style={styles.cardCloseText}>✕</Text>
+        </Pressable>
         <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{item.file}</Text>
         <Text style={styles.runnerMeta}>{describeRunnerItem(item.file)}</Text>
         <View style={styles.runnerButtons}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item.file); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
             <Text style={styles.actionText}>▶ RUN</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeFromRunner(state, item.file))} style={styles.thumbButton}>
-            <Text style={styles.deleteText}>✕ REMOVE</Text>
           </Pressable>
         </View>
         {folderCount > 0 && (
@@ -911,6 +911,9 @@ export default function App() {
               {journal.length === 0 && <Text style={styles.emptyList}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
               {shownJournal.map((entry) => (
                 <View key={entry.id} style={styles.runnerRow}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.cardClose}>
+                    <Text style={styles.cardCloseText}>✕</Text>
+                  </Pressable>
                   <Text style={styles.runnerTitle}>{entry.file}</Text>
                   <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()} · {entry.status}</Text>
                   {entry.summary ? <Text style={styles.runnerMeta}>{entry.summary}</Text> : null}
@@ -920,9 +923,6 @@ export default function App() {
                     </Pressable>
                     <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down) })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
                       <Text style={styles.runnerButtonText}>👎{(entry.down ?? 0) > 0 ? ` ${'👎'.repeat((entry.down ?? 0) - 1)}` : ''}</Text>
-                    </Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.thumbButton}>
-                      <Text style={styles.deleteText}>✕ DELETE</Text>
                     </Pressable>
                   </View>
                   <TextInput
@@ -1869,7 +1869,9 @@ const styleDefs = {
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
   runnerPanel: { backgroundColor: '#e3f4d3', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
   runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
-  runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700' },
+  runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700', paddingRight: 28 },
+  cardClose: { alignItems: 'center', height: 24, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 24, zIndex: 1 },
+  cardCloseText: { color: '#dc2626', fontSize: 14, fontWeight: '700' },
   runnerMeta: { color: '#64748b', fontSize: 12, lineHeight: 18 },
   runnerButtons: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   runnerButtonText: { color: '#334155', fontSize: 13, fontWeight: '700' },
