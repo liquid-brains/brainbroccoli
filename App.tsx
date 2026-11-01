@@ -104,6 +104,7 @@ export default function App() {
   const dragId = useRef<string | undefined>(undefined);
   const [dropHint, setDropHint] = useState<{ id: string; after: boolean } | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
+  const [folderPromptOpen, setFolderPromptOpen] = useState(false);
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
@@ -859,16 +860,7 @@ export default function App() {
             <View style={styles.runnerPanel}>
               <Text style={styles.panelTitle}>Protocols</Text>
               <View style={styles.runnerButtons}>
-                <TextInput
-                  accessibilityLabel="New folder name"
-                  placeholder="New folder name"
-                  placeholderTextColor="#94a3b8"
-                  value={newFolderName}
-                  onChangeText={setNewFolderName}
-                  onSubmitEditing={() => { updateRunner((state) => addRunnerFolder(state, newFolderName)); setNewFolderName(''); }}
-                  style={[styles.textInput, styles.runnerInput]}
-                />
-                <ActionButton title="NEW FOLDER" onPress={() => { updateRunner((state) => addRunnerFolder(state, newFolderName)); setNewFolderName(''); }} />
+                <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
               </View>
               {runner.items.length === 0 && (
                 <Text style={styles.emptyList}>No protocols yet. Switch to the Protocol Editor and press ☆ next to a file in the file list to add it here.</Text>
@@ -1401,6 +1393,45 @@ export default function App() {
     );
   }
 
+  function createFolder(): void {
+    if (newFolderName.trim() === '') {
+      return;
+    }
+    updateRunner((state) => addRunnerFolder(state, newFolderName));
+    setFolderPromptOpen(false);
+    setNewFolderName('');
+  }
+
+  function renderFolderDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={folderPromptOpen} onRequestClose={() => setFolderPromptOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>New folder</Text>
+            <TextInput
+              accessibilityLabel="Folder name"
+              autoFocus
+              placeholder="Folder name"
+              placeholderTextColor="#94a3b8"
+              value={newFolderName}
+              onChangeText={setNewFolderName}
+              onSubmitEditing={createFolder}
+              style={styles.textInput}
+            />
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setFolderPromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={newFolderName.trim() === ''} onPress={createFolder} style={[styles.backButton, newFolderName.trim() === '' && styles.fieldDisabled]}>
+                <Text style={styles.backButtonText}>CREATE</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderDownloadDialog(): React.JSX.Element {
     return (
       <Modal transparent animationType="fade" visible={downloadPromptOpen} onRequestClose={() => setDownloadPromptOpen(false)}>
@@ -1653,6 +1684,7 @@ export default function App() {
           {renderSettingsDialog()}
           {renderDeleteDialog()}
           {renderDownloadDialog()}
+          {renderFolderDialog()}
         </View>
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>
