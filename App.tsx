@@ -109,8 +109,6 @@ export default function App() {
   const fileReadOnly = isReadOnlyFile(currentFileName);
   const readOnly = fileReadOnly || (isBatch && stageFileName !== undefined && isReadOnlyFile(stageFileName));
 
-  const dimEditor = readOnly && !(isBatch && mode === 'global');
-
   function updateDisplayedProtocol(update: (value: Protocol) => Protocol): void {
     if (readOnly) {
       return;
@@ -667,7 +665,7 @@ export default function App() {
             onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
             onEndEditing={() => renameFile(filenameDraft)}
             editable={!fileReadOnly}
-            style={[styles.textInput, styles.wideInput]}
+            style={[styles.textInput, styles.wideInput, fileReadOnly && styles.fieldDisabled]}
           />
         </SettingRow>
         {Array.from({ length: batchStageCount }, (_, index) => {
@@ -707,7 +705,8 @@ export default function App() {
                 value={filenameDraft}
                 onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
                 onEndEditing={() => renameFile(filenameDraft)}
-                style={[styles.textInput, styles.filenameInput]}
+                editable={!fileReadOnly}
+                style={[styles.textInput, styles.filenameInput, fileReadOnly && styles.fieldDisabled]}
               />
               <Text style={styles.unit}>{splitFileName(currentFileName).extension}</Text>
             </View>
@@ -719,7 +718,8 @@ export default function App() {
             value={displayedProtocol.notes ?? ''}
             onChangeText={(notes) => updateDisplayedProtocol((current) => ({ ...current, notes }))}
             placeholder="Add protocol notes"
-            style={[styles.textInput, styles.wideInput]}
+            editable={!readOnly}
+            style={[styles.textInput, styles.wideInput, readOnly && styles.fieldDisabled]}
           />
         </SettingRow>
         {renderGlobalFields('frequency')}
@@ -788,8 +788,9 @@ export default function App() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Phase ${modulePhase}`}
+            disabled={readOnly}
             onPress={() => setControl('phase', modulePhase === 'A' ? 1 : 0)}
-            style={[styles.phaseToggle, modulePhase === 'A' ? styles.phaseAButton : styles.phaseBButton]}
+            style={[styles.phaseToggle, modulePhase === 'A' ? styles.phaseAButton : styles.phaseBButton, readOnly && styles.fieldDisabled]}
           >
             <Text style={styles.phaseToggleText}>{modulePhase}</Text>
           </Pressable>
@@ -966,6 +967,7 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={theme}>
+    <ReadOnlyContext.Provider value={readOnly}>
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.appShell}>
@@ -1055,10 +1057,8 @@ export default function App() {
                   </Pressable>
                 </View>
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
-                  <View pointerEvents={dimEditor ? 'none' : 'auto'} style={dimEditor ? styles.readOnlyEditor : undefined}>
-                    {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
-                  </View>
                   {mode === 'global' && renderFileActions()}
+                  {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {renderSummary()}
                   {settings.showJson && (
                     <View style={styles.panel}>
@@ -1087,6 +1087,7 @@ export default function App() {
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>
     </SafeAreaProvider>
+    </ReadOnlyContext.Provider>
     </ThemeContext.Provider>
   );
 }
@@ -1102,8 +1103,9 @@ function ActionButton(props: { title: string; onPress: () => void; menu?: boolea
 
 function ToggleButton(props: { active: boolean; title: string; onPress: () => void }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
+  const readOnly = useContext(ReadOnlyContext);
   return (
-    <Pressable accessibilityRole="switch" accessibilityState={{ checked: props.active }} onPress={props.onPress} style={[styles.toggle, props.active && styles.toggleActive]}>
+    <Pressable accessibilityRole="switch" accessibilityState={{ checked: props.active, disabled: readOnly }} disabled={readOnly} onPress={props.onPress} style={[styles.toggle, props.active && styles.toggleActive, readOnly && styles.fieldDisabled]}>
       <Text style={props.active ? styles.toggleActiveText : styles.toggleText}>{props.title}</Text>
     </Pressable>
   );
@@ -1171,6 +1173,7 @@ function Select(props: { label: string; value: string; disabled?: boolean; optio
           borderRadius: 6,
           color: inputText,
           fontSize: 15,
+          opacity: props.disabled ? 0.5 : 1,
           padding: '10px 12px',
           width: '100%',
         },
@@ -1185,7 +1188,7 @@ function Select(props: { label: string; value: string; disabled?: boolean; optio
       accessibilityLabel={props.label}
       disabled={props.disabled}
       onPress={() => props.onChange(props.options[(index + 1) % props.options.length]?.value ?? '')}
-      style={styles.selectButton}
+      style={[styles.selectButton, props.disabled && styles.fieldDisabled]}
     >
       <Text style={styles.selectText}>{props.options[index]?.label}</Text>
     </Pressable>
@@ -1194,6 +1197,7 @@ function Select(props: { label: string; value: string; disabled?: boolean; optio
 
 function NumberField(props: { label: string; value: unknown; unit: string; onChange: (value: number) => void }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
+  const readOnly = useContext(ReadOnlyContext);
   const value = typeof props.value === 'number' && Number.isFinite(props.value) ? String(props.value) : '0';
   return (
     <View style={styles.settingRow}>
@@ -1202,12 +1206,13 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
         <TextInput
           accessibilityLabel={props.label}
           keyboardType="decimal-pad"
+          editable={!readOnly}
           value={value}
           onChangeText={(text) => {
             const parsed = Number(text);
             props.onChange(text === '' || !Number.isFinite(parsed) ? 0 : parsed);
           }}
-          style={styles.numberInput}
+          style={[styles.numberInput, readOnly && styles.fieldDisabled]}
         />
         <Text style={styles.unit}>{props.unit}</Text>
       </View>
@@ -1215,7 +1220,6 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
   );
 }
 
-// Dots and path separators in a file name crash the controller.
 function isReadOnlyFile(name: string): boolean {
   return /\.vnp[123]$/i.test(name);
 }
@@ -1227,6 +1231,7 @@ function editableCopyExtension(name: string): '.vnp0' | '.vnp4' | undefined {
   return /\.vnp3$/i.test(name) ? '.vnp4' : undefined;
 }
 
+// Dots and path separators in a file name crash the controller.
 function stripFileNameChars(text: string): string {
   return text.replace(/[./\\]/g, '');
 }
@@ -1277,7 +1282,7 @@ const styleDefs = {
   readOnlyBanner: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
   readOnlyText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', minWidth: 180 },
   readOnlyButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8 },
-  readOnlyEditor: { opacity: 0.6 },
+  fieldDisabled: { opacity: 0.5 },
   deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
@@ -1470,6 +1475,7 @@ function buildTheme(scheme: Scheme): Theme {
 }
 
 const ThemeContext = createContext<Theme>(buildTheme('brand'));
+const ReadOnlyContext = createContext(false);
 
 type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string };
 const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local' };
