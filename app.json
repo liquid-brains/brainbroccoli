@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Brain Broccoli",
+    "slug": "brainbroccoli",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["./plugins/with-device-network.js"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.brainbroccoli.app",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Connect to your NeuroPro2 on the local network."
+      }
+    },
+    "android": {
+      "package": "org.brainbroccoli.app",
+      "softwareKeyboardLayoutMode": "resize"
+    }
+  }
+}
