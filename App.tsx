@@ -878,7 +878,7 @@ export default function App() {
                 <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
               </View>
               {runner.items.length === 0 && (
-                <Text style={styles.emptyList}>No protocols yet. Switch to the Protocol Editor and press ☆ next to a file in the file list to add it here.</Text>
+                <Text style={styles.runnerEmpty}>No protocols yet. Switch to the Protocol Editor and press ☆ next to a file in the file list to add it here.</Text>
               )}
               {runner.folders.map((folder) => (
                 <DropZone key={folder.id} props={folderDropProps(folder.id)}>
@@ -907,7 +907,7 @@ export default function App() {
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
             <View style={styles.runnerPanel}>
               <Text style={styles.panelTitle}>Journal</Text>
-              {journal.length === 0 && <Text style={styles.emptyList}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
+              {journal.length === 0 && <Text style={styles.runnerEmpty}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
               {journalExpanded && journal.length > 0 && (
                 <View style={styles.runnerFolder}>
                   <Text style={styles.runnerTitle}>All journal records</Text>
@@ -1924,6 +1924,7 @@ const styleDefs = {
   readOnlyButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8 },
   fieldDisabled: { opacity: 0.5 },
   deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
+  runnerEmpty: { color: '#d9efc4', fontSize: 13, lineHeight: 19, padding: 10 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
   toolbar: { backgroundColor: '#2f5d1f', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 8, paddingHorizontal: 18, paddingVertical: 10 },
@@ -1934,7 +1935,7 @@ const styleDefs = {
   runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
   dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
-  runnerPanel: { backgroundColor: '#e3f4d3', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
+  runnerPanel: { backgroundColor: '#12301a', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
   runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700', paddingRight: 28 },
   cardClose: { alignItems: 'center', height: 24, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 24, zIndex: 1 },
@@ -2127,6 +2128,7 @@ function buildTheme(scheme: Scheme): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
+  mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
