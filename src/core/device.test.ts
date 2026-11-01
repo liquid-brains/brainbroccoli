@@ -90,14 +90,13 @@ describe('saveControllerFiles', () => {
 });
 
 describe('runControllerProtocol', () => {
-  it('uploads first and then runs the file', async () => {
+  it('runs the file without saving it first', async () => {
     const calls: string[] = [];
     const device = {
-      listFiles: async () => [],
       saveFile: async (name: string) => { calls.push(`save ${name}`); },
       runFile: async (name: string) => { calls.push(`run ${name}`); },
     };
-    await runControllerProtocol(device as never, [{ name: 'a.vnp0', protocol: { filename: 'a' } as never }], 'a.vnp0', new AbortController().signal);
-    expect(calls).toEqual(['save a.vnp0', 'run a.vnp0']);
+    await runControllerProtocol(device as never, 'a.vnp0', new AbortController().signal);
+    expect(calls).toEqual(['run a.vnp0']);
   });
 });

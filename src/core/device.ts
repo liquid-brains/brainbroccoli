@@ -63,15 +63,11 @@ export async function saveControllerFiles(
 // Makes sure user protocols are on the controller, then runs one until it finishes or is aborted.
 export async function runControllerProtocol(
   device: VielightDevice,
-  uploads: ProtocolFile[],
   name: string,
   signal: AbortSignal,
   onProgress: (message: string) => void = () => undefined,
   onStart: () => void = () => undefined,
 ): Promise<void> {
-  if (uploads.length > 0) {
-    await saveControllerFiles(device, uploads, onProgress);
-  }
   onProgress(`Starting ${name}…`);
   onStart();
   await device.runFile(name, { signal, waitForCompletion: true });

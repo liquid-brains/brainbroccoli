@@ -678,14 +678,8 @@ export default function App() {
     }));
     let outcome: JournalStatus = 'completed';
     try {
-      const stages = value.filenames === undefined ? [] : value.filenames.filter((stage) => /\.vnp0$/i.test(stage) && files[stage] !== undefined);
-      const uploads = [...new Set(stages)].map((stage) => ({ name: stage, protocol: files[stage] as Protocol }));
-      if (/\.vnp[04]$/i.test(name)) {
-        uploads.push({ name, protocol: value });
-      }
       await runControllerProtocol(
         connectToController(),
-        uploads,
         name,
         controller.signal,
         (message) => setSession((current) => (current ? { ...current, message } : current)),
