@@ -80,6 +80,7 @@ export default function App() {
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
@@ -442,14 +443,20 @@ export default function App() {
     if (!(await confirmAction(`Delete ${name} from the controller at ${settings.deviceAddress}? This cannot be undone. Your local copy is kept.`))) {
       return;
     }
+    await removeFromController(name);
+  }
+
+  async function removeFromController(name: string): Promise<boolean> {
     setError('');
     setBusy(true);
     try {
       setStatus(`Deleting ${name} from ${settings.deviceAddress}…`);
       await connectToController().deleteFile(name);
       setStatus(`Deleted ${name} from the controller.`);
+      return true;
     } catch (reason) {
       setError(`Unable to delete ${name} from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -522,8 +529,19 @@ export default function App() {
     }
   }
 
-  function deleteFile(name: string): void {
+  function requestDelete(name: string): void {
     if (isReadOnlyFile(name)) {
+      return;
+    }
+    setDeletePrompt(name);
+  }
+
+  async function deleteFile(name: string, alsoOnController: boolean): Promise<void> {
+    setDeletePrompt(null);
+    if (isReadOnlyFile(name)) {
+      return;
+    }
+    if (alsoOnController && !(await removeFromController(name))) {
       return;
     }
     setFiles((current) => {
@@ -576,7 +594,7 @@ export default function App() {
                       <Text style={styles.copyText}>⧉</Text>
                     </Pressable>
                   ) : (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => deleteFile(name)}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => requestDelete(name)}>
                       <Text style={styles.deleteText}>✕</Text>
                     </Pressable>
                   )}
@@ -975,6 +993,31 @@ export default function App() {
     );
   }
 
+  function renderDeleteDialog(): React.JSX.Element {
+    const name = deletePrompt ?? '';
+    return (
+      <Modal transparent animationType="fade" visible={deletePrompt !== null} onRequestClose={() => setDeletePrompt(null)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Delete {name}?</Text>
+            <Text style={styles.settingsHint}>Delete it only from this app, or from both the app and the controller at {settings.deviceAddress}? Deleting from the controller cannot be undone.</Text>
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setDeletePrompt(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, false); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>APP ONLY</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderSettingsDialog(): React.JSX.Element {
     return (
       <Modal transparent animationType="fade" visible={settingsOpen} onRequestClose={() => setSettingsOpen(false)}>
@@ -1160,6 +1203,7 @@ export default function App() {
           {!wideSidebar && renderSidebarModal()}
           {renderBatchDialog()}
           {renderSettingsDialog()}
+          {renderDeleteDialog()}
         </View>
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>
@@ -1462,6 +1506,7 @@ const styleDefs = {
   dialogInput: { flex: 2 },
   dialogStages: { flexGrow: 0, marginVertical: 8, maxHeight: 400 },
   dialogButtons: { flexDirection: 'row', gap: 15, justifyContent: 'center', marginTop: 14 },
+  deleteButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 14 },
   backButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 44, paddingVertical: 11 },
   backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
   addButton: { backgroundColor: '#7bc043', borderRadius: 6, paddingHorizontal: 22, paddingVertical: 12 },
