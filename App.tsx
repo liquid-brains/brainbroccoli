@@ -1,5 +1,6 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Platform,
@@ -69,6 +70,7 @@ export default function App() {
   const [jsonExpanded, setJsonExpanded] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
   const [menuCollapsed, setMenuCollapsed] = useState(false);
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -312,7 +314,13 @@ export default function App() {
         return;
       }
       setBusy(true);
-      const imported = (await Promise.all(result.assets.map(importAsset))).flat();
+      const imported: ProtocolFile[] = [];
+      for (const [index, asset] of result.assets.entries()) {
+        setStatus(`Reading ${asset.name} (${index + 1} of ${result.assets.length})…`);
+        imported.push(...await importAsset(asset));
+        setStatus(`Read ${asset.name}: ${imported.length} protocol file${imported.length === 1 ? '' : 's'} found so far`);
+      }
+      setStatus(`Adding ${imported.length} file${imported.length === 1 ? '' : 's'} to the editor…`);
       if (imported.length === 0) {
         setError('No supported .vnp or JSON protocol files were found.');
         return;
@@ -348,6 +356,7 @@ export default function App() {
       setError(reason instanceof Error ? reason.message : 'Unable to import the selected files.');
     } finally {
       setBusy(false);
+      setStatus('');
     }
   }
 
@@ -393,7 +402,8 @@ export default function App() {
           return { ok, status, text: async () => body, json: async () => JSON.parse(body) as unknown };
         },
       } : {});
-      const downloaded = await downloadControllerFiles(device);
+      setStatus(`Connecting to ${settings.deviceAddress}…`);
+      const downloaded = await downloadControllerFiles(device, setStatus);
       if (downloaded.length === 0) {
         setError('No protocol files were found on the controller.');
         return;
@@ -418,6 +428,7 @@ export default function App() {
       setError(`Unable to download files from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
     } finally {
       setBusy(false);
+      setStatus('');
     }
   }
 
@@ -953,6 +964,12 @@ export default function App() {
                 <Text numberOfLines={1} style={styles.currentFile}>{currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
               </View>
             </View>
+            {busy && (
+              <View accessibilityLiveRegion="polite" style={styles.statusBar}>
+                <ActivityIndicator color="#f9a01b" />
+                <Text style={styles.statusText}>{status || 'Working…'}</Text>
+              </View>
+            )}
             {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
             {readOnly && (
               <View style={styles.readOnlyBanner}>
@@ -1233,6 +1250,8 @@ const styleDefs = {
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
   selectedFile: { backgroundColor: '#dcfce7', borderColor: '#f9a01b', borderWidth: 1 },
   fileName: { color: '#334155', fontSize: 12, fontWeight: '600' },
+  statusBar: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
+  statusText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700' },
   copyText: { color: '#f9a01b', fontSize: 16, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 8 },
   readOnlyBanner: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
   readOnlyText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', minWidth: 180 },

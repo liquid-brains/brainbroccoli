@@ -22,10 +22,15 @@ export function createNeuroPro2Device(ip: string, options: DeviceOptions = {}): 
   return new VielightDevice({ ip: address, requestTimeout: 10_000, ...options });
 }
 
-export async function downloadControllerFiles(device: VielightDevice): Promise<ProtocolFile[]> {
+export async function downloadControllerFiles(
+  device: VielightDevice,
+  onProgress: (message: string) => void = () => undefined,
+): Promise<ProtocolFile[]> {
+  onProgress('Requesting the file list from the controller…');
   const names = await device.listFiles(['vnp0', 'vnp2', 'vnp3']);
   const files: ProtocolFile[] = [];
-  for (const name of names) {
+  for (const [index, name] of names.entries()) {
+    onProgress(`Downloading ${name} (${index + 1} of ${names.length})…`);
     files.push({ name, protocol: parseProtocolJSON(JSON.stringify(await device.getFile(name))) });
   }
   return files;
