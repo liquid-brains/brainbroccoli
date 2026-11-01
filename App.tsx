@@ -27,6 +27,7 @@ import {
   isProtocolFile,
   normalizePhase,
   parseProtocolJSON,
+  protocolDiagramRows,
   protocolModules,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
@@ -55,6 +56,8 @@ export default function App() {
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
   const [activeBatchStage, setActiveBatchStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
+  const [jsonExpanded, setJsonExpanded] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -543,31 +546,41 @@ export default function App() {
   function renderSummary(): React.JSX.Element {
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Protocol summary</Text>
-        <ScrollView horizontal>
-          <View>
-            <View style={styles.summaryRow}>
-              {['Module', 'Power', 'Frequency', 'Cross', 'Phase', 'Delay / time'].map((title) => (
-                <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
-              ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: summaryExpanded }}
+          onPress={() => setSummaryExpanded((expanded) => !expanded)}
+          style={styles.sectionHeading}
+        >
+          <Text style={styles.panelTitle}>Protocol summary</Text>
+          <Text style={styles.expandText}>{summaryExpanded ? 'Collapse' : 'Expand'}</Text>
+        </Pressable>
+        {summaryExpanded && (
+          <ScrollView horizontal>
+            <View>
+              <View style={styles.summaryRow}>
+                {['Module', 'Power', 'Frequency', 'Cross', 'Phase', 'Delay / time'].map((title) => (
+                  <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
+                ))}
+              </View>
+              {protocolModules.map(({ name, number }) => {
+                const module = getProtocolModule(displayedProtocol, number);
+                const control = module.moduleControl ?? {};
+                const active = module.active !== false;
+                return (
+                  <View key={number} style={styles.summaryRow}>
+                    <Text style={styles.summaryCell}>{name}</Text>
+                    <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}%</Text>
+                    <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)} Hz</Text>
+                    <Text style={styles.summaryCell}>{active && module.applyCross ? 'On' : 'Off'}</Text>
+                    <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
+                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)} / {String(module.activeRunTime ?? module.runTime ?? 0)} min</Text>
+                  </View>
+                );
+              })}
             </View>
-            {protocolModules.map(({ name, number }) => {
-              const module = getProtocolModule(displayedProtocol, number);
-              const control = module.moduleControl ?? {};
-              const active = module.active !== false;
-              return (
-                <View key={number} style={styles.summaryRow}>
-                  <Text style={styles.summaryCell}>{name}</Text>
-                  <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}%</Text>
-                  <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)} Hz</Text>
-                  <Text style={styles.summaryCell}>{active && module.applyCross ? 'On' : 'Off'}</Text>
-                  <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
-                  <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)} / {String(module.activeRunTime ?? module.runTime ?? 0)} min</Text>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
+          </ScrollView>
+        )}
       </View>
     );
   }
@@ -576,8 +589,8 @@ export default function App() {
     return (
       <Modal transparent animationType="slide" visible={sidebarOpen} onRequestClose={() => setSidebarOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable accessibilityLabel="Close file list" onPress={() => setSidebarOpen(false)} style={styles.modalBackdrop} />
           {sidebar}
+          <Pressable accessibilityLabel="Close file list" onPress={() => setSidebarOpen(false)} style={styles.modalBackdrop} />
         </View>
       </Modal>
     );
@@ -617,30 +630,37 @@ export default function App() {
                     <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
                   </View>
                   <View style={styles.moduleGrid}>
-                    {protocolModules.map(({ name, number }) => {
-                      const module = getProtocolModule(displayedProtocol, number);
-                      const currentPhase = normalizePhase(module.moduleControl?.phase);
-                      const phaseStyle = currentPhase === 'B' ? styles.phaseB : styles.phaseA;
-                      return (
-                        <Pressable
-                          key={number}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${name}${module.active === false ? ', inactive' : ''}`}
-                          onPress={() => {
-                            setSelectedModule(number);
-                            setMode('module');
-                          }}
-                          style={[
-                            styles.moduleTile,
-                            module.active === false ? styles.inactiveTile : phaseStyle,
-                            mode === 'module' && selectedModule === number && styles.selectedTile,
-                          ]}
-                        >
-                          <Text style={styles.moduleTitle}>{name}</Text>
-                          <Text style={styles.moduleSubtitle}>{module.active === false ? 'Inactive' : `${module.power ?? moduleControl.power ?? 0}% · ${module.freq ?? moduleControl.freq ?? 0} Hz`}</Text>
-                        </Pressable>
-                      );
-                    })}
+                    {protocolDiagramRows.map((row, rowIndex) => (
+                      <View key={`row-${rowIndex}`} style={styles.moduleRow}>
+                        {row.map((name) => {
+                          const moduleInfo = protocolModules.find((item) => item.name === name);
+                          if (!moduleInfo) return null;
+                          const { number } = moduleInfo;
+                          const module = getProtocolModule(displayedProtocol, number);
+                          const currentPhase = normalizePhase(module.moduleControl?.phase);
+                          const phaseStyle = currentPhase === 'B' ? styles.phaseB : styles.phaseA;
+                          return (
+                            <Pressable
+                              key={number}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${name}${module.active === false ? ', inactive' : ''}`}
+                              onPress={() => {
+                                setSelectedModule(number);
+                                setMode('module');
+                              }}
+                              style={[
+                                styles.moduleTile,
+                                module.active === false ? styles.inactiveTile : phaseStyle,
+                                mode === 'module' && selectedModule === number && styles.selectedTile,
+                              ]}
+                            >
+                              <Text style={styles.moduleTitle}>{name}</Text>
+                              <Text style={styles.moduleSubtitle}>{module.active === false ? 'Inactive' : `${module.power ?? moduleControl.power ?? 0}% · ${module.freq ?? moduleControl.freq ?? 0} Hz`}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ))}
                   </View>
                   <Pressable onPress={() => setMode('all')} style={[styles.modeButton, mode === 'all' && styles.activeMode]}>
                     <Text style={styles.modeText}>Edit all modules</Text>
@@ -653,10 +673,20 @@ export default function App() {
                   {mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderAllModules() : renderModuleEditor(selectedModule)}
                   {renderSummary()}
                   <View style={styles.panel}>
-                    <Text style={styles.panelTitle}>Raw JSON</Text>
-                    <ScrollView style={styles.jsonBox} nestedScrollEnabled>
-                      <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
-                    </ScrollView>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: jsonExpanded }}
+                      onPress={() => setJsonExpanded((expanded) => !expanded)}
+                      style={styles.sectionHeading}
+                    >
+                      <Text style={styles.panelTitle}>Raw JSON</Text>
+                      <Text style={styles.expandText}>{jsonExpanded ? 'Collapse' : 'Expand'}</Text>
+                    </Pressable>
+                    {jsonExpanded && (
+                      <ScrollView style={styles.jsonBox} nestedScrollEnabled>
+                        <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
+                      </ScrollView>
+                    )}
                   </View>
                 </View>
               </View>
@@ -761,8 +791,9 @@ const styles = StyleSheet.create({
   legendText: { color: '#334155', fontSize: 13, fontWeight: '600' },
   phaseASwatch: { backgroundColor: '#7bc043', borderColor: '#1a1a1a', borderRadius: 3, borderWidth: 1, height: 15, width: 15 },
   phaseBSwatch: { backgroundColor: '#f9a01b', borderColor: '#1a1a1a', borderRadius: 3, borderWidth: 1, height: 15, width: 15 },
-  moduleGrid: { alignContent: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 500, width: '100%' },
-  moduleTile: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 7, borderWidth: 1, justifyContent: 'center', minHeight: 65, minWidth: '29%', padding: 5 },
+  moduleGrid: { alignItems: 'center', gap: 8, maxWidth: 500, width: '100%' },
+  moduleRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', width: '100%' },
+  moduleTile: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 7, borderWidth: 1, justifyContent: 'center', minHeight: 65, padding: 5, width: '30%' },
   phaseA: { backgroundColor: '#7bc043' },
   phaseB: { backgroundColor: '#f9a01b' },
   inactiveTile: { backgroundColor: '#fff' },
@@ -775,6 +806,7 @@ const styles = StyleSheet.create({
   rightColumn: { flex: 1, gap: 14, minWidth: 0, width: '100%' },
   panel: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 12, padding: 16 },
   panelTitle: { color: '#7bc043', fontSize: 17, fontWeight: '800' },
+  expandText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
   sectionHeading: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
   sectionTitle: { color: '#7bc043', flex: 1, fontSize: 14, fontWeight: '800', textTransform: 'uppercase' },
   fieldGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

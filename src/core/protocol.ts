@@ -13,6 +13,14 @@ export const protocolModules = [
   { name: 'NL', number: 11 },
 ] as const;
 
+export const protocolDiagramRows: readonly (readonly (typeof protocolModules)[number]['name'][])[] = [
+  ['NL', 'NR'],
+  ['L1', 'C1', 'R1'],
+  ['L2', 'C2', 'R2'],
+  ['L3', 'C3', 'R3'],
+  ['C4'],
+];
+
 export type ProtocolSection = Record<string, unknown> & { active?: boolean };
 
 export type ProtocolModule = Record<string, unknown> & {

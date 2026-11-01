@@ -8,11 +8,22 @@ import {
   isProtocolFile,
   normalizePhase,
   parseProtocolJSON,
+  protocolDiagramRows,
 } from './protocol';
 import JSZip from 'jszip';
 import { readProtocolArchive } from './protocol-archive';
 
 describe('protocol helpers', () => {
+  it('keeps the editor diagram in the supplied anatomical LED rows', () => {
+    expect(protocolDiagramRows).toEqual([
+      ['NL', 'NR'],
+      ['L1', 'C1', 'R1'],
+      ['L2', 'C2', 'R2'],
+      ['L3', 'C3', 'R3'],
+      ['C4'],
+    ]);
+  });
+
   it('creates the editor defaults with the NeuroPro module layout', () => {
     const protocol = createEmptyProtocol('example');
 
