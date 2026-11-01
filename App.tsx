@@ -898,7 +898,7 @@ export default function App() {
                           const currentPhase = normalizePhase(module.moduleControl?.phase);
                           const crossApplied = module.active !== false && module.applyCross === true && displayedProtocol.cross?.active !== false;
                           const tileInactive = module.active === false || modulePower(displayedProtocol, module) <= 0;
-                          const tint = tintColor(currentPhase === 'B' ? '#f9a01b' : '#7bc043', deliveredSaturation(displayedProtocol, module, maxRunTime));
+                          const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(displayedProtocol, module, maxRunTime));
                           return (
                             <Pressable
                               key={number}
@@ -1247,7 +1247,7 @@ const styleDefs = {
 
 type Styles = Record<keyof typeof styleDefs, ViewStyle & TextStyle>;
 type Scheme = 'brand' | 'light' | 'dark';
-type Theme = { styles: Styles; accent: string; inputBackground: string; inputBorder: string; inputText: string };
+type Theme = { styles: Styles; accent: string; phaseA: string; phaseB: string; inputBackground: string; inputBorder: string; inputText: string };
 type ColorMap = Record<string, string>;
 
 const ACCENT_GREEN = '#7bc043';
@@ -1259,9 +1259,11 @@ const fixedStyles = new Set<string>([
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
-const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap; text: ColorMap }> = {
+const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
     accent: '#636366',
+    phaseA: '#2f7f86',
+    phaseB: '#d98b2b',
     fill: {
       '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5e5ea',
       [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
@@ -1274,6 +1276,8 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
   },
   dark: {
     accent: '#8e8e93',
+    phaseA: '#4aa3ab',
+    phaseB: '#e0a050',
     fill: {
       '#2f5d1f': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
       '#f0fdf4': '#3a3a3c', [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#dcfce7': '#3a3a3c',
@@ -1288,7 +1292,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap;
 
 function buildTheme(scheme: Scheme): Theme {
   if (scheme === 'brand') {
-    return { styles: StyleSheet.create(styleDefs) as Styles, accent: ACCENT_GREEN, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
+    return { styles: StyleSheet.create(styleDefs) as Styles, accent: ACCENT_GREEN, phaseA: ACCENT_GREEN, phaseB: ACCENT_ORANGE, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
@@ -1302,9 +1306,16 @@ function buildTheme(scheme: Scheme): Theme {
         return [prop, value];
       }));
   }
+  const phaseFills: Record<string, string> = {
+    phaseASwatch: palette.phaseA, phaseA: palette.phaseA, phaseAButton: palette.phaseA,
+    phaseBSwatch: palette.phaseB, phaseB: palette.phaseB, phaseBButton: palette.phaseB,
+  };
+  for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
+    phaseA: palette.phaseA,
+    phaseB: palette.phaseB,
     inputBackground: palette.fill['#f8fafc'] ?? '#f8fafc',
     inputBorder: palette.fill['#cbd5e1'] ?? '#cbd5e1',
     inputText: palette.text['#1e293b'] ?? '#1e293b',
