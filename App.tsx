@@ -963,7 +963,9 @@ export default function App() {
     const knownFolder = (item: RunnerItem) => item.folderId !== undefined && runner.folders.some((folder) => folder.id === item.folderId);
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
     const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
-    const journalBadgeColor = { completed: '#2f8f1f', stopped: '#d97706', failed: '#b91c1c', running: '#1d6fc4' };
+    const journalBadgeColor = scheme === 'brand'
+      ? { completed: '#2f8f1f', stopped: '#d97706', failed: '#b91c1c', running: '#1d6fc4' }
+      : { completed: '#636366', stopped: '#7c7c80', failed: '#3a3a3c', running: '#8e8e93' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
       const active = journalSort.startsWith(kind);
@@ -2412,8 +2414,11 @@ function buildTheme(scheme: Scheme): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
-  for (const name of ['journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
-    mapped[name] = { ...mapped[name], backgroundColor: palette.fill['#f8fafc'] ?? '#f8fafc' };
+  const greys = scheme === 'dark'
+    ? { journalCompleted: ['#2c2c2e', '#8e8e93'], journalStopped: ['#353538', '#aeaeb2'], journalFailed: ['#3d3d40', '#c7c7cc'], journalRunning: ['#262628', '#636366'] }
+    : { journalCompleted: ['#ececf0', '#636366'], journalStopped: ['#dedee3', '#8e8e93'], journalFailed: ['#d0d0d6', '#3a3a3c'], journalRunning: ['#f4f4f7', '#aeaeb2'] };
+  for (const [name, [fill, edge]] of Object.entries(greys) as [string, [string, string]][]) {
+    mapped[name] = { ...mapped[name], backgroundColor: fill, borderColor: edge, borderLeftColor: edge };
   }
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
