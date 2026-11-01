@@ -414,6 +414,16 @@ export default function App() {
       const baseName = stripFileNameChars(importedName.replace(/\.[^.]+$/, '') || String(protocol.filename || 'protocol'));
       const outputName = `${baseName}${splitFileName(currentFileName).extension || (batch ? '.vnp4' : '.vnp0')}`;
       const contents = JSON.stringify(batch ? protocol : displayedProtocol, null, 2);
+      const stageNames = batch
+        ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => stage !== '' && stage !== currentFileName && files[stage] !== undefined)))
+        : [];
+      if (stageNames.length > 0) {
+        const archive = new JSZip();
+        archive.file(outputName, contents);
+        stageNames.forEach((stage) => archive.file(stage, JSON.stringify(files[stage], null, 2)));
+        await shareArchive(archive, `${baseName}.zip`, 'Save batch protocol');
+        return;
+      }
       if (Platform.OS === 'web') {
         downloadBlob(new Blob([contents], { type: 'application/json' }), outputName);
         return;
@@ -509,6 +519,24 @@ export default function App() {
     }
   }
 
+  async function shareArchive(archive: JSZip, archiveName: string, dialogTitle: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      downloadBlob(await archive.generateAsync({ type: 'blob' }), archiveName);
+      return;
+    }
+    if (!FileSystem.cacheDirectory) {
+      throw new Error('Temporary file storage is unavailable on this device.');
+    }
+    const encoded = await archive.generateAsync({ type: 'base64' });
+    const uri = `${FileSystem.cacheDirectory}${archiveName}`;
+    await FileSystem.writeAsStringAsync(uri, encoded, { encoding: FileSystem.EncodingType.Base64 });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, { mimeType: 'application/zip', dialogTitle });
+    } else {
+      throw new Error('File sharing is not available on this device.');
+    }
+  }
+
   async function exportZip(): Promise<void> {
     setError('');
     try {
@@ -520,22 +548,7 @@ export default function App() {
       Object.entries(entries).forEach(([name, value]) => {
         archive.file(name, JSON.stringify(value, null, 2));
       });
-      if (Platform.OS === 'web') {
-        const blob = await archive.generateAsync({ type: 'blob' });
-        downloadBlob(blob, 'brain-broccoli-protocols.zip');
-        return;
-      }
-      if (!FileSystem.cacheDirectory) {
-        throw new Error('Temporary file storage is unavailable on this device.');
-      }
-      const encoded = await archive.generateAsync({ type: 'base64' });
-      const uri = `${FileSystem.cacheDirectory}brain-broccoli-protocols.zip`;
-      await FileSystem.writeAsStringAsync(uri, encoded, { encoding: FileSystem.EncodingType.Base64 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/zip', dialogTitle: 'Export protocols' });
-      } else {
-        throw new Error('File sharing is not available on this device.');
-      }
+      await shareArchive(archive, 'brain-broccoli-protocols.zip', 'Export protocols');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to export the protocol archive.');
     }
