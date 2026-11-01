@@ -1261,27 +1261,27 @@ const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor'
 
 const systemPalettes: Record<'light' | 'dark', { accent: string; fill: ColorMap; text: ColorMap }> = {
   light: {
-    accent: '#007aff',
+    accent: '#636366',
     fill: {
-      '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5f0ff',
-      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#dcfce7': '#d6e8ff', '#e2e8f0': '#e5e5ea',
+      '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5e5ea',
+      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
       '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea',
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#007aff', [ACCENT_ORANGE]: '#007aff', '#166534': '#007aff', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
+      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#166534': '#636366', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
     },
   },
   dark: {
-    accent: '#0a84ff',
+    accent: '#8e8e93',
     fill: {
       '#2f5d1f': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
-      '#f0fdf4': '#0a2540', [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#dcfce7': '#0a2540',
+      '#f0fdf4': '#3a3a3c', [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#dcfce7': '#3a3a3c',
       '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c', '#8dc63f': '#1c1c1e', '#6fa82c': '#3a3a3c',
     },
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#0a84ff', [ACCENT_ORANGE]: '#0a84ff', '#166534': '#64a8ff', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
+      [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#166534': '#d1d1d6', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
     },
   },
 };
