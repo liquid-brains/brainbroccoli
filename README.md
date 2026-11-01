@@ -50,7 +50,7 @@ which only allows read-only controller paths (`getlistfile`, `getlistbatchfile`,
 `filedata`, `batchfiledata`) over HTTP, so no CORS support is needed on the
 device and the sandbox and content security policy stay unchanged. In a plain
 browser the device must allow CORS. The editor otherwise modifies protocol files
-locally. **Save to Controller** and **Delete from Controller** (user `.vnp0`/`.vnp4`
+locally. **Save to Controller** and **Delete** (user `.vnp0`/`.vnp4`
 files only) are the only commands that change a device. They call brainlight's
 `saveFile` and `deleteFile`, and the bridge also allows the file save, delete and
 list-update commands they use; running and stopping stay blocked. Saving a batch

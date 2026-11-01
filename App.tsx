@@ -1,7 +1,6 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   Platform,
@@ -478,17 +477,6 @@ export default function App() {
     } : {});
   }
 
-  async function deleteFromController(): Promise<void> {
-    const name = currentFileName;
-    if (!/\.vnp[04]$/i.test(name)) {
-      return;
-    }
-    if (!(await confirmAction(`Delete ${name} from the controller at ${settings.deviceAddress}? This cannot be undone. Your local copy is kept.`))) {
-      return;
-    }
-    await removeFromController(name);
-  }
-
   async function removeFromController(name: string): Promise<boolean> {
     setError('');
     setBusy(true);
@@ -687,7 +675,7 @@ export default function App() {
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
           {!fileReadOnly && <ActionButton title="⧉ Make a Copy" onPress={() => copyUserFile(currentFileName)} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={() => { void saveToController(); }} />}
-          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="🗑️ Delete from Controller" onPress={() => { void deleteFromController(); }} />}
+          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="🗑️ Delete" onPress={() => requestDelete(currentFileName)} />}
         </View>
       </View>
     );
@@ -1717,16 +1705,4 @@ async function persistSettings(settings: Settings): Promise<void> {
   } catch {
     // Settings are a convenience; failing to save should not interrupt editing.
   }
-}
-
-function confirmAction(message: string): Promise<boolean> {
-  if (Platform.OS === 'web') {
-    return Promise.resolve(globalThis.confirm(message));
-  }
-  return new Promise((resolve) => {
-    Alert.alert('Delete from Controller', message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-    ]);
-  });
 }
