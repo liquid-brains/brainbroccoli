@@ -369,7 +369,7 @@ export default function App() {
       const batch = isBatch;
       const importedName = currentFileName.split('/').pop() ?? '';
       const baseName = stripFileNameChars(importedName.replace(/\.[^.]+$/, '') || String(protocol.filename || 'protocol'));
-      const outputName = `${baseName}${batch ? '.vnp4' : '.vnp0'}`;
+      const outputName = `${baseName}${splitFileName(currentFileName).extension || (batch ? '.vnp4' : '.vnp0')}`;
       const contents = JSON.stringify(batch ? protocol : displayedProtocol, null, 2);
       if (Platform.OS === 'web') {
         downloadBlob(new Blob([contents], { type: 'application/json' }), outputName);
@@ -547,9 +547,22 @@ export default function App() {
         <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
         <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void downloadFromController(); })} />
         <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
-        <ActionButton menu title="📥 Save to Controller" onPress={run(saveToController)} />
-        <ActionButton menu title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
         <ActionButton menu title="⚙️ Settings" onPress={run(() => setSettingsOpen(true))} />
+      </View>
+    );
+  }
+
+  function renderFileActions(): React.JSX.Element | null {
+    if (currentFileName === '') {
+      return null;
+    }
+    return (
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Save</Text>
+        <View style={styles.fileActions}>
+          <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
+          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={saveToController} />}
+        </View>
       </View>
     );
   }
@@ -1045,6 +1058,7 @@ export default function App() {
                   <View pointerEvents={dimEditor ? 'none' : 'auto'} style={dimEditor ? styles.readOnlyEditor : undefined}>
                     {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   </View>
+                  {mode === 'global' && renderFileActions()}
                   {renderSummary()}
                   {settings.showJson && (
                     <View style={styles.panel}>
@@ -1258,6 +1272,7 @@ const styleDefs = {
   fileName: { color: '#334155', fontSize: 12, fontWeight: '600' },
   statusBar: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
   statusText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700' },
+  fileActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   copyText: { color: '#f9a01b', fontSize: 16, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 8 },
   readOnlyBanner: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
   readOnlyText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', minWidth: 180 },
