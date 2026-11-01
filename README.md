@@ -10,7 +10,7 @@ implemented.
 
 ## Development
 
-Use Node.js 24 and npm:
+Use Node.js 22 or newer and npm:
 
 ```sh
 npm ci
@@ -62,7 +62,9 @@ make ipa               # produces an unsigned .app, not a distributable .ipa
 ```
 
 Electron requires a working OS sandbox. Configure the host's sandbox support
-when needed rather than adding `--no-sandbox` to the launcher.
+when possible. The packaged Linux launcher passes `--no-sandbox` for hosts that
+cannot support Electron's OS sandbox; only run the packaged app with trusted files
+and content.
 
 CI checks types/tests and builds Android, unsigned iOS, Linux, Windows, and macOS
 artifacts on main pushes and pull requests. Native projects and build outputs
