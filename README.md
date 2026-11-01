@@ -56,6 +56,10 @@ files only) are the only commands that change a device. They call brainlight's
 list-update commands they use, plus `stop`, `filedatarun`, `run` and `activate` for the Protocol Runner. Saving a batch
 uploads its referenced user `.vnp0` stage files first.
 
+The Protocol Runner cannot run controller batches. Instead, **New Sequence** builds an ordered list of protocols
+(no 8-phase limit) that is stored only in the app; running it starts each protocol in turn and waits for it to
+finish before starting the next.
+
 ## Validation and builds
 
 ```sh

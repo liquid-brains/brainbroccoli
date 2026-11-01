@@ -2,7 +2,8 @@ import { calculateTotalDuration } from './protocol';
 import type { Protocol } from './protocol';
 
 export type RunnerFolder = { id: string; name: string; collapsed?: boolean };
-export type RunnerItem = { id: string; file: string; folderId?: string };
+// A sequence is an item whose `file` is its name and whose `sequence` lists the protocol files to run in order.
+export type RunnerItem = { id: string; file: string; folderId?: string; sequence?: string[] };
 export type RunnerState = { folders: RunnerFolder[]; items: RunnerItem[] };
 
 export type JournalStatus = 'running' | 'completed' | 'stopped' | 'failed';
@@ -30,18 +31,26 @@ export function createId(prefix: string): string {
 }
 
 export function addToRunner(state: RunnerState, file: string): RunnerState {
-  if (state.items.some((item) => item.file === file)) {
+  if (state.items.some((item) => item.sequence === undefined && item.file === file)) {
     return state;
   }
   return { ...state, items: [...state.items, { id: createId('item'), file }] };
 }
 
 export function removeFromRunner(state: RunnerState, file: string): RunnerState {
-  return { ...state, items: state.items.filter((item) => item.file !== file) };
+  return { ...state, items: state.items.filter((item) => item.sequence !== undefined || item.file !== file) };
 }
 
 export function renameRunnerFile(state: RunnerState, oldName: string, newName: string): RunnerState {
-  return { ...state, items: state.items.map((item) => (item.file === oldName ? { ...item, file: newName } : item)) };
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.sequence !== undefined) {
+        return { ...item, sequence: item.sequence.map((name) => (name === oldName ? newName : name)) };
+      }
+      return item.file === oldName ? { ...item, file: newName } : item;
+    }),
+  };
 }
 
 // Moves an item past its neighbor inside the same folder (or the unfiled list).
@@ -71,7 +80,8 @@ export function moveRunnerItemTo(state: RunnerState, id: string, targetId: strin
   if (!item || !target || id === targetId) {
     return state;
   }
-  const moved: RunnerItem = { id: item.id, file: item.file, ...(target.folderId === undefined ? {} : { folderId: target.folderId }) };
+  const { folderId: _old, ...base } = item;
+  const moved: RunnerItem = { ...base, ...(target.folderId === undefined ? {} : { folderId: target.folderId }) };
   const items = state.items.filter((candidate) => candidate.id !== id);
   const index = items.findIndex((candidate) => candidate.id === targetId);
   items.splice(after ? index + 1 : index, 0, moved);
@@ -84,7 +94,8 @@ export function moveRunnerItemToFolderEnd(state: RunnerState, id: string, folder
   if (!item || (folderId !== undefined && !state.folders.some((folder) => folder.id === folderId))) {
     return state;
   }
-  const moved: RunnerItem = { id: item.id, file: item.file, ...(folderId === undefined ? {} : { folderId }) };
+  const { folderId: _old, ...base } = item;
+  const moved: RunnerItem = { ...base, ...(folderId === undefined ? {} : { folderId }) };
   return { ...state, items: [...state.items.filter((candidate) => candidate.id !== id), moved] };
 }
 
@@ -103,6 +114,19 @@ export function setRunnerItemFolder(state: RunnerState, id: string, folderId: st
       return folderId === undefined ? rest : { ...rest, folderId };
     }),
   };
+}
+
+export function addRunnerSequence(state: RunnerState, name: string, sequence: string[]): RunnerState {
+  const trimmed = name.trim();
+  return trimmed === '' || sequence.length === 0 ? state : { ...state, items: [...state.items, { id: createId('item'), file: trimmed, sequence: [...sequence] }] };
+}
+
+export function updateRunnerSequence(state: RunnerState, id: string, name: string, sequence: string[]): RunnerState {
+  const trimmed = name.trim();
+  if (trimmed === '' || sequence.length === 0) {
+    return state;
+  }
+  return { ...state, items: state.items.map((item) => (item.id === id && item.sequence !== undefined ? { ...item, file: trimmed, sequence: [...sequence] } : item)) };
 }
 
 export function addRunnerFolder(state: RunnerState, name: string): RunnerState {
@@ -148,6 +172,7 @@ export function parseRunnerData(raw: unknown): RunnerData {
     : [];
   const items = Array.isArray(data.runner?.items)
     ? data.runner.items.filter((item) => typeof item?.id === 'string' && typeof item.file === 'string')
+        .map((item) => (Array.isArray(item.sequence) ? { ...item, sequence: item.sequence.filter((name) => typeof name === 'string') } : (({ sequence: _drop, ...rest }) => rest)(item)))
     : [];
   const journal = Array.isArray(data.journal)
     ? data.journal.filter((entry) => typeof entry?.id === 'string' && typeof entry.file === 'string')
