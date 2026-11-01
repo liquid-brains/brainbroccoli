@@ -16,12 +16,16 @@ const mimeTypes = {
 };
 
 const deviceReadPaths = new Set(['/getlistfile', '/getlistbatchfile', '/filedata', '/batchfiledata']);
-// Only the commands that delete a user file; saving and running stay unsupported.
-const deviceDeletePaths = new Set(['/deletefile', '/deletebatchModule', '/updatelistbatchfile']);
+// Only the commands that save or delete user files; running and stopping stay unsupported.
+const deviceWritePaths = new Set([
+  '/deletefile', '/deletebatchModule', '/updatelistbatchfile', '/updatelistfile',
+  '/filename', '/savenewfile', '/datafileExisting',
+  '/batchfilename', '/savenewbatchfile', '/batchdatafileExisting', '/usedBatchFileTrue',
+]);
 
 ipcMain.handle('device-request', async (_event, urlText) => {
   const url = new URL(urlText);
-  if (url.protocol !== 'http:' || !(deviceReadPaths.has(url.pathname) || deviceDeletePaths.has(url.pathname))) {
+  if (url.protocol !== 'http:' || !(deviceReadPaths.has(url.pathname) || deviceWritePaths.has(url.pathname))) {
     throw new Error('Unsupported controller request.');
   }
   const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });

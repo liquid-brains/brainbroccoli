@@ -39,7 +39,7 @@ import {
   userCopyExtension,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
-import { createNeuroPro2Device, downloadControllerFiles } from './src/core/device';
+import { createNeuroPro2Device, downloadControllerFiles, saveControllerFiles } from './src/core/device';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
 
@@ -443,8 +443,29 @@ export default function App() {
     }
   }
 
-  function saveToController(): void {
-    setError('Saving to a controller is not available yet; use Save to Disk or Export All as ZIP.');
+  async function saveToController(): Promise<void> {
+    const name = currentFileName;
+    if (!/\.vnp[04]$/i.test(name)) {
+      return;
+    }
+    const stages = isBatch
+      ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => /\.vnp0$/i.test(stage) && files[stage] !== undefined)))
+      : [];
+    const uploads = [
+      ...stages.map((stage) => ({ name: stage, protocol: files[stage] as Protocol })),
+      { name, protocol: isBatch ? protocol : displayedProtocol },
+    ];
+    setError('');
+    setBusy(true);
+    try {
+      setStatus(`Connecting to ${settings.deviceAddress}…`);
+      await saveControllerFiles(connectToController(), uploads, setStatus);
+      setStatus(`Saved ${uploads.length === 1 ? name : `${name} and ${uploads.length - 1} stage file${uploads.length === 2 ? '' : 's'}`} to the controller.`);
+    } catch (reason) {
+      setError(`Unable to save to ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function connectToController(): ReturnType<typeof createNeuroPro2Device> {
@@ -665,7 +686,7 @@ export default function App() {
         <View style={styles.fileActions}>
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
           {!fileReadOnly && <ActionButton title="⧉ Make a Copy" onPress={() => copyUserFile(currentFileName)} />}
-          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={saveToController} />}
+          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={() => { void saveToController(); }} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="🗑️ Delete from Controller" onPress={() => { void deleteFromController(); }} />}
         </View>
       </View>

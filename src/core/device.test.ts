@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNeuroPro2Device, downloadControllerFiles } from './device';
+import { createNeuroPro2Device, downloadControllerFiles, saveControllerFiles } from './device';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -51,5 +51,17 @@ describe('NeuroPro2 client', () => {
     await expect(createNeuroPro2Device('192.168.0.58', { fetch }).listFiles('vnp2'))
       .rejects.toThrow('Device offline');
     expect(fetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('saveControllerFiles', () => {
+  it('saves each file in order without mutating the editor copy', async () => {
+    const saveFile = vi.fn().mockResolvedValue(true);
+    const protocol = { filename: 'a' };
+    const messages: string[] = [];
+    await saveControllerFiles({ saveFile } as never, [{ name: 'a.vnp0', protocol: protocol as never }, { name: 'b.vnp4', protocol: { filename: 'b' } as never }], (m) => messages.push(m));
+    expect(saveFile.mock.calls.map((call) => call[0])).toEqual(['a.vnp0', 'b.vnp4']);
+    expect(saveFile.mock.calls[0]?.[1]).not.toBe(protocol);
+    expect(messages).toHaveLength(2);
   });
 });

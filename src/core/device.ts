@@ -35,3 +35,15 @@ export async function downloadControllerFiles(
   }
   return files;
 }
+
+// Uploads user protocol files; a batch is uploaded after the stage files it uses.
+export async function saveControllerFiles(
+  device: VielightDevice,
+  files: ProtocolFile[],
+  onProgress: (message: string) => void = () => undefined,
+): Promise<void> {
+  for (const [index, { name, protocol }] of files.entries()) {
+    onProgress(`Saving ${name} to the controller (${index + 1} of ${files.length})…`);
+    await device.saveFile(name, JSON.parse(JSON.stringify(protocol)) as unknown, true);
+  }
+}
