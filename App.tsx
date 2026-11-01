@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { createElement, useMemo, useState } from 'react';
 import {
   Image,
   Modal,
@@ -44,11 +44,13 @@ const fileGroups = [
   { extension: '.vnp4', label: 'User Batch Protocols' },
   { extension: '.json', label: 'Legacy JSON' },
 ];
+const batchStageCount = 8;
+const lightTileModules = ['NL', 'NR', 'C4'];
 
 export default function App() {
   const { width } = useWindowDimensions();
   const wideSidebar = width >= 980;
-  const wideEditor = width >= 1100;
+  const wideEditor = width - (wideSidebar ? 300 : 0) >= 860;
   const [protocol, setProtocol] = useState<Protocol>(() => createEmptyProtocol());
   const [files, setFiles] = useState<Record<string, Protocol>>({});
   const [currentFileName, setCurrentFileName] = useState('');
@@ -56,7 +58,11 @@ export default function App() {
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
   const [activeBatchStage, setActiveBatchStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [summaryExpanded, setSummaryExpanded] = useState(true);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ '.vnp0': true });
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [batchDraftName, setBatchDraftName] = useState('My_Batch');
+  const [batchDraftStages, setBatchDraftStages] = useState<string[]>(Array(batchStageCount).fill(''));
   const [jsonExpanded, setJsonExpanded] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -88,13 +94,15 @@ export default function App() {
     }
   }
 
-  function loadProtocol(name: string, value: Protocol): void {
+  function loadProtocol(name: string, value: Protocol, keepSidebarOpen = false): void {
     setCurrentFileName(name);
     setProtocol(value);
     setMode('global');
     setSelectedModule(protocolModules[0].number);
     setActiveBatchStage(0);
-    setSidebarOpen(false);
+    if (!keepSidebarOpen) {
+      setSidebarOpen(false);
+    }
     setError('');
   }
 
@@ -136,7 +144,7 @@ export default function App() {
   }
 
   function setBatchFile(stage: number, name: string): void {
-    const filenames = [...(protocol.filenames ?? Array(8).fill(''))];
+    const filenames = [...(protocol.filenames ?? Array(batchStageCount).fill(''))];
     filenames[stage] = name;
     const updated = { ...protocol, filenames };
     setProtocol(updated);
@@ -152,15 +160,42 @@ export default function App() {
     loadProtocol(name, fresh);
   }
 
+  function openBatchDialog(): void {
+    setBatchDraftName('My_Batch');
+    setBatchDraftStages(Array(batchStageCount).fill(''));
+    setBatchDialogOpen(true);
+  }
+
   function createBatch(): void {
-    const name = createUniqueProtocolFileName('My_Batch', '.vnp4', Object.keys(files));
+    const base = batchDraftName.trim().replace(/\.vnp4$/i, '') || 'My_Batch';
+    const name = createUniqueImportedFileName(`${base}.vnp4`, Object.keys(files));
     const fresh: Protocol = {
       ...createEmptyProtocol(name.replace(/\.vnp4$/i, '')),
       single: false,
-      filenames: Array(8).fill(''),
+      filenames: batchDraftStages,
     };
     setFiles((current) => ({ ...current, [name]: fresh }));
+    setBatchDialogOpen(false);
     loadProtocol(name, fresh);
+  }
+
+  function renameBatch(text: string): void {
+    const base = text.trim().replace(/\.vnp4$/i, '');
+    const name = `${base}.vnp4`;
+    if (!currentFileName || base === '' || name === currentFileName) {
+      return;
+    }
+    const others = Object.keys(files).filter((existing) => existing !== currentFileName);
+    const unique = createUniqueImportedFileName(name, others);
+    const renamed = { ...protocol, filename: unique.replace(/\.vnp4$/i, '') };
+    setFiles((current) => {
+      const next = { ...current };
+      delete next[currentFileName];
+      next[unique] = renamed;
+      return next;
+    });
+    setCurrentFileName(unique);
+    setProtocol(renamed);
   }
 
   async function readAssetBytes(asset: DocumentPicker.DocumentPickerAsset): Promise<Uint8Array> {
@@ -196,7 +231,7 @@ export default function App() {
     setError('');
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
+        type: Platform.OS === 'web' ? ['.vnp0', '.vnp1', '.vnp2', '.vnp3', '.vnp4', '.zip'] : '*/*',
         multiple: true,
         copyToCacheDirectory: true,
       });
@@ -225,7 +260,17 @@ export default function App() {
       }
       const nextFiles = Object.fromEntries(uniquelyNamedFiles.map(({ name, protocol: value }) => [name, value]));
       setFiles((current) => ({ ...current, ...nextFiles }));
-      loadProtocol(firstUniqueFile.name, firstUniqueFile.protocol);
+      setExpandedGroups((current) => {
+        const next = { ...current };
+        uniquelyNamedFiles.forEach(({ name }) => {
+          const group = fileGroups.find(({ extension }) => name.toLowerCase().endsWith(extension));
+          if (group) {
+            next[group.extension] = true;
+          }
+        });
+        return next;
+      });
+      loadProtocol(firstUniqueFile.name, firstUniqueFile.protocol, true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to import the selected files.');
     } finally {
@@ -258,6 +303,10 @@ export default function App() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to save this protocol.');
     }
+  }
+
+  function saveToController(): void {
+    setError('Saving to a controller is not available yet; use Save to Disk or Download Controller Files.');
   }
 
   async function exportZip(): Promise<void> {
@@ -310,14 +359,21 @@ export default function App() {
         {fileGroups.map((group) => {
           const names = Object.keys(files)
             .filter((name) => name.toLowerCase().endsWith(group.extension))
-            .sort((left, right) => left.localeCompare(right));
+            .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
           if (names.length === 0) {
             return null;
           }
+          const expanded = expandedGroups[group.extension] === true;
           return (
             <View key={group.extension} style={styles.fileGroup}>
-              <Text style={styles.groupTitle}>{group.label}</Text>
-              {names.map((name) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                onPress={() => setExpandedGroups((current) => ({ ...current, [group.extension]: !expanded }))}
+              >
+                <Text style={styles.groupTitle}>{expanded ? '▼' : '▶'} {group.label} ({group.extension.slice(1)})</Text>
+              </Pressable>
+              {expanded && names.map((name) => (
                 <View key={name} style={styles.fileRow}>
                   <Pressable
                     accessibilityRole="button"
@@ -332,27 +388,56 @@ export default function App() {
                     <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => deleteFile(name)}>
-                    <Text style={styles.deleteText}>×</Text>
+                    <Text style={styles.deleteText}>✕</Text>
                   </Pressable>
                 </View>
               ))}
             </View>
           );
         })}
-        {Object.keys(files).length === 0 && <Text style={styles.emptyList}>Import files or create a new protocol.</Text>}
       </View>
     );
   }
 
-  const sidebar = (
-    <View style={styles.sidebar}>
+  function renderActions(): React.JSX.Element {
+    const run = (action: () => void) => () => {
+      if (!wideSidebar) {
+        setSidebarOpen(false);
+      }
+      action();
+    };
+    return (
+      <View style={wideSidebar ? styles.toolbarButtons : styles.menuItems}>
+        <ActionButton menu={!wideSidebar} title="📋 Create Batch" onPress={run(openBatchDialog)} />
+        <ActionButton menu={!wideSidebar} title="📄 New File" onPress={run(createNewProtocol)} />
+        <ActionButton menu={!wideSidebar} title="⬇️ Download Controller Files" onPress={run(() => { void exportZip(); })} />
+        <ActionButton menu={!wideSidebar} title="📥 Save to Controller" onPress={run(saveToController)} />
+        <ActionButton menu={!wideSidebar} title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
+      </View>
+    );
+  }
+
+  function renderBrand(): React.JSX.Element {
+    if (!wideSidebar) {
+      return <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo} />;
+    }
+    return (
       <View style={styles.brand}>
         <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo} />
         <Text style={styles.brandCaption}>Vielight Neuro Pro 2 Protocol Editor</Text>
       </View>
+    );
+  }
+
+  const canDrop = Platform.OS === 'web' && wideSidebar;
+
+  const sidebar = (
+    <View style={styles.sidebar}>
+      {wideSidebar && renderBrand()}
+      {!wideSidebar && <View style={styles.sidebarActions}>{renderActions()}</View>}
       <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
-        <Text style={styles.uploadTitle}>{busy ? 'Importing…' : 'Import protocol files'}</Text>
-        <Text style={styles.uploadHint}>Choose .vnp, JSON, or ZIP files</Text>
+        <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
+        <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
       </Pressable>
       <ScrollView style={styles.fileScroll}>{renderFileList()}</ScrollView>
     </View>
@@ -363,6 +448,14 @@ export default function App() {
   const phase = normalizePhase(moduleControl.phase ?? 'A');
   const duration = calculateTotalDuration(displayedProtocol);
   const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
+
+  function renderDurationBar(): React.JSX.Element {
+    return (
+      <View style={styles.durationBar}>
+        <Text style={styles.durationBarText}>Total Protocol Duration: {duration === undefined ? 'Not specified' : `${duration} minutes`}</Text>
+      </View>
+    );
+  }
 
   function renderGlobalFields(sectionName: 'frequency' | 'power'): React.JSX.Element {
     const section = (displayedProtocol[sectionName] as ProtocolSection | undefined) ?? {};
@@ -382,24 +475,54 @@ export default function App() {
           ['Step duration', 'stepDuration', 'sec'],
         ];
     return (
-      <View style={styles.panel}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>{label}</Text>
+      <>
+        <SettingRow label={label} accent>
           <ToggleButton active={section.active !== false} title={section.active === false ? 'Activate' : 'Activated'} onPress={() => toggleSection(sectionName)} />
-        </View>
-        {section.active !== false && (
-          <View style={styles.fieldGrid}>
-            {entries.map(([title, key, unit]) => (
-              <NumberField
-                key={key}
-                label={title}
-                value={section[key]}
-                unit={unit}
-                onChange={(value) => updateSection(sectionName, key, value)}
-              />
-            ))}
-          </View>
-        )}
+        </SettingRow>
+        {section.active !== false && entries.map(([title, key, unit]) => (
+          <NumberField
+            key={key}
+            label={title}
+            value={section[key]}
+            unit={unit}
+            onChange={(value) => updateSection(sectionName, key, value)}
+          />
+        ))}
+      </>
+    );
+  }
+
+  function renderBatchSettings(): React.JSX.Element {
+    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: name }))];
+    return (
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Batch run settings</Text>
+        <SettingRow label="Batch filename" accent>
+          <TextInput
+            key={currentFileName}
+            accessibilityLabel="Batch filename"
+            defaultValue={currentFileName.replace(/\.vnp4$/i, '')}
+            onEndEditing={(event) => renameBatch(event.nativeEvent.text)}
+            style={[styles.textInput, styles.wideInput]}
+          />
+        </SettingRow>
+        {Array.from({ length: batchStageCount }, (_, index) => {
+          const stageFile = protocol.filenames?.[index] ?? '';
+          const viewing = activeBatchStage === index;
+          return (
+            <View key={index} style={styles.settingRow}>
+              <View>
+                <Text style={styles.settingLabel}>Stage {index + 1}</Text>
+                <Pressable accessibilityRole="button" onPress={() => setActiveBatchStage(index)} style={[styles.viewPill, viewing && styles.viewPillActive]}>
+                  <Text style={[styles.viewPillText, viewing && styles.viewPillActiveText]}>{viewing ? 'VIEWING' : 'VIEW'}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.wideInput}>
+                <Select label={`Stage ${index + 1}`} value={stageFile} options={stageOptions} onChange={(name) => setBatchFile(index, name)} />
+              </View>
+            </View>
+          );
+        })}
       </View>
     );
   }
@@ -407,138 +530,102 @@ export default function App() {
   function renderGlobalEditor(): React.JSX.Element {
     const cross = displayedProtocol.cross ?? {};
     return (
-      <>
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Global protocol settings</Text>
-          {renderGlobalFields('frequency')}
-          {renderGlobalFields('power')}
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Cross frequency coupling</Text>
-            <ToggleButton active={cross.active !== false} title={cross.active === false ? 'Activate' : 'Activated'} onPress={() => toggleSection('cross')} />
-          </View>
-          {cross.active !== false && (
-            <View style={styles.fieldGrid}>
-              <NumberField label="Frequency" value={cross.freq} unit="Hz" onChange={(value) => updateSection('cross', 'freq', value)} />
-              <NumberField label="Coupling delay" value={cross.couplingDelay} unit="min" onChange={(value) => updateSection('cross', 'couplingDelay', value)} />
-              <NumberField label="Stop coupling" value={cross.stopCoupling} unit="min" onChange={(value) => updateSection('cross', 'stopCoupling', value)} />
-            </View>
-          )}
-          <Text style={styles.fieldLabel}>Notes</Text>
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Global settings</Text>
+        {renderDurationBar()}
+        <SettingRow label="Protocol notes" accent={false}>
           <TextInput
             accessibilityLabel="Protocol notes"
             value={displayedProtocol.notes ?? ''}
             onChangeText={(notes) => updateDisplayedProtocol((current) => ({ ...current, notes }))}
             placeholder="Add protocol notes"
-            style={[styles.textInput, styles.notesInput]}
+            style={[styles.textInput, styles.wideInput]}
           />
-        </View>
-        {isBatch && (
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Batch stages</Text>
-            {Array.from({ length: 8 }, (_, index) => {
-              const stageFile = protocol.filenames?.[index] ?? '';
-              return (
-                <View key={index} style={styles.batchRow}>
-                  <Pressable
-                    onPress={() => setActiveBatchStage(index)}
-                    style={[styles.stageButton, activeBatchStage === index && styles.activeStage]}
-                  >
-                    <Text style={styles.buttonText}>Stage {index + 1}</Text>
-                  </Pressable>
-                  <View style={styles.stageFiles}>
-                    {availableStageFiles.map((name) => (
-                      <Pressable
-                        key={name}
-                        onPress={() => setBatchFile(index, name)}
-                        style={[styles.stageFile, stageFile === name && styles.selectedFile]}
-                      >
-                        <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
-                      </Pressable>
-                    ))}
-                    <Pressable onPress={() => setBatchFile(index, '')} style={styles.stageClear}>
-                      <Text style={styles.deleteText}>Clear</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+        </SettingRow>
+        {renderGlobalFields('frequency')}
+        {renderGlobalFields('power')}
+        <SettingRow label="Cross frequency coupling" accent>
+          <ToggleButton active={cross.active !== false} title={cross.active === false ? 'Activate' : 'Activated'} onPress={() => toggleSection('cross')} />
+        </SettingRow>
+        {cross.active !== false && (
+          <>
+            <NumberField label="Frequency" value={cross.freq} unit="Hz" onChange={(value) => updateSection('cross', 'freq', value)} />
+            <NumberField label="Coupling delay" value={cross.couplingDelay} unit="min" onChange={(value) => updateSection('cross', 'couplingDelay', value)} />
+            <NumberField label="Stop coupling" value={cross.stopCoupling} unit="min" onChange={(value) => updateSection('cross', 'stopCoupling', value)} />
+          </>
         )}
-      </>
-    );
-  }
-
-  function renderModuleEditor(moduleNumber: number): React.JSX.Element {
-    const module = getProtocolModule(displayedProtocol, moduleNumber);
-    const control = module.moduleControl ?? {};
-    const frequencyActive = displayedProtocol.frequency?.active !== false;
-    const powerActive = displayedProtocol.power?.active !== false;
-    return (
-      <View style={styles.panel}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.panelTitle}>{protocolModules.find((item) => item.number === moduleNumber)?.name} module</Text>
-          <ToggleButton active={module.active !== false} title={module.active === false ? 'Activate' : 'Active'} onPress={() => updateModule(moduleNumber, { active: module.active === false })} />
-        </View>
-        <View style={styles.fieldGrid}>
-          <NumberField label="Active run time" value={module.activeRunTime ?? module.runTime} unit="min" onChange={(value) => updateModule(moduleNumber, { activeRunTime: value })} />
-          <NumberField label="Delay start time" value={module.delayStartTime} unit="min" onChange={(value) => updateModule(moduleNumber, { delayStartTime: value })} />
-          {!frequencyActive && (
-            <NumberField label="Frequency" value={module.freq ?? control.freq} unit="Hz" onChange={(value) => updateModuleControl(moduleNumber, 'freq', value)} />
-          )}
-          {!powerActive && (
-            <NumberField label="Power" value={module.power ?? control.power} unit="%" onChange={(value) => updateModuleControl(moduleNumber, 'power', value)} />
-          )}
-        </View>
-        {(frequencyActive || powerActive) && (
-          <Text style={styles.helpText}>Global sweeps control {frequencyActive && powerActive ? 'frequency and power' : frequencyActive ? 'frequency' : 'power'} for this module.</Text>
-        )}
-        <View style={styles.sectionHeading}>
-          <Text style={styles.fieldLabel}>Phase</Text>
-          <View style={styles.phaseOptions}>
-            {(['A', 'B'] as const).map((value) => (
-              <Pressable
-                key={value}
-                onPress={() => updateModuleControl(moduleNumber, 'phase', value === 'B' ? 1 : 0)}
-                style={[styles.phaseButton, value === phase && (value === 'A' ? styles.phaseAButton : styles.phaseBButton)]}
-              >
-                <Text style={styles.buttonText}>Phase {value}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.fieldLabel}>Apply cross frequency</Text>
-          <ToggleButton active={module.applyCross === true} title={module.applyCross === true ? 'Applied' : 'Off'} onPress={() => updateModule(moduleNumber, { applyCross: module.applyCross !== true })} />
-        </View>
       </View>
     );
   }
 
-  function renderAllModules(): React.JSX.Element {
-    const activeCount = (displayedProtocol.modules ?? []).filter((module) => module.active !== false).length;
-    const makeActive = activeCount < protocolModules.length;
+  function updateAllModules(patch: (module: ProtocolModule) => Partial<ProtocolModule>): void {
+    updateDisplayedProtocol((current) => {
+      const others = (current.modules ?? []).filter((item) => !protocolModules.some(({ number }) => number === item.module_no));
+      const modules = protocolModules.map(({ number }) => {
+        const module = getProtocolModule(current, number);
+        return { ...module, ...patch(module) };
+      });
+      return { ...current, modules: [...others, ...modules] };
+    });
+  }
+
+  function renderModuleEditor(moduleNumber: number | 'all'): React.JSX.Element {
+    const all = moduleNumber === 'all';
+    const referenceNumber = all
+      ? (protocolModules.find(({ number }) => getProtocolModule(displayedProtocol, number).active !== false) ?? protocolModules[0]).number
+      : moduleNumber;
+    const module = getProtocolModule(displayedProtocol, referenceNumber);
+    const control = module.moduleControl ?? {};
+    const modulePhase = normalizePhase(control.phase);
+    const frequencyActive = displayedProtocol.frequency?.active !== false;
+    const powerActive = displayedProtocol.power?.active !== false;
+    const setModule = (patch: Partial<ProtocolModule>): void => {
+      if (all) {
+        updateAllModules(() => patch);
+      } else {
+        updateModule(moduleNumber, patch);
+      }
+    };
+    const setControl = (key: string, value: unknown): void => {
+      if (!all) {
+        updateModuleControl(moduleNumber, key, value);
+      } else if (key === 'freq' || key === 'power') {
+        updateAllModules(() => ({ [key]: value }));
+      } else {
+        updateAllModules((item) => ({ moduleControl: { ...item.moduleControl, [key]: value } }));
+      }
+    };
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Edit all modules</Text>
-        <Pressable
-          onPress={() => {
-            protocolModules.forEach(({ number }) => updateModule(number, { active: makeActive }));
-          }}
-          style={styles.primaryButton}
-        >
-          <Text style={styles.buttonText}>{makeActive ? 'Activate all modules' : 'Deactivate all modules'}</Text>
-        </Pressable>
-        <View style={styles.moduleList}>
-          {protocolModules.map(({ name, number }) => {
-            const module = getProtocolModule(displayedProtocol, number);
-            return (
-              <View key={number} style={styles.batchRow}>
-                <Text style={styles.moduleName}>{name}</Text>
-                <ToggleButton active={module.active !== false} title={module.active === false ? 'Inactive' : 'Active'} onPress={() => updateModule(number, { active: module.active === false })} />
-              </View>
-            );
-          })}
-        </View>
+        <Text style={styles.panelTitle}>Data entry: {all ? 'all modules' : `module ${protocolModules.find((item) => item.number === moduleNumber)?.name}`}</Text>
+        {renderDurationBar()}
+        <SettingRow label="Module status" accent>
+          <ToggleButton active={module.active !== false} title={module.active === false ? 'Activate' : 'Active'} onPress={() => setModule({ active: module.active === false })} />
+        </SettingRow>
+        <NumberField label="Active run time" value={module.activeRunTime ?? module.runTime} unit="min" onChange={(value) => setModule({ activeRunTime: value })} />
+        <NumberField label="Delay start time" value={module.delayStartTime} unit="min" onChange={(value) => setModule({ delayStartTime: value })} />
+        <SettingRow label="Module phase" accent={false}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Phase ${modulePhase}`}
+            onPress={() => setControl('phase', modulePhase === 'A' ? 1 : 0)}
+            style={[styles.phaseToggle, modulePhase === 'A' ? styles.phaseAButton : styles.phaseBButton]}
+          >
+            <Text style={styles.phaseToggleText}>{modulePhase}</Text>
+          </Pressable>
+        </SettingRow>
+        {!frequencyActive && (
+          <NumberField label="Frequency" value={module.freq ?? control.freq} unit="Hz" onChange={(value) => setControl('freq', value)} />
+        )}
+        {!powerActive && (
+          <NumberField label="Power" value={module.power ?? control.power} unit="%" onChange={(value) => setControl('power', value)} />
+        )}
+        {(frequencyActive || powerActive) && (
+          <Text style={styles.helpText}>Global sweeps control {frequencyActive && powerActive ? 'frequency and power' : frequencyActive ? 'frequency' : 'power'} for {all ? 'all modules' : 'this module'}.</Text>
+        )}
+        <SettingRow label="Apply cross frequency" accent={false}>
+          <ToggleButton active={module.applyCross === true} title={module.applyCross === true ? 'Yes' : 'No'} onPress={() => setModule({ applyCross: module.applyCross !== true })} />
+        </SettingRow>
       </View>
     );
   }
@@ -550,16 +637,15 @@ export default function App() {
           accessibilityRole="button"
           accessibilityState={{ expanded: summaryExpanded }}
           onPress={() => setSummaryExpanded((expanded) => !expanded)}
-          style={styles.sectionHeading}
         >
-          <Text style={styles.panelTitle}>Protocol summary</Text>
-          <Text style={styles.expandText}>{summaryExpanded ? 'Collapse' : 'Expand'}</Text>
+          <Text style={styles.collapseTitle}>{summaryExpanded ? '▼' : '▶'} View Protocol Summary Table</Text>
         </Pressable>
         {summaryExpanded && (
-          <ScrollView horizontal>
+          <ScrollView horizontal style={styles.summaryBox}>
             <View>
               <View style={styles.summaryRow}>
-                {['Module', 'Power', 'Frequency', 'Cross', 'Phase', 'Delay / time'].map((title) => (
+                <Text style={[styles.summaryCell, styles.summaryHeading]} />
+                {['PWR\n%', 'FREQ\nHZ', 'CROSS\nFREQ', 'PHASE', 'TIME\nDELAY/ACTIVE'].map((title) => (
                   <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
                 ))}
               </View>
@@ -569,12 +655,12 @@ export default function App() {
                 const active = module.active !== false;
                 return (
                   <View key={number} style={styles.summaryRow}>
-                    <Text style={styles.summaryCell}>{name}</Text>
-                    <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}%</Text>
-                    <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)} Hz</Text>
-                    <Text style={styles.summaryCell}>{active && module.applyCross ? 'On' : 'Off'}</Text>
+                    <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
+                    <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}</Text>
+                    <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)}</Text>
+                    <Text style={styles.summaryCell}>{active && module.applyCross ? 'on' : 'off'}</Text>
                     <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
-                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)} / {String(module.activeRunTime ?? module.runTime ?? 0)} min</Text>
+                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(module.activeRunTime ?? module.runTime ?? 0)}</Text>
                   </View>
                 );
               })}
@@ -582,6 +668,52 @@ export default function App() {
           </ScrollView>
         )}
       </View>
+    );
+  }
+
+  function renderBatchDialog(): React.JSX.Element {
+    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: name }))];
+    return (
+      <Modal transparent animationType="fade" visible={batchDialogOpen} onRequestClose={() => setBatchDialogOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Batch run creation</Text>
+            <Text style={styles.dialogSubtitle}>Select a stage to add a data set to the BATCH run</Text>
+            <View style={styles.dialogNameRow}>
+              <Text style={styles.sectionTitle}>Batch filename</Text>
+              <TextInput
+                accessibilityLabel="Batch filename"
+                value={batchDraftName}
+                onChangeText={setBatchDraftName}
+                style={[styles.textInput, styles.dialogInput]}
+              />
+            </View>
+            <ScrollView style={styles.dialogStages}>
+              {batchDraftStages.map((stageFile, index) => (
+                <View key={index} style={styles.settingRow}>
+                  <Text style={styles.settingLabel}>Stage {index + 1}</Text>
+                  <View style={styles.wideInput}>
+                    <Select
+                      label={`Stage ${index + 1}`}
+                      value={stageFile}
+                      options={stageOptions}
+                      onChange={(name) => setBatchDraftStages((current) => current.map((item, position) => position === index ? name : item))}
+                    />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.dialogButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setBatchDialogOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>BACK</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={createBatch} style={styles.addButton}>
+                <Text style={styles.addButtonText}>ADD TO LIST</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   }
 
@@ -606,25 +738,18 @@ export default function App() {
               <View style={styles.toolbarHeading}>
                 {!wideSidebar && (
                   <Pressable accessibilityRole="button" onPress={() => setSidebarOpen(true)} style={styles.menuButton}>
-                    <Text style={styles.buttonText}>☰ Files</Text>
+                    <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
                 )}
-                <View style={styles.headingText}>
-                  <Text numberOfLines={1} style={styles.currentFile}>{currentFileName || 'No File Loaded'}</Text>
-                  <Text style={styles.durationText}>Total protocol duration: {duration === undefined ? 'Not specified' : `${duration} minutes`}</Text>
-                </View>
+                <Text numberOfLines={1} style={styles.currentFile}>{currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
               </View>
-              <View style={styles.toolbarButtons}>
-                <ActionButton title="New File" onPress={createNewProtocol} />
-                <ActionButton title="Create Batch" onPress={createBatch} />
-                <ActionButton title="Save to Disk" onPress={saveProtocol} />
-                <ActionButton title="Export ZIP" onPress={exportZip} />
-              </View>
+              {wideSidebar && renderActions()}
             </View>
             {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
             <ScrollView contentContainerStyle={styles.workspace}>
               <View style={[styles.editorLayout, wideEditor && styles.editorLayoutWide]}>
-                <View style={styles.diagramPanel}>
+                <View style={[styles.diagramPanel, wideEditor && styles.diagramPanelWide]}>
+                  {!wideSidebar && renderBrand()}
                   <View style={styles.legend}>
                     <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
                     <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
@@ -638,7 +763,11 @@ export default function App() {
                           const { number } = moduleInfo;
                           const module = getProtocolModule(displayedProtocol, number);
                           const currentPhase = normalizePhase(module.moduleControl?.phase);
-                          const phaseStyle = currentPhase === 'B' ? styles.phaseB : styles.phaseA;
+                          const crossApplied = module.active !== false && module.applyCross === true && displayedProtocol.cross?.active !== false;
+                          const light = lightTileModules.includes(name);
+                          const phaseStyle = currentPhase === 'B'
+                            ? (light ? styles.phaseBLight : styles.phaseB)
+                            : (light ? styles.phaseALight : styles.phaseA);
                           return (
                             <Pressable
                               key={number}
@@ -651,36 +780,36 @@ export default function App() {
                               style={[
                                 styles.moduleTile,
                                 module.active === false ? styles.inactiveTile : phaseStyle,
+                                crossApplied && styles.crossTile,
                                 mode === 'module' && selectedModule === number && styles.selectedTile,
                               ]}
                             >
                               <Text style={styles.moduleTitle}>{name}</Text>
-                              <Text style={styles.moduleSubtitle}>{module.active === false ? 'Inactive' : `${module.power ?? moduleControl.power ?? 0}% · ${module.freq ?? moduleControl.freq ?? 0} Hz`}</Text>
+                              <Text style={styles.moduleSubtitle}>{module.active === false ? 'Inactive' : describeModule(displayedProtocol, module)}</Text>
+                              {crossApplied && <Text style={styles.crossLabel}>X:{String(displayedProtocol.cross?.freq ?? 0)}Hz</Text>}
                             </Pressable>
                           );
                         })}
                       </View>
                     ))}
                   </View>
-                  <Pressable onPress={() => setMode('all')} style={[styles.modeButton, mode === 'all' && styles.activeMode]}>
-                    <Text style={styles.modeText}>Edit all modules</Text>
+                  <Pressable disabled={isBatch} onPress={() => setMode('all')} style={[styles.modeButton, !isBatch && mode === 'all' && styles.activeMode, isBatch && styles.disabledMode]}>
+                    <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>Edit all modules</Text>
                   </Pressable>
-                  <Pressable onPress={() => setMode('global')} style={[styles.modeButton, mode === 'global' && styles.activeMode]}>
-                    <Text style={styles.modeText}>Global protocol settings</Text>
+                  <Pressable disabled={isBatch} onPress={() => setMode('global')} style={[styles.modeButton, !isBatch && mode === 'global' && styles.activeMode, isBatch && styles.disabledMode]}>
+                    <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>Global protocol settings</Text>
                   </Pressable>
                 </View>
-                <View style={styles.rightColumn}>
-                  {mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderAllModules() : renderModuleEditor(selectedModule)}
+                <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
+                  {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {renderSummary()}
                   <View style={styles.panel}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityState={{ expanded: jsonExpanded }}
                       onPress={() => setJsonExpanded((expanded) => !expanded)}
-                      style={styles.sectionHeading}
                     >
-                      <Text style={styles.panelTitle}>Raw JSON</Text>
-                      <Text style={styles.expandText}>{jsonExpanded ? 'Collapse' : 'Expand'}</Text>
+                      <Text style={styles.collapseTitle}>{jsonExpanded ? '▼' : '▶'} View Raw JSON Code</Text>
                     </Pressable>
                     {jsonExpanded && (
                       <ScrollView style={styles.jsonBox} nestedScrollEnabled>
@@ -693,6 +822,7 @@ export default function App() {
             </ScrollView>
           </View>
           {!wideSidebar && renderSidebarModal()}
+          {renderBatchDialog()}
         </View>
         <StatusBar style="auto" />
       </SafeAreaView>
@@ -700,10 +830,10 @@ export default function App() {
   );
 }
 
-function ActionButton(props: { title: string; onPress: () => void }): React.JSX.Element {
+function ActionButton(props: { title: string; onPress: () => void; menu?: boolean }): React.JSX.Element {
   return (
-    <Pressable accessibilityRole="button" onPress={props.onPress} style={styles.actionButton}>
-      <Text style={styles.actionText}>{props.title}</Text>
+    <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : styles.actionButton}>
+      <Text style={props.menu ? styles.menuItemText : styles.actionText}>{props.title}</Text>
     </Pressable>
   );
 }
@@ -716,11 +846,64 @@ function ToggleButton(props: { active: boolean; title: string; onPress: () => vo
   );
 }
 
+function describeModule(protocol: Protocol, module: ProtocolModule): string {
+  const frequency = protocol.frequency ?? {};
+  const power = protocol.power ?? {};
+  const sweepFrequency = frequency.active !== false && Number(frequency.startFreq) > 0 && Number(frequency.endFreq) > 0;
+  const sweepPower = power.active !== false && Number(power.startPower) > 0 && Number(power.endPower) > 0;
+  const freq = sweepFrequency ? `${String(frequency.startFreq)}-${String(frequency.endFreq)}` : String(module.freq ?? 0);
+  const level = sweepPower ? `${String(power.startPower)}-${String(power.endPower)}` : String(module.power ?? 0);
+  return `${freq}hz · ${level}%\n${String(module.activeRunTime ?? module.runTime ?? 0)}m`;
+}
+
+function SettingRow(props: { label: string; accent: boolean; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <View style={styles.settingRow}>
+      <Text style={[styles.settingLabel, props.accent && styles.settingLabelAccent]}>{props.label}</Text>
+      {props.children}
+    </View>
+  );
+}
+
+function Select(props: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }): React.JSX.Element {
+  if (Platform.OS === 'web') {
+    return createElement(
+      'select',
+      {
+        'aria-label': props.label,
+        value: props.value,
+        onChange: (event: { target: { value: string } }) => props.onChange(event.target.value),
+        style: {
+          backgroundColor: '#f8fafc',
+          border: '1px solid #cbd5e1',
+          borderRadius: 6,
+          color: '#1e293b',
+          fontSize: 15,
+          padding: '10px 12px',
+          width: '100%',
+        },
+      },
+      props.options.map((option) => createElement('option', { key: option.value, value: option.value }, option.label)),
+    );
+  }
+  const index = Math.max(0, props.options.findIndex((option) => option.value === props.value));
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      onPress={() => props.onChange(props.options[(index + 1) % props.options.length]?.value ?? '')}
+      style={styles.selectButton}
+    >
+      <Text style={styles.selectText}>{props.options[index]?.label}</Text>
+    </Pressable>
+  );
+}
+
 function NumberField(props: { label: string; value: unknown; unit: string; onChange: (value: number) => void }): React.JSX.Element {
   const value = typeof props.value === 'number' && Number.isFinite(props.value) ? String(props.value) : '0';
   return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{props.label}</Text>
+    <View style={styles.settingRow}>
+      <Text style={styles.settingLabel}>{props.label}</Text>
       <View style={styles.fieldControl}>
         <TextInput
           accessibilityLabel={props.label}
@@ -756,10 +939,15 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#eaf2e8' },
   appShell: { flex: 1, flexDirection: 'row', backgroundColor: '#eaf2e8' },
   sidebar: { width: 300, backgroundColor: '#fff', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
+  sidebarActions: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1 },
+  menuItems: { backgroundColor: '#fff' },
+  menuItem: { borderBottomColor: '#f1f5f9', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
+  menuItemText: { color: '#334155', fontSize: 15, fontWeight: '600' },
   brand: { alignItems: 'center', backgroundColor: '#f8fafc', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, padding: 14 },
+  mobileLogo: { height: 199, marginBottom: 8, width: 199 },
   logo: { width: 128, height: 128 },
   brandCaption: { color: '#64748b', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
-  uploadButton: { alignItems: 'center', backgroundColor: '#f8fafc', borderColor: '#94a3b8', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
+  uploadButton: { alignItems: 'center', backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
   uploadTitle: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   uploadHint: { color: '#64748b', fontSize: 12, marginTop: 5, textAlign: 'center' },
   fileScroll: { flex: 1 },
@@ -770,42 +958,50 @@ const styles = StyleSheet.create({
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
   selectedFile: { backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderWidth: 1 },
   fileName: { color: '#334155', fontSize: 12, fontWeight: '600' },
-  deleteText: { color: '#dc2626', fontSize: 16, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
+  deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
-  toolbar: { backgroundColor: '#fff', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 12, paddingHorizontal: 18, paddingVertical: 14 },
+  toolbar: { backgroundColor: '#fff', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 8, paddingHorizontal: 18, paddingVertical: 10 },
   toolbarHeading: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   headingText: { flex: 1, minWidth: 0 },
-  currentFile: { color: '#334155', fontSize: 18, fontWeight: '700' },
+  currentFile: { color: '#334155', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
-  toolbarButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  toolbarButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  workspace: { padding: 18 },
-  editorLayout: { gap: 18 },
+  workspace: { padding: 14 },
+  editorLayout: { gap: 14 },
   editorLayoutWide: { alignItems: 'flex-start', flexDirection: 'row' },
-  diagramPanel: { alignItems: 'center', flexBasis: 390, flexGrow: 1, flexShrink: 1 },
-  legend: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, flexDirection: 'row', gap: 18, marginBottom: 16, paddingHorizontal: 14, paddingVertical: 9 },
+  diagramPanel: { alignItems: 'center', width: '100%' },
+  diagramPanelWide: { flexBasis: 360, flexGrow: 0, flexShrink: 1, width: 'auto' },
+  legend: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, flexDirection: 'row', gap: 18, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 6 },
   legendItem: { alignItems: 'center', flexDirection: 'row', gap: 7 },
   legendText: { color: '#334155', fontSize: 13, fontWeight: '600' },
   phaseASwatch: { backgroundColor: '#7bc043', borderColor: '#1a1a1a', borderRadius: 3, borderWidth: 1, height: 15, width: 15 },
   phaseBSwatch: { backgroundColor: '#f9a01b', borderColor: '#1a1a1a', borderRadius: 3, borderWidth: 1, height: 15, width: 15 },
-  moduleGrid: { alignItems: 'center', gap: 8, maxWidth: 500, width: '100%' },
+  moduleGrid: { alignItems: 'center', gap: 6, maxWidth: 400, width: '100%' },
   moduleRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', width: '100%' },
-  moduleTile: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 7, borderWidth: 1, justifyContent: 'center', minHeight: 65, padding: 5, width: '30%' },
+  moduleTile: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 7, borderWidth: 1, justifyContent: 'center', minHeight: 58, padding: 4, width: '31%' },
   phaseA: { backgroundColor: '#7bc043' },
   phaseB: { backgroundColor: '#f9a01b' },
+  phaseALight: { backgroundColor: '#c8e6b0' },
+  phaseBLight: { backgroundColor: '#fcd9a0' },
   inactiveTile: { backgroundColor: '#fff' },
+  crossTile: { borderColor: '#000', borderWidth: 4 },
+  crossLabel: { color: '#000', fontSize: 10, fontWeight: '800', textAlign: 'center' },
   selectedTile: { borderColor: '#000', borderWidth: 3 },
+  disabledMode: { backgroundColor: '#f3f7f1', borderColor: '#dde6da' },
+  disabledModeText: { color: '#94a3b8' },
   moduleTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
   moduleSubtitle: { color: '#334155', fontSize: 10, marginTop: 3, textAlign: 'center' },
   modeButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 2, marginTop: 12, padding: 12, width: '100%' },
   activeMode: { backgroundColor: '#f0fdf4', borderColor: '#7bc043' },
   modeText: { color: '#334155', fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  rightColumn: { flex: 1, gap: 14, minWidth: 0, width: '100%' },
-  panel: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 12, padding: 16 },
-  panelTitle: { color: '#7bc043', fontSize: 17, fontWeight: '800' },
+  rightColumn: { gap: 14, minWidth: 0, width: '100%' },
+  rightColumnWide: { flex: 1, minWidth: 340, width: 'auto' },
+  panel: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
+  panelTitle: { color: '#7bc043', fontSize: 18, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center', textTransform: 'uppercase' },
   expandText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
   sectionHeading: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
   sectionTitle: { color: '#7bc043', flex: 1, fontSize: 14, fontWeight: '800', textTransform: 'uppercase' },
@@ -813,10 +1009,10 @@ const styles = StyleSheet.create({
   field: { flexBasis: 150, flexGrow: 1, minWidth: 125 },
   fieldLabel: { color: '#475569', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase' },
   fieldControl: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  numberInput: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, color: '#1e293b', flex: 1, fontSize: 15, minWidth: 60, paddingHorizontal: 9, paddingVertical: 8, textAlign: 'right' },
+  numberInput: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, color: '#1e293b', fontSize: 15, paddingHorizontal: 9, paddingVertical: 6, textAlign: 'right', width: 84 },
   textInput: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, color: '#1e293b', fontSize: 14, padding: 10 },
   notesInput: { minHeight: 68, textAlignVertical: 'top' },
-  unit: { color: '#64748b', fontSize: 12, fontWeight: '600', minWidth: 30 },
+  unit: { color: '#64748b', fontSize: 12, fontWeight: '600', width: 28 },
   toggle: { alignItems: 'center', backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderRadius: 18, borderWidth: 1, minWidth: 82, paddingHorizontal: 12, paddingVertical: 7 },
   toggleActive: { backgroundColor: '#dcfce7', borderColor: '#7bc043' },
   toggleText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
@@ -837,11 +1033,40 @@ const styles = StyleSheet.create({
   stageFile: { borderColor: '#cbd5e1', borderRadius: 4, borderWidth: 1, maxWidth: 150, padding: 6 },
   stageClear: { justifyContent: 'center' },
   summaryRow: { flexDirection: 'row' },
-  summaryCell: { borderBottomColor: '#e2e8f0', borderBottomWidth: 1, color: '#334155', fontSize: 11, minWidth: 80, paddingHorizontal: 7, paddingVertical: 8, textAlign: 'center' },
+  summaryCell: { borderBottomColor: '#e2e8f0', borderBottomWidth: 1, color: '#334155', fontSize: 13, minWidth: 90, paddingHorizontal: 7, paddingVertical: 10, textAlign: 'center' },
+  summaryModule: { color: '#f9a01b', fontWeight: '800' },
+  summaryBox: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, padding: 12 },
   summaryHeading: { color: '#7bc043', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   jsonBox: { backgroundColor: '#0f172a', borderRadius: 7, maxHeight: 320, padding: 12 },
   jsonText: { color: '#e2e8f0', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined, fontSize: 11 },
   error: { backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: 13, paddingHorizontal: 18, paddingVertical: 10 },
   modalRoot: { backgroundColor: 'rgba(0,0,0,0.45)', flex: 1, flexDirection: 'row' },
   modalBackdrop: { flex: 1 },
+  collapseTitle: { color: '#1e293b', fontSize: 17, fontWeight: '700' },
+  durationBar: { backgroundColor: '#f1f5f9', borderRadius: 6, padding: 8 },
+  durationBarText: { color: '#475569', fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  settingRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', gap: 8, justifyContent: 'space-between', paddingBottom: 10 },
+  settingLabel: { color: '#475569', flex: 1, fontSize: 13, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
+  settingLabelAccent: { color: '#7bc043', fontWeight: '800' },
+  wideInput: { flexBasis: 0, flexGrow: 1, maxWidth: 320 },
+  phaseToggle: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 6, borderWidth: 1, height: 44, justifyContent: 'center', width: 54 },
+  phaseToggleText: { color: '#1a1a1a', fontSize: 18, fontWeight: '800' },
+  viewPill: { alignSelf: 'flex-start', borderColor: '#f9a01b', borderRadius: 12, borderWidth: 1, marginTop: 6, paddingHorizontal: 10, paddingVertical: 2 },
+  viewPillActive: { backgroundColor: '#f9a01b' },
+  viewPillText: { color: '#f9a01b', fontSize: 11, fontWeight: '800' },
+  viewPillActiveText: { color: '#fff' },
+  selectButton: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, padding: 11 },
+  selectText: { color: '#1e293b', fontSize: 15 },
+  dialogRoot: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', flex: 1, justifyContent: 'center', padding: 16 },
+  dialog: { backgroundColor: '#fff', borderRadius: 16, maxHeight: '90%', maxWidth: 560, padding: 28, width: '100%' },
+  dialogTitle: { color: '#7bc043', fontSize: 20, fontWeight: '800', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' },
+  dialogSubtitle: { color: '#475569', fontSize: 15, marginBottom: 18, marginTop: 6, textAlign: 'center' },
+  dialogNameRow: { alignItems: 'center', borderBottomColor: '#cbd5e1', borderBottomWidth: 2, flexDirection: 'row', gap: 12, paddingBottom: 16 },
+  dialogInput: { flex: 2 },
+  dialogStages: { flexGrow: 0, marginVertical: 8, maxHeight: 400 },
+  dialogButtons: { flexDirection: 'row', gap: 15, justifyContent: 'center', marginTop: 14 },
+  backButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 44, paddingVertical: 11 },
+  backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
+  addButton: { backgroundColor: '#7bc043', borderRadius: 6, paddingHorizontal: 22, paddingVertical: 12 },
+  addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
