@@ -1,6 +1,7 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Platform,
@@ -423,17 +424,42 @@ export default function App() {
     setError('Saving to a controller is not available yet; use Save to Disk or Export All as ZIP.');
   }
 
+  function connectToController(): ReturnType<typeof createNeuroPro2Device> {
+    const bridge = (globalThis as { brainBroccoliDevice?: { request: (url: string) => Promise<{ ok: boolean; status: number; body: string }> } }).brainBroccoliDevice;
+    return createNeuroPro2Device(settings.deviceAddress, bridge ? {
+      fetch: async (url: URL) => {
+        const { ok, status, body } = await bridge.request(String(url));
+        return { ok, status, text: async () => body, json: async () => JSON.parse(body) as unknown };
+      },
+    } : {});
+  }
+
+  async function deleteFromController(): Promise<void> {
+    const name = currentFileName;
+    if (!/\.vnp[04]$/i.test(name)) {
+      return;
+    }
+    if (!(await confirmAction(`Delete ${name} from the controller at ${settings.deviceAddress}? This cannot be undone. Your local copy is kept.`))) {
+      return;
+    }
+    setError('');
+    setBusy(true);
+    try {
+      setStatus(`Deleting ${name} from ${settings.deviceAddress}…`);
+      await connectToController().deleteFile(name);
+      setStatus(`Deleted ${name} from the controller.`);
+    } catch (reason) {
+      setError(`Unable to delete ${name} from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function downloadFromController(): Promise<void> {
     setError('');
     setBusy(true);
     try {
-      const bridge = (globalThis as { brainBroccoliDevice?: { request: (url: string) => Promise<{ ok: boolean; status: number; body: string }> } }).brainBroccoliDevice;
-      const device = createNeuroPro2Device(settings.deviceAddress, bridge ? {
-        fetch: async (url: URL) => {
-          const { ok, status, body } = await bridge.request(String(url));
-          return { ok, status, text: async () => body, json: async () => JSON.parse(body) as unknown };
-        },
-      } : {});
+      const device = connectToController();
       setStatus(`Connecting to ${settings.deviceAddress}…`);
       const downloaded = await downloadControllerFiles(device, setStatus);
       if (downloaded.length === 0) {
@@ -591,6 +617,7 @@ export default function App() {
         <View style={styles.fileActions}>
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={saveToController} />}
+          {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="🗑️ Delete from Controller" onPress={() => { void deleteFromController(); }} />}
         </View>
       </View>
     );
@@ -1590,4 +1617,16 @@ async function persistSettings(settings: Settings): Promise<void> {
   } catch {
     // Settings are a convenience; failing to save should not interrupt editing.
   }
+}
+
+function confirmAction(message: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(globalThis.confirm(message));
+  }
+  return new Promise((resolve) => {
+    Alert.alert('Delete from Controller', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
 }

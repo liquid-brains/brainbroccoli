@@ -90,11 +90,12 @@ describe('desktop shell', () => {
     expect(readAsset).not.toHaveBeenCalled();
   });
 
-  it('proxies only read-only controller requests for the renderer', async () => {
+  it('proxies only read and delete controller requests for the renderer', async () => {
     await startDesktop();
     deviceFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '["a.vnp0"]' });
     const handler = ipcHandlers.get('device-request')!;
     await expect(handler({}, 'http://np1.local/getlistfile?msg=vnp0')).resolves.toEqual({ ok: true, status: 200, body: '["a.vnp0"]' });
+    await expect(handler({}, 'http://np1.local/deletefile?data=a.vnp0')).resolves.toMatchObject({ ok: true });
     await expect(handler({}, 'http://np1.local/savenewfile?data=x')).rejects.toThrow('Unsupported');
     await expect(handler({}, 'https://np1.local/getlistfile')).rejects.toThrow('Unsupported');
   });
