@@ -68,6 +68,7 @@ export default function App() {
   const [jsonExpanded, setJsonExpanded] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [menuCollapsed, setMenuCollapsed] = useState(false);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const systemScheme = useColorScheme();
@@ -453,7 +454,19 @@ export default function App() {
   const sidebar = (
     <View style={styles.sidebar}>
       {wideSidebar && renderBrand()}
-      <View style={styles.sidebarActions}>{renderActions()}</View>
+      <View style={styles.sidebarActions}>
+        {wideSidebar && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !menuCollapsed }}
+            onPress={() => setMenuCollapsed((collapsed) => !collapsed)}
+            style={styles.menuHeader}
+          >
+            <Text style={styles.menuHeaderText}>{menuCollapsed ? '▶' : '▼'} Menu</Text>
+          </Pressable>
+        )}
+        {(!wideSidebar || !menuCollapsed) && renderActions()}
+      </View>
       <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
         <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
         <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
@@ -1051,6 +1064,8 @@ const styleDefs = {
   sidebarActions: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1 },
   menuItems: { backgroundColor: '#2f5d1f' },
   menuItem: { backgroundColor: '#8dc63f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
+  menuHeader: { backgroundColor: '#2f5d1f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 10 },
+  menuHeaderText: { color: '#fefefe', fontSize: 13, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   menuItemText: { color: '#fefefe', fontSize: 15, fontWeight: '700' },
   brand: { alignItems: 'center', backgroundColor: '#2f5d1f', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, padding: 14 },
   mobileLogo: { height: 199, marginBottom: 8, width: 199 },
