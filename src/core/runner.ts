@@ -1,7 +1,7 @@
 import { calculateTotalDuration } from './protocol';
 import type { Protocol } from './protocol';
 
-export type RunnerFolder = { id: string; name: string };
+export type RunnerFolder = { id: string; name: string; collapsed?: boolean };
 export type RunnerItem = { id: string; file: string; folderId?: string };
 export type RunnerState = { folders: RunnerFolder[]; items: RunnerItem[] };
 
@@ -106,6 +106,19 @@ export function setRunnerItemFolder(state: RunnerState, id: string, folderId: st
 export function addRunnerFolder(state: RunnerState, name: string): RunnerState {
   const trimmed = name.trim();
   return trimmed === '' ? state : { ...state, folders: [...state.folders, { id: createId('folder'), name: trimmed }] };
+}
+
+export function toggleRunnerFolder(state: RunnerState, id: string): RunnerState {
+  return {
+    ...state,
+    folders: state.folders.map((folder) => {
+      if (folder.id !== id) {
+        return folder;
+      }
+      const { collapsed, ...rest } = folder;
+      return collapsed === true ? rest : { ...rest, collapsed: true };
+    }),
+  };
 }
 
 export function renameRunnerFolder(state: RunnerState, id: string, name: string): RunnerState {

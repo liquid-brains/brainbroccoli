@@ -58,6 +58,7 @@ import {
   removeRunnerFolder,
   renameRunnerFile,
   renameRunnerFolder,
+  toggleRunnerFolder,
 } from './src/core/runner';
 import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
@@ -887,6 +888,9 @@ export default function App() {
                     <Text style={styles.cardCloseText}>✕</Text>
                   </Pressable>
                   <View style={[styles.runnerButtons, { paddingRight: 28 }]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`${folder.collapsed === true ? 'Expand' : 'Collapse'} folder ${folder.name}`} accessibilityState={{ expanded: folder.collapsed !== true }} onPress={() => updateRunner((state) => toggleRunnerFolder(state, folder.id))} style={styles.thumbButton}>
+                      <Text style={styles.runnerButtonText}>{folder.collapsed === true ? '▶' : '▼'}</Text>
+                    </Pressable>
                     <TextInput
                       accessibilityLabel="Folder name"
                       value={folder.name}
@@ -894,8 +898,10 @@ export default function App() {
                       style={[styles.textInput, styles.runnerInput]}
                     />
                   </View>
-                  {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
-                  {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here.</Text>}
+                  {folder.collapsed === true
+                    ? <Text style={styles.runnerMeta}>{runner.items.filter((item) => item.folderId === folder.id).length} protocol(s) hidden</Text>
+                    : runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
+                  {folder.collapsed !== true && runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here.</Text>}
                 </View>
                 </DropZone>
               ))}

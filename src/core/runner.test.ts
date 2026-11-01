@@ -7,6 +7,7 @@ import {
   moveRunnerItem,
   removeUnratedEntries,
   sortJournal,
+  toggleRunnerFolder,
   nextThumbCount,
   summarizeProtocol,
   moveRunnerItemTo,
@@ -130,5 +131,15 @@ describe('journal sorting and cleanup', () => {
   it('removes only unrated records', () => {
     expect(isUnrated(entry('x', 'd', { up: 0, down: 0 }))).toBe(true);
     expect(ids(removeUnratedEntries(journal))).toEqual(['b', 'c']);
+  });
+});
+
+describe('folder collapsing', () => {
+  it('toggles a folder open and closed', () => {
+    const state = addRunnerFolder({ folders: [], items: [] }, 'F');
+    const id = state.folders[0]?.id ?? '';
+    const closed = toggleRunnerFolder(state, id);
+    expect(closed.folders[0]?.collapsed).toBe(true);
+    expect(toggleRunnerFolder(closed, id).folders[0]?.collapsed).toBeUndefined();
   });
 });
