@@ -864,7 +864,7 @@ export default function App() {
         <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
             {renderRunStatus()}
-            <View style={styles.panel}>
+            <View style={styles.runnerPanel}>
               <Text style={styles.panelTitle}>Protocols</Text>
               <View style={styles.runnerButtons}>
                 <TextInput
@@ -906,7 +906,7 @@ export default function App() {
             </View>
           </View>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
-            <View style={styles.panel}>
+            <View style={styles.runnerPanel}>
               <Text style={styles.panelTitle}>Journal</Text>
               {journal.length === 0 && <Text style={styles.emptyList}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
               {shownJournal.map((entry) => (
@@ -1867,7 +1867,8 @@ const styleDefs = {
   runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
   dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
-  runnerFolder: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
+  runnerPanel: { backgroundColor: '#e3f4d3', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
+  runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700' },
   runnerMeta: { color: '#64748b', fontSize: 12, lineHeight: 18 },
   runnerButtons: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -2056,6 +2057,8 @@ function buildTheme(scheme: Scheme): Theme {
     phaseBSwatch: palette.phaseB, phaseB: palette.phaseB, phaseBButton: palette.phaseB,
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
+  mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
+  mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
