@@ -14,6 +14,8 @@ export type JournalEntry = {
   up?: number;
   down?: number;
   summary?: string;
+  protocol?: Protocol;
+  stages?: Record<string, Protocol>;
   note: string;
 };
 

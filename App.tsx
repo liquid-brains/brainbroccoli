@@ -112,6 +112,8 @@ export default function App() {
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
   const [confirmUnrated, setConfirmUnrated] = useState(false);
+  const [journalView, setJournalView] = useState<{ id: string; kind: 'json' | 'diagram' } | null>(null);
+  const [journalStage, setJournalStage] = useState(0);
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
@@ -683,6 +685,21 @@ export default function App() {
     return summarizeProtocol(value, stages);
   }
 
+  function runnerSnapshot(name: string): { protocol?: Protocol; stages?: Record<string, Protocol> } {
+    const value = files[name];
+    if (!value) {
+      return {};
+    }
+    const stages: Record<string, Protocol> = {};
+    for (const stage of value.filenames ?? []) {
+      const stageProtocol = files[stage];
+      if (stage !== '' && stageProtocol !== undefined) {
+        stages[stage] = stageProtocol;
+      }
+    }
+    return { protocol: structuredClone(value), ...(Object.keys(stages).length > 0 ? { stages: structuredClone(stages) } : {}) };
+  }
+
   async function startRun(name: string): Promise<void> {
     const value = files[name];
     if (session || !value) {
@@ -697,7 +714,7 @@ export default function App() {
     setSession({ file: name, entryId, message: `Connecting to ${settings.deviceAddress}…`, totalSeconds: minutes === undefined ? undefined : minutes * 60 });
     setRunnerData((current) => ({
       ...current,
-      journal: [{ id: entryId, file: name, startedAt: new Date().toISOString(), status: 'running', note: '', summary: runnerSummary(name) }, ...current.journal],
+      journal: [{ id: entryId, file: name, startedAt: new Date().toISOString(), status: 'running', note: '', summary: runnerSummary(name), ...runnerSnapshot(name) }, ...current.journal],
     }));
     let outcome: JournalStatus = 'completed';
     try {
@@ -955,6 +972,16 @@ export default function App() {
                     <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down), up: 0 })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
                       <Text style={styles.runnerButtonText}>{'👎'.repeat(Math.max(1, entry.down ?? 0))}</Text>
                     </Pressable>
+                    {entry.protocol && (
+                      <Pressable accessibilityRole="button" accessibilityLabel="View diagram and protocol summary of this run" onPress={() => { setJournalStage(0); setJournalView({ id: entry.id, kind: 'diagram' }); }} style={styles.thumbButton}>
+                        <Text style={styles.runnerButtonText}>VIEW PROTOCOL</Text>
+                      </Pressable>
+                    )}
+                    {entry.protocol && settings.showJson && (
+                      <Pressable accessibilityRole="button" accessibilityLabel="View the JSON code of this run" onPress={() => setJournalView({ id: entry.id, kind: 'json' })} style={styles.thumbButton}>
+                        <Text style={styles.runnerButtonText}>VIEW JSON</Text>
+                      </Pressable>
+                    )}
                   </View>
                   <TextInput
                     accessibilityLabel="Journal entry"
@@ -1128,8 +1155,7 @@ export default function App() {
   const moduleControl = currentModule.moduleControl ?? {};
   const phase = normalizePhase(moduleControl.phase ?? 'A');
   const duration = calculateTotalDuration(displayedProtocol);
-  const maxRunTime = Math.max(0, ...protocolModules.map((item) => moduleRunTime(displayedProtocol, getProtocolModule(displayedProtocol, item.number))));
-  const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
+    const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
 
   function renderDurationBar(): React.JSX.Element {
     return (
@@ -1353,6 +1379,77 @@ export default function App() {
     );
   }
 
+  function renderModuleGrid(source: Protocol, onSelect?: (number: number) => void, selectedNumber?: number): React.JSX.Element {
+    const maxRun = Math.max(0, ...protocolModules.map((item) => moduleRunTime(source, getProtocolModule(source, item.number))));
+    return (
+      <View style={styles.moduleGrid}>
+        {protocolDiagramRows.map((row, rowIndex) => (
+          <View key={`row-${rowIndex}`} style={styles.moduleRow}>
+            {row.map((name) => {
+              const moduleInfo = protocolModules.find((item) => item.name === name);
+              if (!moduleInfo) return null;
+              const { number } = moduleInfo;
+              const module = getProtocolModule(source, number);
+              const currentPhase = normalizePhase(module.moduleControl?.phase);
+              const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
+              const tileInactive = module.active === false || modulePower(source, module) <= 0;
+              const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
+              return (
+                <Pressable
+                  key={number}
+                  accessibilityRole={onSelect ? 'button' : 'text'}
+                  accessibilityLabel={`${name}${tileInactive ? ', inactive' : ''}`}
+                  disabled={!onSelect}
+                  onPress={() => onSelect?.(number)}
+                  style={[
+                    styles.moduleTile,
+                    tileInactive ? styles.inactiveTile : { backgroundColor: tint },
+                    crossApplied && styles.crossTile,
+                    selectedNumber === number && styles.selectedTile,
+                  ]}
+                >
+                  <Text style={styles.moduleTitle}>{name}</Text>
+                  <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
+                  {crossApplied && <Text style={styles.crossLabel}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  function renderSummaryTable(source: Protocol): React.JSX.Element {
+    return (
+      <View style={styles.summaryBox}>
+        <View>
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryCell, styles.summaryHeading]} />
+            {['PWR\n%', 'FREQ\nHZ', 'CROSS\nFREQ', 'PHASE', 'DELAY/\nACTIVE'].map((title) => (
+              <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
+            ))}
+          </View>
+          {protocolModules.map(({ name, number }) => {
+            const module = getProtocolModule(source, number);
+            const control = module.moduleControl ?? {};
+            const active = module.active !== false;
+            return (
+              <View key={number} style={styles.summaryRow}>
+                <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
+                <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}</Text>
+                <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)}</Text>
+                <Text style={styles.summaryCell}>{active && module.applyCross ? 'on' : 'off'}</Text>
+                <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
+                <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(Math.round(moduleRunTime(source, module) * 10) / 10)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
   function renderSummary(): React.JSX.Element {
     return (
       <View style={styles.panel}>
@@ -1363,33 +1460,7 @@ export default function App() {
         >
           <Text style={styles.collapseTitle}>{summaryExpanded ? '▼' : '▶'} View Protocol Summary Table</Text>
         </Pressable>
-        {summaryExpanded && (
-          <View style={styles.summaryBox}>
-            <View>
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryCell, styles.summaryHeading]} />
-                {['PWR\n%', 'FREQ\nHZ', 'CROSS\nFREQ', 'PHASE', 'DELAY/\nACTIVE'].map((title) => (
-                  <Text key={title} style={[styles.summaryCell, styles.summaryHeading]}>{title}</Text>
-                ))}
-              </View>
-              {protocolModules.map(({ name, number }) => {
-                const module = getProtocolModule(displayedProtocol, number);
-                const control = module.moduleControl ?? {};
-                const active = module.active !== false;
-                return (
-                  <View key={number} style={styles.summaryRow}>
-                    <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
-                    <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}</Text>
-                    <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)}</Text>
-                    <Text style={styles.summaryCell}>{active && module.applyCross ? 'on' : 'off'}</Text>
-                    <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
-                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(Math.round(moduleRunTime(displayedProtocol, module) * 10) / 10)}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
+        {summaryExpanded && renderSummaryTable(displayedProtocol)}
       </View>
     );
   }
@@ -1447,6 +1518,61 @@ export default function App() {
     updateRunner((state) => addRunnerFolder(state, newFolderName));
     setFolderPromptOpen(false);
     setNewFolderName('');
+  }
+
+  function renderJournalViewDialog(): React.JSX.Element {
+    const entry = journalView ? runnerData.journal.find((candidate) => candidate.id === journalView.id) : undefined;
+    const stageNames = entry?.protocol?.filenames?.filter((stage) => stage !== '') ?? [];
+    const isBatchRun = entry?.protocol?.filenames !== undefined;
+    const shownStage = stageNames[Math.min(journalStage, Math.max(0, stageNames.length - 1))];
+    const shown = isBatchRun ? (shownStage ? entry?.stages?.[shownStage] : undefined) : entry?.protocol;
+    const json = entry?.protocol === undefined ? '' : JSON.stringify(entry.stages === undefined ? entry.protocol : { ...entry.protocol, stageFiles: entry.stages }, null, 2);
+    return (
+      <Modal transparent animationType="fade" visible={entry !== undefined && entry.protocol !== undefined} onRequestClose={() => setJournalView(null)}>
+        <View style={styles.dialogRoot}>
+          <View style={[styles.dialog, { maxWidth: 720 }]}>
+            <ScrollView>
+              <Text style={styles.dialogTitle}>{entry?.file ?? ''}</Text>
+              <Text style={styles.runnerMeta}>{entry ? `Run started ${new Date(entry.startedAt).toLocaleString()}` : ''}</Text>
+              {journalView?.kind === 'json' ? (
+                <ScrollView style={styles.jsonBox} nestedScrollEnabled>
+                  <Text selectable style={styles.jsonText}>{json}</Text>
+                </ScrollView>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {isBatchRun && (
+                    <View style={styles.runnerButtons}>
+                      {stageNames.map((stage, index) => (
+                        <Pressable key={`${stage}-${index}`} accessibilityRole="button" onPress={() => setJournalStage(index)} style={[styles.thumbButton, index === journalStage && styles.thumbUp]}>
+                          <Text style={styles.runnerButtonText}>{index + 1}. {stage}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  {shown ? (
+                    <>
+                      <View style={styles.legend}>
+                        <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
+                        <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
+                      </View>
+                      {renderModuleGrid(shown)}
+                      {renderSummaryTable(shown)}
+                    </>
+                  ) : (
+                    <Text style={styles.runnerMeta}>{isBatchRun ? 'This stage file was not in the app when the batch ran.' : 'No protocol was recorded for this run.'}</Text>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setJournalView(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CLOSE</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
   }
 
   function renderFolderDialog(): React.JSX.Element {
@@ -1657,43 +1783,7 @@ export default function App() {
                     <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
                     <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
                   </View>
-                  <View style={styles.moduleGrid}>
-                    {protocolDiagramRows.map((row, rowIndex) => (
-                      <View key={`row-${rowIndex}`} style={styles.moduleRow}>
-                        {row.map((name) => {
-                          const moduleInfo = protocolModules.find((item) => item.name === name);
-                          if (!moduleInfo) return null;
-                          const { number } = moduleInfo;
-                          const module = getProtocolModule(displayedProtocol, number);
-                          const currentPhase = normalizePhase(module.moduleControl?.phase);
-                          const crossApplied = module.active !== false && module.applyCross === true && displayedProtocol.cross?.active !== false;
-                          const tileInactive = module.active === false || modulePower(displayedProtocol, module) <= 0;
-                          const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(displayedProtocol, module, maxRunTime));
-                          return (
-                            <Pressable
-                              key={number}
-                              accessibilityRole="button"
-                              accessibilityLabel={`${name}${tileInactive ? ', inactive' : ''}`}
-                              onPress={() => {
-                                setSelectedModule(number);
-                                setMode('module');
-                              }}
-                              style={[
-                                styles.moduleTile,
-                                tileInactive ? styles.inactiveTile : { backgroundColor: tint },
-                                crossApplied && styles.crossTile,
-                                mode === 'module' && selectedModule === number && styles.selectedTile,
-                              ]}
-                            >
-                              <Text style={styles.moduleTitle}>{name}</Text>
-                              <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(displayedProtocol, module)}</Text>
-                              {crossApplied && <Text style={styles.crossLabel}>X:{String(displayedProtocol.cross?.freq ?? 0)}Hz</Text>}
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    ))}
-                  </View>
+                  {renderModuleGrid(displayedProtocol, (number) => { setSelectedModule(number); setMode('module'); }, mode === 'module' ? selectedModule : undefined)}
                   <Pressable disabled={isBatch} onPress={() => setMode('all')} style={[styles.modeButton, !isBatch && mode === 'all' && styles.activeMode, isBatch && styles.disabledMode]}>
                     <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>Edit all modules</Text>
                   </Pressable>
@@ -1732,6 +1822,7 @@ export default function App() {
           {renderDeleteDialog()}
           {renderDownloadDialog()}
           {renderFolderDialog()}
+          {renderJournalViewDialog()}
         </View>
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
       </SafeAreaView>

@@ -104,6 +104,12 @@ describe('journal ratings and summaries', () => {
     expect(single.journal[0]?.up).toBe(5);
   });
 
+  it('keeps the protocol snapshot stored with a journal entry', () => {
+    const data = parseRunnerData({ journal: [{ id: 'j', file: 'a', startedAt: '', status: 'completed', note: '', protocol: { filename: 'a' }, stages: { s: { filename: 's' } } }] });
+    expect(data.journal[0]?.protocol).toEqual({ filename: 'a' });
+    expect(data.journal[0]?.stages).toEqual({ s: { filename: 's' } });
+  });
+
   it('summarizes a protocol', () => {
     const summary = summarizeProtocol({
       modules: [
