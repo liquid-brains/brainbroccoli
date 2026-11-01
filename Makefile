@@ -1,4 +1,6 @@
 BUILD_TARGET ?=
+CCACHE ?= $(shell command -v ccache 2>/dev/null)
+CMAKE_CACHE_LAUNCHERS := $(if $(CCACHE),CMAKE_C_COMPILER_LAUNCHER=$(CCACHE) CMAKE_CXX_COMPILER_LAUNCHER=$(CCACHE))
 
 all: check $(BUILD_TARGET)
 
@@ -21,7 +23,7 @@ run-linux: bundle-linux
 
 apk: node_modules/.done
 	npx expo prebuild --platform android --no-install
-	cd android && ./gradlew --build-cache assembleRelease
+	cd android && $(CMAKE_CACHE_LAUNCHERS) ./gradlew --build-cache assembleRelease
 
 ipa: node_modules/.done
 	npx expo prebuild --platform ios --no-install

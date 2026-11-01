@@ -5,7 +5,10 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "plugins": ["./plugins/with-device-network.js"],
+    "plugins": [
+      "./plugins/with-device-network.js",
+      "expo-sharing"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.brainbroccoli.app",

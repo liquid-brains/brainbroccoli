@@ -1,5 +1,5 @@
 import { packager } from '@electron/packager';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +27,15 @@ try {
     asar: true,
     overwrite: true,
   });
-  for (const output of outputs) console.log(`Desktop app: ${output}`);
+  for (const output of outputs) {
+    if (process.platform === 'linux') {
+      const launcher = path.join(output, 'BrainBroccoli');
+      await rename(launcher, path.join(output, 'BrainBroccoli.bin'));
+      await cp(path.join(root, 'linux/launch.sh'), launcher);
+      await chmod(launcher, 0o755);
+    }
+    console.log(`Desktop app: ${output}`);
+  }
 } finally {
   await rm(stagingDirectory, { recursive: true, force: true });
 }
