@@ -782,7 +782,8 @@ export default function App() {
             accessibilityLabel="Batch filename"
             value={filenameDraft}
             onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
-            onEndEditing={() => renameFile(filenameDraft)}
+            onBlur={() => renameFile(filenameDraft)}
+            onSubmitEditing={() => renameFile(filenameDraft)}
             editable={!fileReadOnly}
             style={[styles.textInput, styles.wideInput, fileReadOnly && styles.fieldDisabled]}
           />
@@ -823,7 +824,8 @@ export default function App() {
                 autoCorrect={false}
                 value={filenameDraft}
                 onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
-                onEndEditing={() => renameFile(filenameDraft)}
+                onBlur={() => renameFile(filenameDraft)}
+            onSubmitEditing={() => renameFile(filenameDraft)}
                 editable={!fileReadOnly}
                 style={[styles.textInput, styles.filenameInput, fileReadOnly && styles.fieldDisabled]}
               />
