@@ -757,15 +757,15 @@ export default function App() {
                 </View>
                 <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
                 <View style={styles.settingsToggleRow}>
-                  <Text style={styles.moduleName}>Hide JSON code</Text>
+                  <Text style={styles.moduleName}>Show JSON code</Text>
                   <Switch
-                    accessibilityLabel="Hide JSON code"
-                    value={settings.hideJson}
-                    onValueChange={(value) => updateSettings({ hideJson: value })}
+                    accessibilityLabel="Show JSON code"
+                    value={settings.showJson}
+                    onValueChange={(value) => updateSettings({ showJson: value })}
                     trackColor={{ true: theme.accent }}
                   />
                 </View>
-                <Text style={styles.settingsHint}>Hide the View Raw JSON Code section below the editor.</Text>
+                <Text style={styles.settingsHint}>Show the View Raw JSON Code section below the editor.</Text>
               </View>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Devices</Text>
@@ -877,7 +877,7 @@ export default function App() {
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
                   {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {renderSummary()}
-                  {!settings.hideJson && (
+                  {settings.showJson && (
                     <View style={styles.panel}>
                       <Pressable
                         accessibilityRole="button"
@@ -1047,9 +1047,9 @@ function decodeUtf8(bytes: Uint8Array): string {
 const styleDefs = {
   safeArea: { flex: 1, backgroundColor: '#2f5d1f' },
   appShell: { flex: 1, flexDirection: 'row', backgroundColor: '#2f5d1f' },
-  sidebar: { width: 300, backgroundColor: '#fff', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
+  sidebar: { width: 300, backgroundColor: '#2f5d1f', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
   sidebarActions: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1 },
-  menuItems: { backgroundColor: '#fff' },
+  menuItems: { backgroundColor: '#2f5d1f' },
   menuItem: { backgroundColor: '#8dc63f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
   menuItemText: { color: '#fefefe', fontSize: 15, fontWeight: '700' },
   brand: { alignItems: 'center', backgroundColor: '#f8fafc', borderBottomColor: '#cbd5e1', borderBottomWidth: 1, padding: 14 },
@@ -1248,8 +1248,8 @@ function buildTheme(scheme: Scheme): Theme {
 
 const ThemeContext = createContext<Theme>(buildTheme('brand'));
 
-type Settings = { useSystemColors: boolean; hideJson: boolean; deviceAddress: string };
-const defaultSettings: Settings = { useSystemColors: false, hideJson: true, deviceAddress: 'np1.local' };
+type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string };
+const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local' };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
 
@@ -1264,7 +1264,7 @@ async function loadSettings(): Promise<Settings> {
     const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
     return {
       useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
-      hideJson: typeof saved.hideJson === 'boolean' ? saved.hideJson : defaultSettings.hideJson,
+      showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
     };
   } catch {
