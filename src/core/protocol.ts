@@ -111,6 +111,28 @@ export function isProtocolFile(filename: string): boolean {
   return /\.(vnp[0-4]|json)$/i.test(filename);
 }
 
+export function userCopyExtension(filename: string): '.vnp0' | '.vnp4' | undefined {
+  if (/\.vnp[12]$/i.test(filename)) {
+    return '.vnp0';
+  }
+  return /\.vnp3$/i.test(filename) ? '.vnp4' : undefined;
+}
+
+// Read-only system files become editable user files: new extension, no secret/default flags.
+export function toUserProtocolFile(filename: string, protocol: Protocol): { name: string; protocol: Protocol } {
+  const extension = userCopyExtension(filename);
+  if (!extension) {
+    return { name: filename, protocol };
+  }
+  const name = filename.replace(/\.[^./]+$/, extension);
+  const base = name.slice(name.lastIndexOf('/') + 1, -extension.length);
+  const copy: Protocol = { ...protocol, secretFile: false, defaultFile: false };
+  if (copy.filename !== undefined || extension === '.vnp4') {
+    copy.filename = base;
+  }
+  return { name, protocol: copy };
+}
+
 export function createUniqueProtocolFileName(prefix: string, extension: string, existingFileNames: string[]): string {
   const existing = new Set(existingFileNames.map((name) => name.toLowerCase()));
   let index = 1;

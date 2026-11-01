@@ -33,6 +33,8 @@ import {
   parseProtocolJSON,
   protocolDiagramRows,
   protocolModules,
+  toUserProtocolFile,
+  userCopyExtension,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
 import { createNeuroPro2Device, downloadControllerFiles } from './src/core/device';
@@ -237,18 +239,14 @@ export default function App() {
 
   function copyToEditable(name: string): void {
     const source = files[name];
-    const target = editableCopyExtension(name);
-    if (!source || !target) {
+    if (!source || !userCopyExtension(name)) {
       return;
     }
-    const { directory, base } = splitFileName(name);
-    const copyName = createUniqueImportedFileName(`${directory}${base}${target}`, Object.keys(files));
-    const copy: Protocol = JSON.parse(JSON.stringify(source));
-    if (copy.filename !== undefined || target === '.vnp4') {
-      copy.filename = splitFileName(copyName).base;
-    }
+    const converted = toUserProtocolFile(name, JSON.parse(JSON.stringify(source)) as Protocol);
+    const copyName = createUniqueImportedFileName(converted.name, Object.keys(files));
+    const copy = copyName === converted.name ? converted.protocol : { ...converted.protocol, filename: splitFileName(copyName).base };
     setFiles((current) => ({ ...current, [copyName]: copy }));
-    setExpandedGroups((current) => ({ ...current, [target]: true }));
+    setExpandedGroups((current) => ({ ...current, [splitFileName(copyName).extension]: true }));
     loadProtocol(copyName, copy, true);
   }
 
@@ -308,12 +306,12 @@ export default function App() {
 
   async function importAsset(asset: DocumentPicker.DocumentPickerAsset): Promise<ProtocolFile[]> {
     if (/\.zip$/i.test(asset.name)) {
-      return readProtocolArchive(await readAssetBytes(asset));
+      return (await readProtocolArchive(await readAssetBytes(asset))).map(({ name, protocol: value }) => toUserProtocolFile(name, value));
     }
     if (!isProtocolFile(asset.name)) {
       return [];
     }
-    return [{ name: asset.name, protocol: parseProtocolJSON(await readAssetText(asset)) }];
+    return [toUserProtocolFile(asset.name, parseProtocolJSON(await readAssetText(asset)))];
   }
 
   async function importFiles(): Promise<void> {
@@ -528,7 +526,7 @@ export default function App() {
                     <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
                   </Pressable>
                   {isReadOnlyFile(name) ? (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${editableCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${userCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
                       <Text style={styles.copyText}>⧉</Text>
                     </Pressable>
                   ) : (
@@ -1012,7 +1010,7 @@ export default function App() {
                 </Text>
                 {isReadOnlyFile(currentFileName) && (
                   <Pressable accessibilityRole="button" onPress={() => copyToEditable(currentFileName)} style={styles.readOnlyButton}>
-                    <Text style={styles.actionText}>Copy to editable {editableCopyExtension(currentFileName)} file</Text>
+                    <Text style={styles.actionText}>Copy to editable {userCopyExtension(currentFileName)} file</Text>
                   </Pressable>
                 )}
               </View>
@@ -1235,13 +1233,6 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
 
 function isReadOnlyFile(name: string): boolean {
   return /\.vnp[123]$/i.test(name);
-}
-
-function editableCopyExtension(name: string): '.vnp0' | '.vnp4' | undefined {
-  if (/\.vnp[12]$/i.test(name)) {
-    return '.vnp0';
-  }
-  return /\.vnp3$/i.test(name) ? '.vnp4' : undefined;
 }
 
 // Dots and path separators in a file name crash the controller.
