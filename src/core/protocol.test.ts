@@ -1,0 +1,129 @@
+import { describe, expect, it } from 'vitest';
+import {
+  calculateTotalDuration,
+  createUniqueImportedFileName,
+  createUniqueProtocolFileName,
+  createEmptyProtocol,
+  getProtocolModule,
+  isProtocolFile,
+  normalizePhase,
+  parseProtocolJSON,
+} from './protocol';
+import JSZip from 'jszip';
+import { readProtocolArchive } from './protocol-archive';
+
+describe('protocol helpers', () => {
+  it('creates the editor defaults with the NeuroPro module layout', () => {
+    const protocol = createEmptyProtocol('example');
+
+    expect(protocol.filename).toBe('example');
+    expect(protocol.modules).toHaveLength(12);
+    expect(protocol.modules?.[0]).toMatchObject({
+      module_no: 1,
+      active: false,
+      moduleControl: { phase: 0, dutyCycle: 5 },
+      freq: 40,
+      power: 100,
+      applyCross: false,
+    });
+  });
+
+  it('parses JSON protocol objects and rejects non-object JSON', () => {
+    expect(parseProtocolJSON('{"filename":"test"}').filename).toBe('test');
+    expect(() => parseProtocolJSON('[]')).toThrow('JSON object');
+    expect(() => parseProtocolJSON('null')).toThrow('JSON object');
+    expect(() => parseProtocolJSON('{"modules":[null]}')).toThrow('module number');
+  });
+
+  it('normalizes legacy module controls to the device protocol format', () => {
+    const protocol = parseProtocolJSON(JSON.stringify({
+      modules: [{
+        module_no: 7,
+        moduleControl: { phase: 'B', freq: 50, power: 80 },
+      }],
+    }));
+
+    expect(protocol.modules?.[0]).toMatchObject({
+      moduleControl: { phase: 1, dutyCycle: 5 },
+      freq: 50,
+      power: 80,
+      applyCross: false,
+    });
+  });
+
+  it('accepts supported Vielight protocol file extensions', () => {
+    expect(isProtocolFile('PROGRAM.VNP2')).toBe(true);
+    expect(isProtocolFile('protocol.json')).toBe(true);
+    expect(isProtocolFile('notes.txt')).toBe(false);
+  });
+
+  it('creates new protocol names without overwriting existing files', () => {
+    expect(createUniqueProtocolFileName('new_protocol', '.vnp0', [
+      'new_protocol_1.vnp0',
+      'NEW_PROTOCOL_3.VNP0',
+    ])).toBe('new_protocol_2.vnp0');
+  });
+
+  it('disambiguates imported files without changing unique names', () => {
+    expect(createUniqueImportedFileName('folder/session.vnp0', [])).toBe('folder/session.vnp0');
+    expect(createUniqueImportedFileName('session.vnp0', ['SESSION.VNP0', 'session__2.vnp0']))
+      .toBe('session__3.vnp0');
+  });
+
+  it('returns an inactive default for modules omitted by older files', () => {
+    expect(getProtocolModule({ modules: [] }, 4)).toMatchObject({
+      module_no: 4,
+      active: false,
+      moduleControl: { phase: 0, dutyCycle: 5 },
+      freq: 0,
+      power: 0,
+    });
+  });
+
+  it('calculates the longest configured protocol or module duration', () => {
+    const protocol = createEmptyProtocol();
+    protocol.frequency = { active: true, startFreq: 40, endFreq: 60, freqStepSize: 10, stepDuration: 60 };
+    protocol.modules = [{ module_no: 1, active: true, activeRunTime: 3 }];
+
+    expect(calculateTotalDuration(protocol)).toBe(3);
+    expect(calculateTotalDuration(createEmptyProtocol())).toBeUndefined();
+  });
+
+  it('normalizes numeric and textual phase values', () => {
+    expect(normalizePhase(1)).toBe('B');
+    expect(normalizePhase('phase b')).toBe('B');
+    expect(normalizePhase('0')).toBe('A');
+  });
+
+  it('loads supported protocol files from a ZIP archive', async () => {
+    const archive = new JSZip();
+    archive.file('folder-a/session.vnp0', '{"filename":"first"}');
+    archive.file('folder-b/session.vnp0', '{"filename":"second"}');
+    archive.file('C:/folder-c/session.vnp0', '{"filename":"third"}');
+    archive.file('readme.txt', 'ignored');
+    const contents = await archive.generateAsync({ type: 'uint8array' });
+
+    await expect(readProtocolArchive(contents)).resolves.toEqual([
+      { name: 'folder-a/session.vnp0', protocol: { filename: 'first' } },
+      { name: 'folder-b/session.vnp0', protocol: { filename: 'second' } },
+      { name: 'folder-c/session.vnp0', protocol: { filename: 'third' } },
+    ]);
+  });
+
+  it('rejects ZIP entries with parent-directory paths', async () => {
+    const archive = new JSZip();
+    archive.file('../unsafe.vnp0', '{"filename":"unsafe"}');
+    const contents = await archive.generateAsync({ type: 'uint8array' });
+
+    await expect(readProtocolArchive(contents)).rejects.toThrow('unsafe file path');
+  });
+
+  it('rejects colliding ZIP paths before JSZip normalizes them', async () => {
+    const archive = new JSZip();
+    archive.file('../session.vnp0', '{"filename":"unsafe"}');
+    archive.file('session.vnp0', '{"filename":"safe"}');
+    const contents = await archive.generateAsync({ type: 'uint8array' });
+
+    await expect(readProtocolArchive(contents)).rejects.toThrow('unsafe file path');
+  });
+});

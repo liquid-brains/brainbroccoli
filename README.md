@@ -1,9 +1,12 @@
 # brainbroccoli
 
-An app skeleton for a NeuroPro2 protocol editor, following
-[brainkandi](https://github.com/liquid-brains/brainkandi)'s Expo/React Native,
-TypeScript, Electron, and artifact-producing CI structure. Protocol editing,
-storage, and session controls are intentionally not implemented.
+A responsive NeuroPro2 protocol editor built with Expo and React Native,
+following [brainkandi](https://github.com/liquid-brains/brainkandi)'s
+TypeScript, Electron, and artifact-producing CI structure. Import `.vnp0`–`.vnp4`
+or JSON protocol files individually or from ZIP archives, edit protocol settings
+and modules, and save protocols or export an archive. Files are held in memory
+for the current app session; device communication and session controls are not
+implemented.
 
 ## Development
 
@@ -17,7 +20,8 @@ npm run ios       # requires macOS and Xcode
 npm run web
 ```
 
-The initial screen is only a placeholder. No device requests are sent on startup.
+The file list adapts to the available screen width. No device requests are sent
+on startup.
 
 ## NeuroPro2 integration
 
@@ -41,7 +45,8 @@ network access. Browser/Electron requests still require device CORS support or
 a future scoped transport adapter; the desktop shell does not disable web
 security or sandboxing. Its content security policy currently allows only
 same-origin connections; a future transport must explicitly authorize device
-requests. No protocol is created, changed, or run by this skeleton.
+requests. The editor modifies protocol files locally and does not send commands
+to a device.
 
 ## Validation and builds
 
