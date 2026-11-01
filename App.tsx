@@ -1935,7 +1935,7 @@ export default function App() {
                       onPress={() => setAppMode(value)}
                       style={[styles.modeToggleButton, appMode === value && styles.modeToggleButtonActive]}
                     >
-                      <Text style={styles.actionText}>{value === 'editor' ? (wideSidebar ? 'Protocol Editor' : 'Editor') : (wideSidebar ? 'Protocol Runner' : 'Runner')}</Text>
+                      <Text style={appMode === value || scheme === 'brand' ? styles.actionText : styles.runnerButtonText}>{value === 'editor' ? (wideSidebar ? 'Protocol Editor' : 'Editor') : (wideSidebar ? 'Protocol Runner' : 'Runner')}</Text>
                     </Pressable>
                   ))}
                 </View>
