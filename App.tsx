@@ -406,12 +406,12 @@ export default function App() {
       action();
     };
     return (
-      <View style={wideSidebar ? styles.toolbarButtons : styles.menuItems}>
-        <ActionButton menu={!wideSidebar} title="📋 Create Batch" onPress={run(openBatchDialog)} />
-        <ActionButton menu={!wideSidebar} title="📄 New File" onPress={run(createNewProtocol)} />
-        <ActionButton menu={!wideSidebar} title="⬇️ Download Controller Files" onPress={run(() => { void exportZip(); })} />
-        <ActionButton menu={!wideSidebar} title="📥 Save to Controller" onPress={run(saveToController)} />
-        <ActionButton menu={!wideSidebar} title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
+      <View style={styles.menuItems}>
+        <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
+        <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
+        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { void exportZip(); })} />
+        <ActionButton menu title="📥 Save to Controller" onPress={run(saveToController)} />
+        <ActionButton menu title="💾 Save to Disk" onPress={run(() => { void saveProtocol(); })} />
       </View>
     );
   }
@@ -433,7 +433,7 @@ export default function App() {
   const sidebar = (
     <View style={styles.sidebar}>
       {wideSidebar && renderBrand()}
-      {!wideSidebar && <View style={styles.sidebarActions}>{renderActions()}</View>}
+      <View style={styles.sidebarActions}>{renderActions()}</View>
       <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
         <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
         <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
@@ -743,7 +743,6 @@ export default function App() {
                 )}
                 <Text numberOfLines={1} style={styles.currentFile}>{currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
               </View>
-              {wideSidebar && renderActions()}
             </View>
             {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
             <ScrollView contentContainerStyle={styles.workspace}>
@@ -990,7 +989,6 @@ const styles = StyleSheet.create({
   headingText: { flex: 1, minWidth: 0 },
   currentFile: { color: '#334155', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
-  toolbarButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
