@@ -198,18 +198,40 @@ export default function App() {
     loadProtocol(name, fresh);
   }
 
-  function renameBatch(text: string): void {
-    const base = text.trim().replace(/\.vnp4$/i, '');
-    const name = `${base}.vnp4`;
-    if (!currentFileName || base === '' || name === currentFileName) {
+  function splitFileName(name: string): { directory: string; base: string; extension: string } {
+    const leafStart = name.lastIndexOf('/') + 1;
+    const leaf = name.slice(leafStart);
+    const dot = leaf.lastIndexOf('.');
+    return { directory: name.slice(0, leafStart), base: dot > 0 ? leaf.slice(0, dot) : leaf, extension: dot > 0 ? leaf.slice(dot) : '' };
+  }
+
+  function renameFile(text: string): void {
+    if (!currentFileName) {
+      return;
+    }
+    const { directory, extension } = splitFileName(currentFileName);
+    let base = text.trim().replace(/[\\/]/g, '_');
+    if (extension && base.toLowerCase().endsWith(extension.toLowerCase())) {
+      base = base.slice(0, -extension.length);
+    }
+    const name = `${directory}${base}${extension}`;
+    if (base === '' || name === currentFileName) {
       return;
     }
     const others = Object.keys(files).filter((existing) => existing !== currentFileName);
     const unique = createUniqueImportedFileName(name, others);
-    const renamed = { ...protocol, filename: unique.replace(/\.vnp4$/i, '') };
+    const original = files[currentFileName] ?? protocol;
+    const renamed = original.filename !== undefined || isBatch ? { ...original, filename: splitFileName(unique).base } : original;
+    const oldName = currentFileName;
     setFiles((current) => {
-      const next = { ...current };
-      delete next[currentFileName];
+      const next: Record<string, Protocol> = {};
+      for (const [fileName, value] of Object.entries(current)) {
+        if (fileName === oldName) {
+          continue;
+        }
+        const stages = value.filenames;
+        next[fileName] = stages?.includes(oldName) ? { ...value, filenames: stages.map((stage) => (stage === oldName ? unique : stage)) } : value;
+      }
       next[unique] = renamed;
       return next;
     });
@@ -535,7 +557,7 @@ export default function App() {
             key={currentFileName}
             accessibilityLabel="Batch filename"
             defaultValue={currentFileName.replace(/\.vnp4$/i, '')}
-            onEndEditing={(event) => renameBatch(event.nativeEvent.text)}
+            onEndEditing={(event) => renameFile(event.nativeEvent.text)}
             style={[styles.textInput, styles.wideInput]}
           />
         </SettingRow>
@@ -566,6 +588,22 @@ export default function App() {
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Global settings</Text>
         {renderDurationBar()}
+        {currentFileName !== '' && (
+          <SettingRow label="Filename" accent={false}>
+            <View style={[styles.fieldControl, styles.wideInput]}>
+              <TextInput
+                key={currentFileName}
+                accessibilityLabel="Filename"
+                autoCapitalize="none"
+                autoCorrect={false}
+                defaultValue={splitFileName(currentFileName).base}
+                onEndEditing={(event) => renameFile(event.nativeEvent.text)}
+                style={[styles.textInput, styles.filenameInput]}
+              />
+              <Text style={styles.unit}>{splitFileName(currentFileName).extension}</Text>
+            </View>
+          </SettingRow>
+        )}
         <SettingRow label="Protocol notes" accent={false}>
           <TextInput
             accessibilityLabel="Protocol notes"
@@ -1133,7 +1171,7 @@ const styleDefs = {
   numberInput: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, color: '#1e293b', fontSize: 15, paddingHorizontal: 9, paddingVertical: 6, textAlign: 'right', width: 84 },
   textInput: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, color: '#1e293b', fontSize: 14, padding: 10 },
   notesInput: { minHeight: 68, textAlignVertical: 'top' },
-  unit: { color: '#64748b', fontSize: 12, fontWeight: '600', width: 28 },
+  unit: { color: '#64748b', fontSize: 12, fontWeight: '600', minWidth: 28 },
   toggle: { alignItems: 'center', backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderRadius: 18, borderWidth: 1, minWidth: 82, paddingHorizontal: 12, paddingVertical: 7 },
   toggleActive: { backgroundColor: '#dcfce7', borderColor: '#7bc043' },
   toggleText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
@@ -1169,6 +1207,7 @@ const styleDefs = {
   settingRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', gap: 8, justifyContent: 'space-between', paddingBottom: 10 },
   settingLabel: { color: '#475569', flex: 1, fontSize: 13, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
   settingLabelAccent: { color: '#7bc043', fontWeight: '800' },
+  filenameInput: { flex: 1, minWidth: 0 },
   wideInput: { flexBasis: 0, flexGrow: 1, maxWidth: 320 },
   phaseToggle: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 6, borderWidth: 1, height: 44, justifyContent: 'center', width: 54 },
   phaseToggleText: { color: '#1a1a1a', fontSize: 18, fontWeight: '800' },
