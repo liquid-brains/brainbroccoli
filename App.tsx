@@ -962,6 +962,8 @@ export default function App() {
     const runnerWide = width >= 860;
     const knownFolder = (item: RunnerItem) => item.folderId !== undefined && runner.folders.some((folder) => folder.id === item.folderId);
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
+    const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
+    const journalBadgeColor = { completed: '#2f8f1f', stopped: '#d97706', failed: '#b91c1c', running: '#1d6fc4' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
       const active = journalSort.startsWith(kind);
@@ -1050,12 +1052,15 @@ export default function App() {
                 </View>
               )}
               {shownJournal.map((entry) => (
-                <View key={entry.id} style={styles.runnerRow}>
+                <View key={entry.id} style={[styles.runnerRow, journalCardStyle[entry.status]]}>
                   <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.cardClose}>
                     <Text style={styles.cardCloseText}>✕</Text>
                   </Pressable>
                   <Text style={styles.runnerTitle}>{entry.file}</Text>
-                  <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()} · {entry.status}</Text>
+                  <View style={[styles.journalBadge, { backgroundColor: journalBadgeColor[entry.status] }]}>
+                    <Text style={styles.journalBadgeText}>{entry.status}</Text>
+                  </View>
+                  <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()}</Text>
                   {entry.summary ? <Text style={styles.runnerMeta}>{entry.summary}</Text> : null}
                   <View style={styles.runnerButtons}>
                     <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { up: nextThumbCount(entry.up), down: 0 })} style={[styles.thumbButton, (entry.up ?? 0) > 0 && styles.thumbUp]}>
@@ -2201,6 +2206,12 @@ const styleDefs = {
   modeToggleButton: { paddingHorizontal: 12, paddingVertical: 9 },
   modeToggleButtonActive: { backgroundColor: '#f9a01b' },
   runnerBrand: { alignItems: 'center', gap: 4, marginBottom: 14 },
+  journalCompleted: { backgroundColor: '#e3f4d0', borderColor: '#7bc043', borderLeftColor: '#2f8f1f', borderLeftWidth: 8, borderWidth: 2 },
+  journalStopped: { backgroundColor: '#ffe9c2', borderColor: '#f9a01b', borderLeftColor: '#d97706', borderLeftWidth: 8, borderWidth: 2 },
+  journalFailed: { backgroundColor: '#ffd9d6', borderColor: '#ef4444', borderLeftColor: '#b91c1c', borderLeftWidth: 8, borderWidth: 2 },
+  journalRunning: { backgroundColor: '#d6ecff', borderColor: '#3b9eea', borderLeftColor: '#1d6fc4', borderLeftWidth: 8, borderWidth: 2 },
+  journalBadge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  journalBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
   dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
@@ -2341,6 +2352,8 @@ const ACCENT_GREEN = '#7bc043';
 const ACCENT_ORANGE = '#f9a01b';
 // Phase colors, tiles, and the JSON box keep their colors in every scheme.
 const fixedStyles = new Set<string>([
+  'journalBadge',
+  'journalBadgeText',
   'phaseASwatch', 'phaseBSwatch', 'phaseA', 'phaseB', 'phaseAButton', 'phaseBButton', 'moduleTile', 'moduleTitle',
   'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
 ]);
@@ -2399,6 +2412,9 @@ function buildTheme(scheme: Scheme): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
+  for (const name of ['journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
+    mapped[name] = { ...mapped[name], backgroundColor: palette.fill['#f8fafc'] ?? '#f8fafc' };
+  }
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
