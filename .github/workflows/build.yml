@@ -38,6 +38,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Set up Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v4.0.4
+        with:
+          packages: ''
       - name: Install Android SDK components
         if: matrix.platform == 'android'
         run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
