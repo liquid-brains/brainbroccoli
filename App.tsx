@@ -2229,8 +2229,8 @@ const styleDefs = {
   dangerButton: { backgroundColor: '#b91c1c', borderColor: '#b91c1c', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   sequenceStep: { borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 8, marginBottom: 10, padding: 12 },
   thumbButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
-  thumbUp: { backgroundColor: '#dcfce7' },
-  thumbDown: { backgroundColor: '#fee2e2' },
+  thumbUp: { backgroundColor: '#4ade80', borderColor: '#16a34a' },
+  thumbDown: { backgroundColor: '#ff8a80', borderColor: '#dc2626' },
   noteInput: { minHeight: 56, textAlignVertical: 'top' },
   progressTrack: { backgroundColor: '#e2e8f0', borderRadius: 5, height: 10, overflow: 'hidden' },
   progressFill: { backgroundColor: '#7bc043', height: 10 },
@@ -2420,6 +2420,8 @@ function buildTheme(scheme: Scheme): Theme {
   for (const [name, [fill, edge]] of Object.entries(greys) as [string, [string, string]][]) {
     mapped[name] = { ...mapped[name], backgroundColor: fill, borderColor: edge, borderLeftColor: edge };
   }
+  mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
+  mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
