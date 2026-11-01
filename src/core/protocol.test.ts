@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateSweepDuration,
   calculateTotalDuration,
   createUniqueImportedFileName,
   createUniqueProtocolFileName,
@@ -150,5 +151,21 @@ describe('toUserProtocolFile', () => {
   it('leaves user files unchanged', () => {
     const protocol = { ...createEmptyProtocol('x'), secretFile: true };
     expect(toUserProtocolFile('x.vnp0', protocol)).toEqual({ name: 'x.vnp0', protocol });
+  });
+});
+
+describe('calculateSweepDuration', () => {
+  const base = createEmptyProtocol();
+  it('derives minutes from an upward frequency sweep', () => {
+    const protocol = { ...base, frequency: { active: true, startFreq: 10, endFreq: 20, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(protocol)).toBe(3);
+  });
+  it('ignores backward sweeps and inactive sweeps', () => {
+    const backward = { ...base, frequency: { active: true, startFreq: 20, endFreq: 10, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(backward)).toBeUndefined();
+    const negativeStep = { ...base, frequency: { active: true, startFreq: 10, endFreq: 20, freqStepSize: -5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(negativeStep)).toBeUndefined();
+    const off = { ...base, frequency: { active: false, startFreq: 10, endFreq: 20, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(off)).toBeUndefined();
   });
 });

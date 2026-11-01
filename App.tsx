@@ -23,6 +23,7 @@ import JSZip from 'jszip';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  calculateSweepDuration,
   calculateTotalDuration,
   createUniqueImportedFileName,
   createUniqueProtocolFileName,
@@ -163,7 +164,26 @@ export default function App() {
 
   function toggleSection(sectionName: SectionName): void {
     const section = displayedProtocol[sectionName] as ProtocolSection | undefined;
+    const other = sectionName === 'frequency' ? displayedProtocol.power : sectionName === 'power' ? displayedProtocol.frequency : undefined;
+    if (section?.active === false && other !== undefined && (other as ProtocolSection).active !== false) {
+      return;
+    }
     updateSection(sectionName, 'active', section?.active === false);
+  }
+
+  function keepSweepUpward(sectionName: 'frequency' | 'power', editedKey: string): void {
+    const startKey = sectionName === 'frequency' ? 'startFreq' : 'startPower';
+    const endKey = sectionName === 'frequency' ? 'endFreq' : 'endPower';
+    updateDisplayedProtocol((current) => {
+      const section = (current[sectionName] as ProtocolSection | undefined) ?? {};
+      const start = Number(section[startKey]) || 0;
+      const end = Number(section[endKey]) || 0;
+      if (end >= start) {
+        return current;
+      }
+      const fixed = editedKey === startKey ? { [startKey]: end } : { [endKey]: start };
+      return { ...current, [sectionName]: { ...section, ...fixed } };
+    });
   }
 
   function updateModule(moduleNumber: number, patch: Partial<ProtocolModule>): void {
@@ -618,7 +638,7 @@ export default function App() {
   const moduleControl = currentModule.moduleControl ?? {};
   const phase = normalizePhase(moduleControl.phase ?? 'A');
   const duration = calculateTotalDuration(displayedProtocol);
-  const maxRunTime = Math.max(0, ...protocolModules.map((item) => moduleRunTime(getProtocolModule(displayedProtocol, item.number))));
+  const maxRunTime = Math.max(0, ...protocolModules.map((item) => moduleRunTime(displayedProtocol, getProtocolModule(displayedProtocol, item.number))));
   const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
 
   function renderDurationBar(): React.JSX.Element {
@@ -633,6 +653,8 @@ export default function App() {
     const section = (displayedProtocol[sectionName] as ProtocolSection | undefined) ?? {};
     const isFrequency = sectionName === 'frequency';
     const label = isFrequency ? 'Frequency sweep' : 'Power sweep';
+    const otherSection = (displayedProtocol[isFrequency ? 'power' : 'frequency'] as ProtocolSection | undefined) ?? {};
+    const otherActive = otherSection.active !== false;
     const entries: [string, string, string][] = isFrequency
       ? [
           ['Start frequency', 'startFreq', 'Hz'],
@@ -649,8 +671,17 @@ export default function App() {
     return (
       <>
         <SettingRow label={label} accent>
-          <ToggleButton active={section.active !== false} title={section.active === false ? 'Activate' : 'Activated'} onPress={() => toggleSection(sectionName)} />
+          <ToggleButton
+            active={section.active !== false}
+            disabled={section.active === false && otherActive}
+            title={section.active === false ? 'Activate' : 'Activated'}
+            onPress={() => toggleSection(sectionName)}
+          />
         </SettingRow>
+        {section.active === false && otherActive && (
+          <Text style={styles.helpText}>Turn off the {isFrequency ? 'power' : 'frequency'} sweep to use a {isFrequency ? 'frequency' : 'power'} sweep. Only one sweep can run at a time.</Text>
+        )}
+        {section.active !== false && <Text style={styles.helpText}>Sweeps only go up: the end must be at least the start, and the step size must be above zero.</Text>}
         {section.active !== false && entries.map(([title, key, unit]) => (
           <NumberField
             key={key}
@@ -658,6 +689,7 @@ export default function App() {
             value={section[key]}
             unit={unit}
             onChange={(value) => updateSection(sectionName, key, value)}
+            onCommit={() => keepSweepUpward(sectionName, key)}
           />
         ))}
       </>
@@ -770,6 +802,7 @@ export default function App() {
     const modulePhase = normalizePhase(control.phase);
     const frequencyActive = displayedProtocol.frequency?.active !== false;
     const powerActive = displayedProtocol.power?.active !== false;
+    const sweepDuration = calculateSweepDuration(displayedProtocol);
     const setModule = (patch: Partial<ProtocolModule>): void => {
       if (all) {
         updateAllModules(() => patch);
@@ -793,7 +826,13 @@ export default function App() {
         <SettingRow label="Module status" accent>
           <ToggleButton active={module.active !== false} title={module.active === false ? 'Activate' : 'Active'} onPress={() => setModule({ active: module.active === false })} />
         </SettingRow>
-        <NumberField label="Active run time" value={module.activeRunTime ?? module.runTime} unit="min" onChange={(value) => setModule({ activeRunTime: value })} />
+        <NumberField
+          label="Active run time"
+          value={sweepDuration ?? module.activeRunTime ?? module.runTime}
+          unit="min"
+          disabled={sweepDuration !== undefined}
+          onChange={(value) => setModule({ activeRunTime: value })}
+        />
         <NumberField label="Delay start time" value={module.delayStartTime} unit="min" onChange={(value) => setModule({ delayStartTime: value })} />
         <SettingRow label="Module phase" accent={false}>
           <Pressable
@@ -852,7 +891,7 @@ export default function App() {
                     <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)}</Text>
                     <Text style={styles.summaryCell}>{active && module.applyCross ? 'on' : 'off'}</Text>
                     <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
-                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(module.activeRunTime ?? module.runTime ?? 0)}</Text>
+                    <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(Math.round(moduleRunTime(displayedProtocol, module) * 10) / 10)}</Text>
                   </View>
                 );
               })}
@@ -1112,9 +1151,9 @@ function ActionButton(props: { title: string; onPress: () => void; menu?: boolea
   );
 }
 
-function ToggleButton(props: { active: boolean; title: string; onPress: () => void }): React.JSX.Element {
+function ToggleButton(props: { active: boolean; title: string; disabled?: boolean; onPress: () => void }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
-  const readOnly = useContext(ReadOnlyContext);
+  const readOnly = useContext(ReadOnlyContext) || props.disabled === true;
   return (
     <Pressable accessibilityRole="switch" accessibilityState={{ checked: props.active, disabled: readOnly }} disabled={readOnly} onPress={props.onPress} style={[styles.toggle, props.active && styles.toggleActive, readOnly && styles.fieldDisabled]}>
       <Text style={props.active ? styles.toggleActiveText : styles.toggleText}>{props.title}</Text>
@@ -1124,7 +1163,10 @@ function ToggleButton(props: { active: boolean; title: string; onPress: () => vo
 
 const MAX_POWER_PERCENT = 140;
 
-function moduleRunTime(module: ProtocolModule): number {
+// An active global sweep sets how long every active module runs.
+function moduleRunTime(protocol: Protocol, module: ProtocolModule): number {
+  const sweep = calculateSweepDuration(protocol);
+  if (sweep !== undefined && module.active !== false) return sweep;
   return Number(module.activeRunTime ?? module.runTime ?? 0) || 0;
 }
 
@@ -1139,7 +1181,7 @@ function modulePower(protocol: Protocol, module: ProtocolModule): number {
 // Power delivered = power x run time, scaled against 140% for the longest run time.
 function deliveredSaturation(protocol: Protocol, module: ProtocolModule, referenceMinutes: number): number {
   if (referenceMinutes <= 0) return 0;
-  const delivered = modulePower(protocol, module) * moduleRunTime(module);
+  const delivered = modulePower(protocol, module) * moduleRunTime(protocol, module);
   return Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
 }
 
@@ -1155,7 +1197,7 @@ function describeModule(protocol: Protocol, module: ProtocolModule): string {
   const sweepPower = power.active !== false && Number(power.startPower) > 0 && Number(power.endPower) > 0;
   const freq = sweepFrequency ? `${String(frequency.startFreq)}-${String(frequency.endFreq)}` : String(module.freq ?? 0);
   const level = sweepPower ? `${String(power.startPower)}-${String(power.endPower)}` : String(module.power ?? 0);
-  return `${freq}hz · ${level}%\n${String(module.activeRunTime ?? module.runTime ?? 0)}m`;
+  return `${freq}hz · ${level}%\n${String(Math.round(moduleRunTime(protocol, module) * 10) / 10)}m`;
 }
 
 function SettingRow(props: { label: string; accent: boolean; children: React.ReactNode }): React.JSX.Element {
@@ -1206,9 +1248,9 @@ function Select(props: { label: string; value: string; disabled?: boolean; optio
   );
 }
 
-function NumberField(props: { label: string; value: unknown; unit: string; onChange: (value: number) => void }): React.JSX.Element {
+function NumberField(props: { label: string; value: unknown; unit: string; disabled?: boolean; onChange: (value: number) => void; onCommit?: () => void }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
-  const readOnly = useContext(ReadOnlyContext);
+  const readOnly = useContext(ReadOnlyContext) || props.disabled === true;
   const value = typeof props.value === 'number' && Number.isFinite(props.value) ? String(props.value) : '0';
   return (
     <View style={styles.settingRow}>
@@ -1221,8 +1263,9 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
           value={value}
           onChangeText={(text) => {
             const parsed = Number(text);
-            props.onChange(text === '' || !Number.isFinite(parsed) ? 0 : parsed);
+            props.onChange(text === '' || !Number.isFinite(parsed) ? 0 : Math.max(0, parsed));
           }}
+          onEndEditing={props.onCommit}
           style={[styles.numberInput, readOnly && styles.fieldDisabled]}
         />
         <Text style={styles.unit}>{props.unit}</Text>

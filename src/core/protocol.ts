@@ -186,30 +186,30 @@ function numericValue(value: unknown, fallback: number): number {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-export function calculateTotalDuration(protocol: Protocol): number | undefined {
-  let durationMinutes = 0;
+function sweepMinutes(start: number, end: number, step: number, stepDuration: number): number | undefined {
+  if (start > 0 && end >= start && step > 0 && stepDuration > 0) {
+    return (Math.floor((end - start) / step) + 1) * stepDuration / 60;
+  }
+  return undefined;
+}
+
+// Controllers only sweep upward, so end < start or a non-positive step is not a valid sweep.
+export function calculateSweepDuration(protocol: Protocol): number | undefined {
   const frequency = protocol.frequency ?? {};
   const power = protocol.power ?? {};
+  const durations = [
+    frequency.active !== false
+      ? sweepMinutes(Number(frequency.startFreq), Number(frequency.endFreq), Number(frequency.freqStepSize), Number(frequency.stepDuration))
+      : undefined,
+    power.active !== false
+      ? sweepMinutes(Number(power.startPower), Number(power.endPower), Number(power.powerStepSize), Number(power.stepDuration || frequency.stepDuration))
+      : undefined,
+  ].filter((value): value is number => value !== undefined);
+  return durations.length > 0 ? Math.max(...durations) : undefined;
+}
 
-  if (frequency.active !== false) {
-    const start = Number(frequency.startFreq);
-    const end = Number(frequency.endFreq);
-    const step = Number(frequency.freqStepSize);
-    const stepDuration = Number(frequency.stepDuration);
-    if (start > 0 && end > 0 && step > 0 && stepDuration > 0) {
-      durationMinutes = Math.max(durationMinutes, (Math.floor(Math.abs(end - start) / step) + 1) * stepDuration / 60);
-    }
-  }
-
-  if (power.active !== false) {
-    const start = Number(power.startPower);
-    const end = Number(power.endPower);
-    const step = Number(power.powerStepSize);
-    const stepDuration = Number(power.stepDuration || frequency.stepDuration);
-    if (start > 0 && end > 0 && step > 0 && stepDuration > 0) {
-      durationMinutes = Math.max(durationMinutes, (Math.floor(Math.abs(end - start) / step) + 1) * stepDuration / 60);
-    }
-  }
+export function calculateTotalDuration(protocol: Protocol): number | undefined {
+  let durationMinutes = calculateSweepDuration(protocol) ?? 0;
 
   for (const module of Array.isArray(protocol.modules) ? protocol.modules : []) {
     if (module.active !== false) {
