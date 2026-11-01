@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -128,6 +129,15 @@ export default function App() {
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
   const { styles } = theme;
+
+  const running = session !== null;
+  useEffect(() => {
+    if (!running) {
+      return undefined;
+    }
+    void activateKeepAwakeAsync('protocol-run').catch(() => undefined);
+    return () => { void deactivateKeepAwake('protocol-run').catch(() => undefined); };
+  }, [running]);
 
   useEffect(() => {
     setFilenameDraft(splitFileName(currentFileName).base);
