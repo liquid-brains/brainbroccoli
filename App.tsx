@@ -896,6 +896,11 @@ export default function App() {
               <Text style={styles.actionText}>VIEW PROTOCOL</Text>
             </Pressable>
           )}
+          {viewable && settings.showJson && (
+            <Pressable accessibilityRole="button" accessibilityLabel={`View the JSON code of ${item.file}`} onPress={() => setJournalView({ id: 'preview', kind: 'json', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } })} style={styles.actionButton}>
+              <Text style={styles.actionText}>VIEW JSON</Text>
+            </Pressable>
+          )}
           {item.sequence !== undefined && (
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: item.file, description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
               <Text style={styles.actionText}>EDIT</Text>
