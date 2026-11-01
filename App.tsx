@@ -918,10 +918,10 @@ export default function App() {
                   <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()} · {entry.status}</Text>
                   {entry.summary ? <Text style={styles.runnerMeta}>{entry.summary}</Text> : null}
                   <View style={styles.runnerButtons}>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { up: nextThumbCount(entry.up) })} style={[styles.thumbButton, (entry.up ?? 0) > 0 && styles.thumbUp]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { up: nextThumbCount(entry.up), down: 0 })} style={[styles.thumbButton, (entry.up ?? 0) > 0 && styles.thumbUp]}>
                       <Text style={styles.runnerButtonText}>👍{(entry.up ?? 0) > 0 ? ` ${'👍'.repeat((entry.up ?? 0) - 1)}` : ''}</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down) })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down), up: 0 })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
                       <Text style={styles.runnerButtonText}>👎{(entry.down ?? 0) > 0 ? ` ${'👎'.repeat((entry.down ?? 0) - 1)}` : ''}</Text>
                     </Pressable>
                   </View>

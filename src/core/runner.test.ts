@@ -94,8 +94,10 @@ describe('journal ratings and summaries', () => {
 
   it('clamps stored thumb counts', () => {
     const data = parseRunnerData({ journal: [{ id: 'j', file: 'a', startedAt: '', status: 'completed', note: '', up: 9, down: 2 }] });
-    expect(data.journal[0]?.up).toBe(5);
-    expect(data.journal[0]?.down).toBe(2);
+    expect(data.journal[0]?.up).toBeUndefined();
+    expect(data.journal[0]?.down).toBeUndefined();
+    const single = parseRunnerData({ journal: [{ id: 'j', file: 'a', startedAt: '', status: 'completed', note: '', up: 9 }] });
+    expect(single.journal[0]?.up).toBe(5);
   });
 
   it('summarizes a protocol', () => {

@@ -139,7 +139,9 @@ export function parseRunnerData(raw: unknown): RunnerData {
     : [];
   return { runner: { folders, items }, journal: journal.map((entry) => {
     const { up, down, ...rest } = entry;
-    const counts = { ...(clampThumbs(up) === undefined ? {} : { up: clampThumbs(up) as number }), ...(clampThumbs(down) === undefined ? {} : { down: clampThumbs(down) as number }) };
+    const upCount = clampThumbs(up) ?? 0;
+    const downCount = clampThumbs(down) ?? 0;
+    const counts = upCount > 0 && downCount > 0 ? {} : { ...(upCount > 0 ? { up: upCount } : {}), ...(downCount > 0 ? { down: downCount } : {}) };
     return { ...rest, ...counts, ...(entry.status === 'running' ? { status: 'stopped' as const } : {}) };
   }) };
 }
