@@ -57,6 +57,7 @@ export default function App() {
   const wideEditor = width - (wideSidebar ? 300 : 0) >= 860;
   const [protocol, setProtocol] = useState<Protocol>(() => createEmptyProtocol());
   const [files, setFiles] = useState<Record<string, Protocol>>({});
+  const [filesLoaded, setFilesLoaded] = useState(false);
   const [currentFileName, setCurrentFileName] = useState('');
   const [mode, setMode] = useState<EditorMode>('global');
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
@@ -86,7 +87,19 @@ export default function App() {
 
   useEffect(() => {
     void loadSettings().then(setSettings);
+    void loadStoredFiles().then((saved) => {
+      setFiles((current) => ({ ...saved, ...current }));
+      setFilesLoaded(true);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!filesLoaded) {
+      return undefined;
+    }
+    const timer = setTimeout(() => void persistFiles(files), 400);
+    return () => clearTimeout(timer);
+  }, [files, filesLoaded]);
 
   function updateSettings(change: Partial<Settings>): void {
     const next = { ...settings, ...change };
@@ -1498,6 +1511,37 @@ async function loadSettings(): Promise<Settings> {
     };
   } catch {
     return defaultSettings;
+  }
+}
+
+const filesKey = 'brainbroccoli.files';
+const filesPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}files.json` : '';
+
+async function loadStoredFiles(): Promise<Record<string, Protocol>> {
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      raw = window.localStorage.getItem(filesKey);
+    } else if (filesPath && (await FileSystem.getInfoAsync(filesPath)).exists) {
+      raw = await FileSystem.readAsStringAsync(filesPath);
+    }
+    const saved = raw ? (JSON.parse(raw) as unknown) : {};
+    return saved !== null && typeof saved === 'object' && !Array.isArray(saved) ? (saved as Record<string, Protocol>) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function persistFiles(files: Record<string, Protocol>): Promise<void> {
+  try {
+    const raw = JSON.stringify(files);
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(filesKey, raw);
+    } else if (filesPath) {
+      await FileSystem.writeAsStringAsync(filesPath, raw);
+    }
+  } catch {
+    // Retaining files is a convenience; failing to save should not interrupt editing.
   }
 }
 

@@ -50,10 +50,12 @@ async function startServer() {
       response.writeHead(404).end();
     }
   });
-  await new Promise((resolve, reject) => {
+  // A stable origin keeps localStorage (settings and downloaded files) between launches.
+  const listen = (port) => new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
+    server.listen(port, '127.0.0.1', resolve);
   });
+  await listen(47615).catch(() => listen(0));
   origin = `http://127.0.0.1:${server.address().port}`;
 }
 
