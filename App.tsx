@@ -43,10 +43,10 @@ type EditorMode = 'global' | 'module' | 'all';
 type SectionName = 'frequency' | 'power' | 'cross';
 const fileGroups = [
   { extension: '.vnp0', label: 'User Protocols' },
-  { extension: '.vnp1', label: 'Vielight Protocols' },
-  { extension: '.vnp2', label: 'Gracefire Protocols' },
-  { extension: '.vnp3', label: 'Vielight Batch Protocols' },
   { extension: '.vnp4', label: 'User Batch Protocols' },
+  { extension: '.vnp1', label: 'Vielight Protocols' },
+  { extension: '.vnp3', label: 'Vielight Batch Protocols' },
+  { extension: '.vnp2', label: 'Gracefire Protocols' },
   { extension: '.json', label: 'Legacy JSON' },
 ];
 const batchStageCount = 8;
