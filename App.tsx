@@ -2392,7 +2392,7 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string;
   },
 };
 
-// Editor panes that are white in the system themes get a light green fill in the Broccoli theme.
+// Editor and runner panes that are white in the system themes get a light green fill in the Broccoli theme.
 const brandPaneFills: Record<string, string> = {
   panel: '#e3f4d0',
   statusBar: '#e3f4d0',
@@ -2404,6 +2404,8 @@ const brandPaneFills: Record<string, string> = {
   modeButton: '#eaf7dc',
   activeMode: '#cdeaa9',
   durationBar: '#d8efbd',
+  runnerRow: '#e3f4d0',
+  thumbButton: '#c8e6a0',
 };
 
 function buildTheme(scheme: Scheme): Theme {
