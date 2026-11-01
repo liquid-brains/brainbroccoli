@@ -1,0 +1,42 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createNeuroPro2Device } from './device';
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('NeuroPro2 client', () => {
+  it('uses brainlight to make read-only requests to the configured device', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '[]',
+      json: async () => ['example.vnp2'],
+    });
+    const device = createNeuroPro2Device(' 192.168.0.58 ', { fetch });
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await device.listFiles('vnp2')).toEqual(['example.vnp2']);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(String(fetch.mock.calls[0]?.[0])).toBe('http://192.168.0.58/getlistfile?msg=vnp2');
+  });
+
+  it('uses the platform fetch by default', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => [], text: async () => '[]',
+    });
+    vi.stubGlobal('fetch', fetch);
+    await createNeuroPro2Device('192.168.0.58').listFiles('vnp2');
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it.each(['', 'device.local', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path'])(
+    'rejects invalid addresses: %s',
+    (ip) => expect(() => createNeuroPro2Device(ip)).toThrow('IPv4 address'),
+  );
+
+  it('propagates connection failures without sending device commands', async () => {
+    const fetch = vi.fn().mockRejectedValue(new Error('Device offline'));
+    await expect(createNeuroPro2Device('192.168.0.58', { fetch }).listFiles('vnp2'))
+      .rejects.toThrow('Device offline');
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+});

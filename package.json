@@ -1,0 +1,44 @@
+{
+  "name": "brainbroccoli",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@liquid-brains/brainlight": "1.0.9",
+    "expo": "~58.0.22",
+    "expo-status-bar": "~58.0.4",
+    "expo-system-ui": "~58.0.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-native": "^0.88.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@types/react": "~19.3.0",
+    "electron": "^45.2.1",
+    "typescript": "~5.9.2",
+    "vitest": "~4.1.0"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "bundle:android": "expo export --platform android",
+    "bundle:linux": "expo export --platform web --output-dir dist-linux",
+    "package:desktop": "npm run bundle:linux && node scripts/package-desktop.mjs",
+    "linux": "electron linux/main.cjs"
+  },
+  "private": true,
+  "allowScripts": {
+    "electron": true
+  },
+  "overrides": {
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.3",
+    "deepmerge": "4.1.1"
+  }
+}
