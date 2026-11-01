@@ -1147,7 +1147,7 @@ export default function App() {
           <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
         </Pressable>
       )}
-      <ScrollView style={styles.fileScroll}>{renderFileList()}</ScrollView>
+      <ScrollView style={[styles.fileScroll, appMode === 'runner' && { paddingTop: 14 }]}>{renderFileList()}</ScrollView>
     </View>
   );
 
