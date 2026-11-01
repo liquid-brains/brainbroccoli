@@ -1083,10 +1083,12 @@ export default function App() {
         )}
         {(!wideSidebar || !menuCollapsed) && renderActions()}
       </View>
-      <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
-        <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
-        <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
-      </Pressable>
+      {appMode === 'editor' && (
+        <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
+          <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
+          <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
+        </Pressable>
+      )}
       <ScrollView style={styles.fileScroll}>{renderFileList()}</ScrollView>
     </View>
   );
