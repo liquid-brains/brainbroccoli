@@ -103,7 +103,12 @@ export default function App() {
     return createEmptyProtocol(stageFileName || `stage_${activeBatchStage + 1}`);
   }, [activeBatchStage, files, isBatch, protocol, stageFileName]);
 
+  const readOnly = isReadOnlyFile(currentFileName) || (isBatch && stageFileName !== undefined && isReadOnlyFile(stageFileName));
+
   function updateDisplayedProtocol(update: (value: Protocol) => Protocol): void {
+    if (readOnly) {
+      return;
+    }
     if (isBatch) {
       if (!stageFileName || !files[stageFileName]) {
         return;
@@ -168,6 +173,9 @@ export default function App() {
   }
 
   function setBatchFile(stage: number, name: string): void {
+    if (readOnly) {
+      return;
+    }
     const filenames = [...(protocol.filenames ?? Array(batchStageCount).fill(''))];
     filenames[stage] = name;
     const updated = { ...protocol, filenames };
@@ -210,8 +218,25 @@ export default function App() {
     return { directory: name.slice(0, leafStart), base: dot > 0 ? leaf.slice(0, dot) : leaf, extension: dot > 0 ? leaf.slice(dot) : '' };
   }
 
+  function copyToEditable(name: string): void {
+    const source = files[name];
+    const target = editableCopyExtension(name);
+    if (!source || !target) {
+      return;
+    }
+    const { directory, base } = splitFileName(name);
+    const copyName = createUniqueImportedFileName(`${directory}${base}${target}`, Object.keys(files));
+    const copy: Protocol = JSON.parse(JSON.stringify(source));
+    if (copy.filename !== undefined || target === '.vnp4') {
+      copy.filename = splitFileName(copyName).base;
+    }
+    setFiles((current) => ({ ...current, [copyName]: copy }));
+    setExpandedGroups((current) => ({ ...current, [target]: true }));
+    loadProtocol(copyName, copy, true);
+  }
+
   function renameFile(text: string): void {
-    if (!currentFileName) {
+    if (!currentFileName || readOnly) {
       return;
     }
     const { directory, extension } = splitFileName(currentFileName);
@@ -389,6 +414,9 @@ export default function App() {
   }
 
   function deleteFile(name: string): void {
+    if (isReadOnlyFile(name)) {
+      return;
+    }
     setFiles((current) => {
       const remaining = { ...current };
       delete remaining[name];
@@ -434,9 +462,15 @@ export default function App() {
                   >
                     <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => deleteFile(name)}>
-                    <Text style={styles.deleteText}>✕</Text>
-                  </Pressable>
+                  {isReadOnlyFile(name) ? (
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${editableCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
+                      <Text style={styles.copyText}>⧉</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => deleteFile(name)}>
+                      <Text style={styles.deleteText}>✕</Text>
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </View>
@@ -879,6 +913,20 @@ export default function App() {
               </View>
             </View>
             {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+            {readOnly && (
+              <View style={styles.readOnlyBanner}>
+                <Text style={styles.readOnlyText}>
+                  {isReadOnlyFile(currentFileName)
+                    ? `${currentFileName} is a read-only system file.`
+                    : `A stage file in this batch (${stageFileName}) is a read-only system file.`}
+                </Text>
+                {isReadOnlyFile(currentFileName) && (
+                  <Pressable accessibilityRole="button" onPress={() => copyToEditable(currentFileName)} style={styles.readOnlyButton}>
+                    <Text style={styles.actionText}>Copy to editable {editableCopyExtension(currentFileName)} file</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
             <ScrollView contentContainerStyle={styles.workspace}>
               <View style={[styles.editorLayout, wideEditor && styles.editorLayoutWide]}>
                 <View style={[styles.diagramPanel, wideEditor && styles.diagramPanelWide]}>
@@ -932,7 +980,9 @@ export default function App() {
                   </Pressable>
                 </View>
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
-                  {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
+                  <View pointerEvents={readOnly ? 'none' : 'auto'} style={readOnly ? styles.readOnlyEditor : undefined}>
+                    {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
+                  </View>
                   {renderSummary()}
                   {settings.showJson && (
                     <View style={styles.panel}>
@@ -1088,6 +1138,17 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
 }
 
 // Dots and path separators in a file name crash the controller.
+function isReadOnlyFile(name: string): boolean {
+  return /\.vnp[123]$/i.test(name);
+}
+
+function editableCopyExtension(name: string): '.vnp0' | '.vnp4' | undefined {
+  if (/\.vnp[12]$/i.test(name)) {
+    return '.vnp0';
+  }
+  return /\.vnp3$/i.test(name) ? '.vnp4' : undefined;
+}
+
 function stripFileNameChars(text: string): string {
   return text.replace(/[./\\]/g, '');
 }
@@ -1131,6 +1192,11 @@ const styleDefs = {
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
   selectedFile: { backgroundColor: '#dcfce7', borderColor: '#f9a01b', borderWidth: 1 },
   fileName: { color: '#334155', fontSize: 12, fontWeight: '600' },
+  copyText: { color: '#f9a01b', fontSize: 16, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 8 },
+  readOnlyBanner: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginTop: 10, padding: 10 },
+  readOnlyText: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', minWidth: 180 },
+  readOnlyButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8 },
+  readOnlyEditor: { opacity: 0.6 },
   deleteText: { color: '#dc2626', fontSize: 14, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 6 },
   emptyList: { color: '#64748b', fontSize: 13, lineHeight: 19, padding: 10 },
   main: { flex: 1, minWidth: 0 },
