@@ -45,7 +45,6 @@ const fileGroups = [
   { extension: '.json', label: 'Legacy JSON' },
 ];
 const batchStageCount = 8;
-const lightTileModules = ['NL', 'NR', 'C4'];
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -447,6 +446,7 @@ export default function App() {
   const moduleControl = currentModule.moduleControl ?? {};
   const phase = normalizePhase(moduleControl.phase ?? 'A');
   const duration = calculateTotalDuration(displayedProtocol);
+  const maxRunTime = Math.max(0, ...protocolModules.map((item) => moduleRunTime(getProtocolModule(displayedProtocol, item.number))));
   const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
 
   function renderDurationBar(): React.JSX.Element {
@@ -764,10 +764,7 @@ export default function App() {
                           const module = getProtocolModule(displayedProtocol, number);
                           const currentPhase = normalizePhase(module.moduleControl?.phase);
                           const crossApplied = module.active !== false && module.applyCross === true && displayedProtocol.cross?.active !== false;
-                          const light = lightTileModules.includes(name);
-                          const phaseStyle = currentPhase === 'B'
-                            ? (light ? styles.phaseBLight : styles.phaseB)
-                            : (light ? styles.phaseALight : styles.phaseA);
+                          const tint = tintColor(currentPhase === 'B' ? '#f9a01b' : '#7bc043', deliveredSaturation(displayedProtocol, module, maxRunTime));
                           return (
                             <Pressable
                               key={number}
@@ -779,7 +776,7 @@ export default function App() {
                               }}
                               style={[
                                 styles.moduleTile,
-                                module.active === false ? styles.inactiveTile : phaseStyle,
+                                module.active === false ? styles.inactiveTile : { backgroundColor: tint },
                                 crossApplied && styles.crossTile,
                                 mode === 'module' && selectedModule === number && styles.selectedTile,
                               ]}
@@ -844,6 +841,32 @@ function ToggleButton(props: { active: boolean; title: string; onPress: () => vo
       <Text style={props.active ? styles.toggleActiveText : styles.toggleText}>{props.title}</Text>
     </Pressable>
   );
+}
+
+const MAX_POWER_PERCENT = 140;
+
+function moduleRunTime(module: ProtocolModule): number {
+  return Number(module.activeRunTime ?? module.runTime ?? 0) || 0;
+}
+
+function modulePower(protocol: Protocol, module: ProtocolModule): number {
+  const power = protocol.power ?? {};
+  const start = Number(power.startPower);
+  const end = Number(power.endPower);
+  if (power.active !== false && start > 0 && end > 0) return (start + end) / 2;
+  return Number(module.power ?? 0) || 0;
+}
+
+// Power delivered = power x run time, scaled against 140% for the longest run time.
+function deliveredSaturation(protocol: Protocol, module: ProtocolModule, referenceMinutes: number): number {
+  if (referenceMinutes <= 0) return 0;
+  const delivered = modulePower(protocol, module) * moduleRunTime(module);
+  return Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
+}
+
+function tintColor(hex: string, saturation: number): string {
+  const channels = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+  return `rgb(${channels.map((channel) => Math.round(255 - (255 - channel) * saturation)).join(',')})`;
 }
 
 function describeModule(protocol: Protocol, module: ProtocolModule): string {
@@ -985,8 +1008,6 @@ const styles = StyleSheet.create({
   moduleTile: { alignItems: 'center', borderColor: '#1a1a1a', borderRadius: 7, borderWidth: 1, justifyContent: 'center', minHeight: 58, padding: 4, width: '31%' },
   phaseA: { backgroundColor: '#7bc043' },
   phaseB: { backgroundColor: '#f9a01b' },
-  phaseALight: { backgroundColor: '#c8e6b0' },
-  phaseBLight: { backgroundColor: '#fcd9a0' },
   inactiveTile: { backgroundColor: '#fff' },
   crossTile: { borderColor: '#000', borderWidth: 4 },
   crossLabel: { color: '#000', fontSize: 10, fontWeight: '800', textAlign: 'center' },
