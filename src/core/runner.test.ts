@@ -154,29 +154,32 @@ describe('folder collapsing', () => {
 
 describe('sequences', () => {
   const empty: RunnerState = { folders: [], items: [] };
+  const step = (file: string) => ({ file });
 
-  it('adds, edits and ignores empty sequences', () => {
-    const added = addRunnerSequence(empty, ' Night ', ['a.vnp0', 'b.vnp0', 'a.vnp0']);
-    expect(added.items[0]).toMatchObject({ file: 'Night', sequence: ['a.vnp0', 'b.vnp0', 'a.vnp0'] });
-    expect(addRunnerSequence(empty, 'x', [])).toBe(empty);
+  it('adds, edits and ignores sequences without protocols', () => {
+    const added = addRunnerSequence(empty, ' Night ', [step('a.vnp0'), { rest: 60 }, step('a.vnp0')], ' notes ');
+    expect(added.items[0]).toMatchObject({ file: 'Night', description: 'notes', sequence: [step('a.vnp0'), { rest: 60 }, step('a.vnp0')] });
+    expect(addRunnerSequence(empty, 'x', [{ rest: 5 }])).toBe(empty);
     const id = added.items[0]?.id as string;
-    expect(updateRunnerSequence(added, id, 'Day', ['c.vnp0']).items[0]).toMatchObject({ file: 'Day', sequence: ['c.vnp0'] });
+    const edited = updateRunnerSequence(added, id, 'Day', [step('c.vnp0')]);
+    expect(edited.items[0]).toMatchObject({ file: 'Day', sequence: [step('c.vnp0')] });
+    expect(edited.items[0]?.description).toBeUndefined();
   });
 
   it('keeps sequence contents when moved and does not treat them as protocol files', () => {
     let state = addToRunner(empty, 'a.vnp0');
-    state = addRunnerSequence(state, 'a.vnp0', ['a.vnp0']);
+    state = addRunnerSequence(state, 'a.vnp0', [step('a.vnp0')]);
     state = addRunnerFolder(state, 'F');
     const sequence = state.items[1]?.id as string;
     const moved = moveRunnerItemToFolderEnd(state, sequence, state.folders[0]?.id);
-    expect(moved.items.find((item) => item.id === sequence)?.sequence).toEqual(['a.vnp0']);
+    expect(moved.items.find((item) => item.id === sequence)?.sequence).toEqual([step('a.vnp0')]);
     expect(removeFromRunner(state, 'a.vnp0').items).toHaveLength(1);
   });
 
   it('renames protocols inside sequences and survives parsing', () => {
-    const state = addRunnerSequence(empty, 'S', ['a.vnp0', 'b.vnp0']);
+    const state = addRunnerSequence(empty, 'S', [step('a.vnp0'), { rest: 30 }, step('b.vnp0')]);
     const renamed = renameRunnerFile(state, 'a.vnp0', 'z.vnp0');
-    expect(renamed.items[0]?.sequence).toEqual(['z.vnp0', 'b.vnp0']);
-    expect(parseRunnerData({ runner: renamed, journal: [] }).runner.items[0]?.sequence).toEqual(['z.vnp0', 'b.vnp0']);
+    expect(renamed.items[0]?.sequence).toEqual([step('z.vnp0'), { rest: 30 }, step('b.vnp0')]);
+    expect(parseRunnerData({ runner: renamed, journal: [] }).runner.items[0]?.sequence).toEqual([step('z.vnp0'), { rest: 30 }, step('b.vnp0')]);
   });
 });

@@ -2,8 +2,21 @@ import { calculateTotalDuration } from './protocol';
 import type { Protocol } from './protocol';
 
 export type RunnerFolder = { id: string; name: string; collapsed?: boolean };
-// A sequence is an item whose `file` is its name and whose `sequence` lists the protocol files to run in order.
-export type RunnerItem = { id: string; file: string; folderId?: string; sequence?: string[] };
+export type SequenceStep = { file: string } | { rest: number };
+// A sequence is an item whose `file` is its name and whose `sequence` lists the steps to run in order.
+export type RunnerItem = { id: string; file: string; folderId?: string; sequence?: SequenceStep[]; description?: string };
+
+export function isRestStep(step: SequenceStep): step is { rest: number } {
+  return 'rest' in step;
+}
+
+export function sequenceFiles(steps: SequenceStep[]): string[] {
+  return steps.flatMap((step) => (isRestStep(step) ? [] : [step.file]));
+}
+
+export function describeStep(step: SequenceStep): string {
+  return isRestStep(step) ? `Rest for ${step.rest} second(s)` : step.file;
+}
 export type RunnerState = { folders: RunnerFolder[]; items: RunnerItem[] };
 
 export type JournalStatus = 'running' | 'completed' | 'stopped' | 'failed';
@@ -46,7 +59,7 @@ export function renameRunnerFile(state: RunnerState, oldName: string, newName: s
     ...state,
     items: state.items.map((item) => {
       if (item.sequence !== undefined) {
-        return { ...item, sequence: item.sequence.map((name) => (name === oldName ? newName : name)) };
+        return { ...item, sequence: item.sequence.map((step) => (!isRestStep(step) && step.file === oldName ? { file: newName } : step)) };
       }
       return item.file === oldName ? { ...item, file: newName } : item;
     }),
@@ -116,17 +129,30 @@ export function setRunnerItemFolder(state: RunnerState, id: string, folderId: st
   };
 }
 
-export function addRunnerSequence(state: RunnerState, name: string, sequence: string[]): RunnerState {
+export function addRunnerSequence(state: RunnerState, name: string, sequence: SequenceStep[], description = ''): RunnerState {
   const trimmed = name.trim();
-  return trimmed === '' || sequence.length === 0 ? state : { ...state, items: [...state.items, { id: createId('item'), file: trimmed, sequence: [...sequence] }] };
-}
-
-export function updateRunnerSequence(state: RunnerState, id: string, name: string, sequence: string[]): RunnerState {
-  const trimmed = name.trim();
-  if (trimmed === '' || sequence.length === 0) {
+  if (trimmed === '' || sequenceFiles(sequence).length === 0) {
     return state;
   }
-  return { ...state, items: state.items.map((item) => (item.id === id && item.sequence !== undefined ? { ...item, file: trimmed, sequence: [...sequence] } : item)) };
+  const extra = description.trim() === '' ? {} : { description: description.trim() };
+  return { ...state, items: [...state.items, { id: createId('item'), file: trimmed, sequence: [...sequence], ...extra }] };
+}
+
+export function updateRunnerSequence(state: RunnerState, id: string, name: string, sequence: SequenceStep[], description = ''): RunnerState {
+  const trimmed = name.trim();
+  if (trimmed === '' || sequenceFiles(sequence).length === 0) {
+    return state;
+  }
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.id !== id || item.sequence === undefined) {
+        return item;
+      }
+      const { description: _old, ...rest } = item;
+      return { ...rest, file: trimmed, sequence: [...sequence], ...(description.trim() === '' ? {} : { description: description.trim() }) };
+    }),
+  };
 }
 
 export function addRunnerFolder(state: RunnerState, name: string): RunnerState {
@@ -162,6 +188,11 @@ export function removeRunnerFolder(state: RunnerState, id: string): RunnerState 
   };
 }
 
+function isStep(value: unknown): value is SequenceStep {
+  const step = value as { file?: unknown; rest?: unknown } | null;
+  return typeof step?.file === 'string' || (typeof step?.rest === 'number' && Number.isFinite(step.rest) && step.rest > 0);
+}
+
 export function parseRunnerData(raw: unknown): RunnerData {
   if (raw === null || typeof raw !== 'object') {
     return emptyRunnerData;
@@ -172,7 +203,7 @@ export function parseRunnerData(raw: unknown): RunnerData {
     : [];
   const items = Array.isArray(data.runner?.items)
     ? data.runner.items.filter((item) => typeof item?.id === 'string' && typeof item.file === 'string')
-        .map((item) => (Array.isArray(item.sequence) ? { ...item, sequence: item.sequence.filter((name) => typeof name === 'string') } : (({ sequence: _drop, ...rest }) => rest)(item)))
+        .map((item) => (Array.isArray(item.sequence) ? { ...item, sequence: item.sequence.filter(isStep) } : (({ sequence: _drop, ...rest }) => rest)(item)))
     : [];
   const journal = Array.isArray(data.journal)
     ? data.journal.filter((entry) => typeof entry?.id === 'string' && typeof entry.file === 'string')

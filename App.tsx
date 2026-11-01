@@ -43,6 +43,9 @@ import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, 
 import {
   addRunnerFolder,
   addRunnerSequence,
+  describeStep,
+  isRestStep,
+  sequenceFiles,
   updateRunnerSequence,
   addToRunner,
   createId,
@@ -62,7 +65,7 @@ import {
   renameRunnerFolder,
   toggleRunnerFolder,
 } from './src/core/runner';
-import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
+import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState, SequenceStep } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
 
@@ -111,7 +114,7 @@ export default function App() {
   const [dropHint, setDropHint] = useState<{ id: string; after: boolean } | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
-  const [sequenceDraft, setSequenceDraft] = useState<{ id?: string; name: string; files: string[] } | null>(null);
+  const [sequenceDraft, setSequenceDraft] = useState<{ id?: string; name: string; description: string; steps: SequenceStep[]; next: string; rest: string } | null>(null);
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
   const [confirmUnrated, setConfirmUnrated] = useState(false);
@@ -672,11 +675,12 @@ export default function App() {
   }
 
   function itemFiles(item: RunnerItem): string[] {
-    return item.sequence ?? [item.file];
+    return item.sequence === undefined ? [item.file] : sequenceFiles(item.sequence);
   }
 
   function itemMinutes(item: RunnerItem): number | undefined {
-    const total = itemFiles(item).reduce((sum, name) => sum + (runnerDurationMinutes(name) ?? 0), 0);
+    const steps: SequenceStep[] = item.sequence ?? [{ file: item.file }];
+    const total = steps.reduce((sum, step) => sum + (isRestStep(step) ? step.rest / 60 : runnerDurationMinutes(step.file) ?? 0), 0);
     return total > 0 ? total : undefined;
   }
 
@@ -696,7 +700,7 @@ export default function App() {
   function runnerSummary(item: RunnerItem): string {
     if (item.sequence !== undefined) {
       const minutes = itemMinutes(item);
-      return [`Sequence of ${item.sequence.length} protocol(s): ${item.sequence.join(', ')}`, ...(minutes === undefined ? [] : [`${Math.round(minutes * 10) / 10} min`])].join(' · ');
+      return [`Sequence of ${item.sequence.length} step(s): ${item.sequence.map(describeStep).join(', ')}`, ...(minutes === undefined ? [] : [`${Math.round(minutes * 10) / 10} min`])].join(' · ');
     }
     const value = files[item.file];
     return value ? summarizeProtocol(value) : '';
@@ -708,17 +712,32 @@ export default function App() {
       return value ? { protocol: structuredClone(value) } : {};
     }
     const stages: Record<string, Protocol> = {};
-    for (const name of item.sequence) {
+    for (const name of sequenceFiles(item.sequence)) {
       const stageProtocol = files[name];
       if (stageProtocol !== undefined) {
         stages[name] = stageProtocol;
       }
     }
-    return { protocol: { ...createEmptyProtocol(item.file), filenames: [...item.sequence] }, stages: structuredClone(stages) };
+    return { protocol: { ...createEmptyProtocol(item.file), filenames: sequenceFiles(item.sequence) }, stages: structuredClone(stages) };
+  }
+
+  function waitWhileResting(seconds: number, signal: AbortSignal, onTick: (secondsLeft: number) => void): Promise<void> {
+    return new Promise((resolve) => {
+      const end = Date.now() + seconds * 1000;
+      const timer = setInterval(() => {
+        const left = Math.ceil((end - Date.now()) / 1000);
+        if (signal.aborted || left <= 0) {
+          clearInterval(timer);
+          resolve();
+          return;
+        }
+        onTick(left);
+      }, 250);
+    });
   }
 
   async function startRun(item: RunnerItem): Promise<void> {
-    const names = itemFiles(item);
+    const steps: SequenceStep[] = item.sequence ?? [{ file: item.file }];
     const problem = itemProblem(item);
     if (session) {
       return;
@@ -743,21 +762,25 @@ export default function App() {
     const device = connectToController();
     let current = '';
     try {
-      for (const [index, name] of names.entries()) {
+      for (const [index, step] of steps.entries()) {
         if (controller.signal.aborted) {
           throw new Error('stopped');
         }
+        const prefix = item.sequence === undefined ? '' : `Step ${index + 1} of ${steps.length}: ${describeStep(step)} · `;
+        if (isRestStep(step)) {
+          current = 'rest interval';
+          setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Resting` } : state));
+          await waitWhileResting(step.rest, controller.signal, (left) => setSession((state) => (state ? { ...state, message: `${prefix}${left}s left` } : state)));
+          continue;
+        }
+        const name = step.file;
         current = name;
-        const prefix = item.sequence === undefined ? '' : `Protocol ${index + 1} of ${names.length}: ${name} · `;
         await runControllerProtocol(
           device,
           name,
           controller.signal,
           (message) => setSession((state) => (state ? { ...state, message: `${prefix}${message}` } : state)),
           () => {
-            if (index === 0) {
-              setClock(Date.now());
-            }
             setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Protocol running` } : state));
           },
         );
@@ -819,7 +842,7 @@ export default function App() {
     const minutes = itemMinutes(item);
     const length = minutes === undefined ? '' : `${Math.round(minutes * 10) / 10} minute(s)`;
     if (item.sequence !== undefined) {
-      return `Sequence · ${item.sequence.length} protocol(s)${length ? ` · ${length}` : ''}\n${item.sequence.join(' → ')}`;
+      return `Sequence · ${item.sequence.length} step(s)${length ? ` · ${length}` : ''}\n${item.description ? `${item.description}\n` : ''}${item.sequence.map(describeStep).join(' → ')}`;
     }
     return length || 'Duration not set';
   }
@@ -839,7 +862,7 @@ export default function App() {
             <Text style={styles.actionText}>▶ RUN</Text>
           </Pressable>
           {item.sequence !== undefined && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: item.file, files: [...(item.sequence ?? [])] })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: item.file, description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
               <Text style={styles.actionText}>EDIT</Text>
             </Pressable>
           )}
@@ -933,7 +956,7 @@ export default function App() {
               <Text style={styles.panelTitle}>Protocols</Text>
               <View style={styles.runnerButtons}>
                 <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
-                <ActionButton title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', files: [] })} />
+                <ActionButton title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
               </View>
               {runner.items.length === 0 && (
                 <Text style={styles.runnerEmpty}>No protocols yet. Press ☆ next to a file in the file list to add it here, or create a sequence to run several protocols in order.</Text>
@@ -1620,66 +1643,68 @@ export default function App() {
   }
 
   function saveSequence(): void {
-    if (!sequenceDraft || sequenceDraft.name.trim() === '' || sequenceDraft.files.length === 0) {
+    if (!sequenceDraft || sequenceDraft.name.trim() === '' || sequenceFiles(sequenceDraft.steps).length === 0) {
       return;
     }
-    const { id, name, files: list } = sequenceDraft;
-    updateRunner((state) => (id === undefined ? addRunnerSequence(state, name, list) : updateRunnerSequence(state, id, name, list)));
+    const { id, name, description, steps } = sequenceDraft;
+    updateRunner((state) => (id === undefined ? addRunnerSequence(state, name, steps, description) : updateRunnerSequence(state, id, name, steps, description)));
     setSequenceDraft(null);
   }
 
-  function changeSequence(change: (list: string[]) => string[]): void {
-    setSequenceDraft((draft) => (draft ? { ...draft, files: change(draft.files) } : draft));
+  function changeSequence(change: (draft: NonNullable<typeof sequenceDraft>) => Partial<NonNullable<typeof sequenceDraft>>): void {
+    setSequenceDraft((draft) => (draft ? { ...draft, ...change(draft) } : draft));
   }
 
   function renderSequenceDialog(): React.JSX.Element {
     const draft = sequenceDraft;
     const available = Object.keys(files).filter((name) => files[name]?.filenames === undefined).sort((left, right) => left.localeCompare(right));
-    const valid = draft !== null && draft.name.trim() !== '' && draft.files.length > 0;
-    const swap = (index: number, other: number) => changeSequence((list) => {
-      const next = [...list];
-      [next[index], next[other]] = [next[other] as string, next[index] as string];
-      return next;
+    const nextProfile = draft !== null && available.includes(draft.next) ? draft.next : available[0] ?? '';
+    const restSeconds = Math.round(Number(draft?.rest));
+    const restValid = Number.isFinite(restSeconds) && restSeconds > 0;
+    const valid = draft !== null && draft.name.trim() !== '' && sequenceFiles(draft.steps).length > 0;
+    const move = (index: number, other: number) => changeSequence((current) => {
+      const next = [...current.steps];
+      [next[index], next[other]] = [next[other] as SequenceStep, next[index] as SequenceStep];
+      return { steps: next };
     });
+    const stepButton = (label: string, onPress: () => void, options: { disabled?: boolean; danger?: boolean } = {}) => (
+      <Pressable accessibilityRole="button" disabled={options.disabled === true} onPress={onPress} style={[options.danger ? styles.dangerButton : styles.actionButton, options.disabled === true && styles.fieldDisabled]}>
+        <Text style={styles.actionText}>{label}</Text>
+      </Pressable>
+    );
     return (
       <Modal transparent animationType="fade" visible={draft !== null} onRequestClose={() => setSequenceDraft(null)}>
         <View style={styles.dialogRoot}>
-          <View style={[styles.dialog, { maxWidth: 560, maxHeight: '90%' }]}>
-            <Text style={styles.dialogTitle}>{draft?.id === undefined ? 'New sequence' : 'Edit sequence'}</Text>
-            <Text style={styles.runnerMeta}>Protocols run one at a time, in order. Sequences are kept in the Protocol Runner only and are never saved to the controller.</Text>
-            <TextInput
-              accessibilityLabel="Sequence name"
-              autoFocus
-              placeholder="Sequence name"
-              placeholderTextColor="#94a3b8"
-              value={draft?.name ?? ''}
-              onChangeText={(text) => setSequenceDraft((current) => (current ? { ...current, name: text } : current))}
-              style={styles.textInput}
-            />
-            <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled>
-              <Text style={styles.runnerTitle}>Order ({draft?.files.length ?? 0})</Text>
-              {draft?.files.length === 0 && <Text style={styles.runnerMeta}>Nothing yet. Add protocols below.</Text>}
-              {draft?.files.map((name, index) => (
-                <View key={`${name}-${index}`} style={[styles.runnerButtons, { alignItems: 'center' }]}>
-                  <Text style={[styles.runnerMeta, { flex: 1 }]}>{index + 1}. {name}</Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Move ${name} up`} disabled={index === 0} onPress={() => swap(index, index - 1)} style={[styles.thumbButton, index === 0 && styles.fieldDisabled]}>
-                    <Text style={styles.runnerButtonText}>▲</Text>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Move ${name} down`} disabled={index === draft.files.length - 1} onPress={() => swap(index, index + 1)} style={[styles.thumbButton, index === draft.files.length - 1 && styles.fieldDisabled]}>
-                    <Text style={styles.runnerButtonText}>▼</Text>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${name} from the sequence`} onPress={() => changeSequence((list) => list.filter((_, position) => position !== index))} style={styles.thumbButton}>
-                    <Text style={styles.runnerButtonText}>✕</Text>
-                  </Pressable>
+          <View style={[styles.dialog, { maxWidth: 600 }]}>
+            <ScrollView nestedScrollEnabled>
+              <Text style={styles.dialogTitle}>{draft?.id === undefined ? 'New sequence' : 'Edit sequence'}</Text>
+              <Text style={styles.fieldLabel}>Sequence name</Text>
+              <TextInput accessibilityLabel="Sequence name" autoFocus placeholder="My sequence" placeholderTextColor="#94a3b8" value={draft?.name ?? ''} onChangeText={(text) => changeSequence(() => ({ name: text }))} style={styles.textInput} />
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Description (optional)</Text>
+              <TextInput accessibilityLabel="Sequence description" multiline value={draft?.description ?? ''} onChangeText={(text) => changeSequence(() => ({ description: text }))} style={[styles.textInput, { minHeight: 64, textAlignVertical: 'top' }]} />
+              <Text style={[styles.runnerMeta, { marginVertical: 12 }]}>
+                Steps run in order, one at a time, and each protocol must finish before the next starts. Sequences are kept in the Protocol Runner only and are never saved to the controller.
+              </Text>
+              {draft?.steps.length === 0 && <Text style={styles.runnerMeta}>No steps yet. Add a protocol or a rest interval below.</Text>}
+              {draft?.steps.map((step, index) => (
+                <View key={`${describeStep(step)}-${index}`} style={styles.sequenceStep}>
+                  <Text style={styles.runnerTitle}>{index + 1}. {describeStep(step)}</Text>
+                  <View style={styles.runnerButtons}>
+                    {stepButton('MOVE UP', () => move(index, index - 1), { disabled: index === 0 })}
+                    {stepButton('MOVE DOWN', () => move(index, index + 1), { disabled: index === draft.steps.length - 1 })}
+                    {stepButton('REMOVE STEP', () => changeSequence((current) => ({ steps: current.steps.filter((_, position) => position !== index) })), { danger: true })}
+                  </View>
                 </View>
               ))}
-              <Text style={[styles.runnerTitle, { marginTop: 10 }]}>Add a protocol</Text>
-              <View style={styles.runnerButtons}>
-                {available.map((name) => (
-                  <Pressable key={name} accessibilityRole="button" accessibilityLabel={`Add ${name} to the sequence`} onPress={() => changeSequence((list) => [...list, name])} style={styles.thumbButton}>
-                    <Text style={styles.runnerButtonText}>+ {name}</Text>
-                  </Pressable>
-                ))}
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Protocol for next step</Text>
+              <Select label="Protocol for next step" value={nextProfile} options={available.map((name) => ({ value: name, label: name }))} onChange={(name) => changeSequence(() => ({ next: name }))} />
+              <View style={{ marginTop: 10 }}>
+                {stepButton('ADD STEP', () => changeSequence((current) => ({ steps: [...current.steps, { file: nextProfile }] })), { disabled: nextProfile === '' })}
+              </View>
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Rest interval (seconds)</Text>
+              <TextInput accessibilityLabel="Rest interval in seconds" keyboardType="numeric" value={draft?.rest ?? ''} onChangeText={(text) => changeSequence(() => ({ rest: text }))} style={styles.textInput} />
+              <View style={{ marginTop: 10 }}>
+                {stepButton('ADD REST INTERVAL', () => changeSequence((current) => ({ steps: [...current.steps, { rest: restSeconds }] })), { disabled: !restValid })}
               </View>
             </ScrollView>
             <View style={styles.deleteButtons}>
@@ -1687,7 +1712,7 @@ export default function App() {
                 <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
               <Pressable accessibilityRole="button" disabled={!valid} onPress={saveSequence} style={[styles.backButton, !valid && styles.fieldDisabled]}>
-                <Text style={styles.backButtonText}>{draft?.id === undefined ? 'CREATE' : 'SAVE'}</Text>
+                <Text style={styles.backButtonText}>{draft?.id === undefined ? 'SAVE SEQUENCE' : 'SAVE CHANGES'}</Text>
               </Pressable>
             </View>
           </View>
@@ -2163,6 +2188,8 @@ const styleDefs = {
   runnerButtons: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   runnerButtonText: { color: '#334155', fontSize: 13, fontWeight: '700' },
   runnerInput: { flex: 1, minWidth: 140 },
+  dangerButton: { backgroundColor: '#b91c1c', borderColor: '#b91c1c', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  sequenceStep: { borderColor: '#cbd5e1', borderRadius: 10, borderWidth: 1, gap: 8, marginBottom: 10, padding: 12 },
   thumbButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
   thumbUp: { backgroundColor: '#dcfce7' },
   thumbDown: { backgroundColor: '#fee2e2' },
