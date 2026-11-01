@@ -3,7 +3,10 @@ import {
   addRunnerFolder,
   addToRunner,
   formatClock,
+  isUnrated,
   moveRunnerItem,
+  removeUnratedEntries,
+  sortJournal,
   nextThumbCount,
   summarizeProtocol,
   moveRunnerItemTo,
@@ -14,7 +17,7 @@ import {
   renameRunnerFile,
   setRunnerItemFolder,
 } from './runner';
-import type { RunnerState } from './runner';
+import type { JournalEntry, RunnerState } from './runner';
 
 const files = (state: RunnerState) => state.items.map((item) => item.file);
 
@@ -109,5 +112,23 @@ describe('journal ratings and summaries', () => {
       ],
     });
     expect(summary).toBe('2 active module(s) · 10–40 Hz · 50–100% power · 20 min');
+  });
+});
+
+describe('journal sorting and cleanup', () => {
+  const entry = (id: string, startedAt: string, extra: Partial<JournalEntry> = {}): JournalEntry => ({ id, file: id, startedAt, status: 'completed', note: '', ...extra });
+  const journal = [entry('a', '2026-01-02'), entry('b', '2026-01-01', { up: 3 }), entry('c', '2026-01-03', { down: 2 })];
+  const ids = (list: JournalEntry[]) => list.map((item) => item.id);
+
+  it('sorts by date and by rating', () => {
+    expect(ids(sortJournal(journal, 'date-desc'))).toEqual(['c', 'a', 'b']);
+    expect(ids(sortJournal(journal, 'date-asc'))).toEqual(['b', 'a', 'c']);
+    expect(ids(sortJournal(journal, 'rating-desc'))).toEqual(['b', 'a', 'c']);
+    expect(ids(sortJournal(journal, 'rating-asc'))).toEqual(['c', 'a', 'b']);
+  });
+
+  it('removes only unrated records', () => {
+    expect(isUnrated(entry('x', 'd', { up: 0, down: 0 }))).toBe(true);
+    expect(ids(removeUnratedEntries(journal))).toEqual(['b', 'c']);
   });
 });

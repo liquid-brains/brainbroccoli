@@ -201,6 +201,32 @@ export function summarizeProtocol(protocol: Protocol, stages: Protocol[] = []): 
   return parts.join(' · ');
 }
 
+export type JournalSort = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc';
+
+// Thumbs up count positive and thumbs down negative, so every rating lands on a single scale.
+export function ratingScore(entry: JournalEntry): number {
+  return (entry.up ?? 0) - (entry.down ?? 0);
+}
+
+export function isUnrated(entry: JournalEntry): boolean {
+  return (entry.up ?? 0) === 0 && (entry.down ?? 0) === 0;
+}
+
+export function sortJournal(journal: JournalEntry[], sort: JournalSort): JournalEntry[] {
+  const byDate = (left: JournalEntry, right: JournalEntry) => right.startedAt.localeCompare(left.startedAt);
+  const compare: Record<JournalSort, (left: JournalEntry, right: JournalEntry) => number> = {
+    'date-desc': byDate,
+    'date-asc': (left, right) => byDate(right, left),
+    'rating-desc': (left, right) => ratingScore(right) - ratingScore(left) || byDate(left, right),
+    'rating-asc': (left, right) => ratingScore(left) - ratingScore(right) || byDate(left, right),
+  };
+  return [...journal].sort(compare[sort]);
+}
+
+export function removeUnratedEntries(journal: JournalEntry[]): JournalEntry[] {
+  return journal.filter((entry) => !isUnrated(entry));
+}
+
 export function formatClock(totalSeconds: number): string {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;

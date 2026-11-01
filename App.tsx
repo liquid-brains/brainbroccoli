@@ -48,6 +48,9 @@ import {
   formatClock,
   moveRunnerItemTo,
   nextThumbCount,
+  removeUnratedEntries,
+  isUnrated,
+  sortJournal,
   summarizeProtocol,
   moveRunnerItemToFolderEnd,
   parseRunnerData,
@@ -56,7 +59,7 @@ import {
   renameRunnerFile,
   renameRunnerFolder,
 } from './src/core/runner';
-import type { JournalEntry, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
+import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
 
@@ -106,6 +109,8 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState('');
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
   const [journalExpanded, setJournalExpanded] = useState(false);
+  const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
+  const [confirmUnrated, setConfirmUnrated] = useState(false);
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
@@ -847,7 +852,17 @@ export default function App() {
     const { runner, journal } = runnerData;
     const runnerWide = width >= 860;
     const knownFolder = (item: RunnerItem) => item.folderId !== undefined && runner.folders.some((folder) => folder.id === item.folderId);
-    const shownJournal = journalExpanded ? journal : journal.slice(0, 3);
+    const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
+    const unratedCount = journal.filter(isUnrated).length;
+    const sortOption = (kind: 'date' | 'rating', label: string) => {
+      const active = journalSort.startsWith(kind);
+      const descending = journalSort === `${kind}-desc`;
+      return (
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setJournalSort(active && descending ? `${kind}-asc` : `${kind}-desc`)} style={[styles.thumbButton, active && styles.thumbUp]}>
+          <Text style={styles.runnerButtonText}>{label}{active ? (descending ? ' ▼' : ' ▲') : ''}</Text>
+        </Pressable>
+      );
+    };
     return (
       <ScrollView contentContainerStyle={styles.workspace}>
         {!wideSidebar && <View style={styles.runnerBrand}>
@@ -893,6 +908,32 @@ export default function App() {
             <View style={styles.runnerPanel}>
               <Text style={styles.panelTitle}>Journal</Text>
               {journal.length === 0 && <Text style={styles.emptyList}>Protocols you run are recorded here so you can rate them and write down how they went.</Text>}
+              {journalExpanded && journal.length > 0 && (
+                <View style={styles.runnerFolder}>
+                  <Text style={styles.runnerTitle}>All journal records</Text>
+                  <View style={styles.runnerButtons}>
+                    <Text style={styles.runnerMeta}>Sort by</Text>
+                    {sortOption('date', journalSort === 'date-asc' ? 'Date (oldest first)' : 'Date (newest first)')}
+                    {sortOption('rating', journalSort === 'rating-asc' ? 'Rating (lowest first)' : 'Rating (highest first)')}
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={unratedCount === 0}
+                    onPress={() => {
+                      if (!confirmUnrated) {
+                        setConfirmUnrated(true);
+                        return;
+                      }
+                      setConfirmUnrated(false);
+                      setRunnerData((current) => ({ ...current, journal: removeUnratedEntries(current.journal) }));
+                    }}
+                    onBlur={() => setConfirmUnrated(false)}
+                    style={[styles.thumbButton, unratedCount === 0 && styles.fieldDisabled]}
+                  >
+                    <Text style={styles.deleteText}>{confirmUnrated ? `TAP AGAIN TO DELETE ${unratedCount} UNRATED` : `DELETE ALL UNRATED RECORDS (${unratedCount})`}</Text>
+                  </Pressable>
+                </View>
+              )}
               {shownJournal.map((entry) => (
                 <View key={entry.id} style={styles.runnerRow}>
                   <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.cardClose}>
@@ -903,10 +944,10 @@ export default function App() {
                   {entry.summary ? <Text style={styles.runnerMeta}>{entry.summary}</Text> : null}
                   <View style={styles.runnerButtons}>
                     <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { up: nextThumbCount(entry.up), down: 0 })} style={[styles.thumbButton, (entry.up ?? 0) > 0 && styles.thumbUp]}>
-                      <Text style={styles.runnerButtonText}>👍{(entry.up ?? 0) > 0 ? ` ${'👍'.repeat((entry.up ?? 0) - 1)}` : ''}</Text>
+                      <Text style={styles.runnerButtonText}>{'👍'.repeat(Math.max(1, entry.up ?? 0))}</Text>
                     </Pressable>
                     <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down), up: 0 })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
-                      <Text style={styles.runnerButtonText}>👎{(entry.down ?? 0) > 0 ? ` ${'👎'.repeat((entry.down ?? 0) - 1)}` : ''}</Text>
+                      <Text style={styles.runnerButtonText}>{'👎'.repeat(Math.max(1, entry.down ?? 0))}</Text>
                     </Pressable>
                   </View>
                   <TextInput
