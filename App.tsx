@@ -106,7 +106,10 @@ export default function App() {
     return createEmptyProtocol(stageFileName || `stage_${activeBatchStage + 1}`);
   }, [activeBatchStage, files, isBatch, protocol, stageFileName]);
 
-  const readOnly = isReadOnlyFile(currentFileName) || (isBatch && stageFileName !== undefined && isReadOnlyFile(stageFileName));
+  const fileReadOnly = isReadOnlyFile(currentFileName);
+  const readOnly = fileReadOnly || (isBatch && stageFileName !== undefined && isReadOnlyFile(stageFileName));
+
+  const dimEditor = readOnly && !(isBatch && mode === 'global');
 
   function updateDisplayedProtocol(update: (value: Protocol) => Protocol): void {
     if (readOnly) {
@@ -176,7 +179,7 @@ export default function App() {
   }
 
   function setBatchFile(stage: number, name: string): void {
-    if (readOnly) {
+    if (fileReadOnly) {
       return;
     }
     const filenames = [...(protocol.filenames ?? Array(batchStageCount).fill(''))];
@@ -239,7 +242,7 @@ export default function App() {
   }
 
   function renameFile(text: string): void {
-    if (!currentFileName || readOnly) {
+    if (!currentFileName || fileReadOnly) {
       return;
     }
     const { directory, extension } = splitFileName(currentFileName);
@@ -650,6 +653,7 @@ export default function App() {
             value={filenameDraft}
             onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
             onEndEditing={() => renameFile(filenameDraft)}
+            editable={!fileReadOnly}
             style={[styles.textInput, styles.wideInput]}
           />
         </SettingRow>
@@ -665,7 +669,7 @@ export default function App() {
                 </Pressable>
               </View>
               <View style={styles.wideInput}>
-                <Select label={`Stage ${index + 1}`} value={stageFile} options={stageOptions} onChange={(name) => setBatchFile(index, name)} />
+                <Select label={`Stage ${index + 1}`} value={stageFile} options={stageOptions} disabled={fileReadOnly} onChange={(name) => setBatchFile(index, name)} />
               </View>
             </View>
           );
@@ -1038,7 +1042,7 @@ export default function App() {
                   </Pressable>
                 </View>
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
-                  <View pointerEvents={readOnly ? 'none' : 'auto'} style={readOnly ? styles.readOnlyEditor : undefined}>
+                  <View pointerEvents={dimEditor ? 'none' : 'auto'} style={dimEditor ? styles.readOnlyEditor : undefined}>
                     {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   </View>
                   {renderSummary()}
@@ -1137,13 +1141,14 @@ function SettingRow(props: { label: string; accent: boolean; children: React.Rea
   );
 }
 
-function Select(props: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }): React.JSX.Element {
+function Select(props: { label: string; value: string; disabled?: boolean; options: { value: string; label: string }[]; onChange: (value: string) => void }): React.JSX.Element {
   const { styles, inputBackground, inputBorder, inputText } = useContext(ThemeContext);
   if (Platform.OS === 'web') {
     return createElement(
       'select',
       {
         'aria-label': props.label,
+        disabled: props.disabled,
         value: props.value,
         onChange: (event: { target: { value: string } }) => props.onChange(event.target.value),
         style: {
@@ -1164,6 +1169,7 @@ function Select(props: { label: string; value: string; options: { value: string;
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={props.label}
+      disabled={props.disabled}
       onPress={() => props.onChange(props.options[(index + 1) % props.options.length]?.value ?? '')}
       style={styles.selectButton}
     >
