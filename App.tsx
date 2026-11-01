@@ -120,7 +120,7 @@ export default function App() {
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
   const [confirmUnrated, setConfirmUnrated] = useState(false);
-  const [journalView, setJournalView] = useState<{ id: string; kind: 'json' | 'diagram' } | null>(null);
+  const [journalView, setJournalView] = useState<{ id: string; kind: 'json' | 'diagram'; preview?: JournalEntry } | null>(null);
   const [journalStage, setJournalStage] = useState(0);
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
@@ -878,6 +878,7 @@ export default function App() {
 
   function renderRunnerItem(item: RunnerItem): React.JSX.Element {
     const canRun = !session && itemProblem(item) === undefined;
+    const viewable = item.sequence !== undefined || files[item.file] !== undefined;
     const hint = dropHint?.id === item.id ? dropHint.after : undefined;
     const row = (
       <View style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter]}>
@@ -890,6 +891,11 @@ export default function App() {
           <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
             <Text style={styles.actionText}>▶ RUN</Text>
           </Pressable>
+          {viewable && (
+            <Pressable accessibilityRole="button" accessibilityLabel={`View protocol ${item.file}`} onPress={() => { setJournalStage(0); setJournalView({ id: 'preview', kind: 'diagram', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } }); }} style={styles.actionButton}>
+              <Text style={styles.actionText}>VIEW PROTOCOL</Text>
+            </Pressable>
+          )}
           {item.sequence !== undefined && (
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: item.file, description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
               <Text style={styles.actionText}>EDIT</Text>
@@ -1620,7 +1626,7 @@ export default function App() {
   }
 
   function renderJournalViewDialog(): React.JSX.Element {
-    const entry = journalView ? runnerData.journal.find((candidate) => candidate.id === journalView.id) : undefined;
+    const entry = journalView ? journalView.preview ?? runnerData.journal.find((candidate) => candidate.id === journalView.id) : undefined;
     const stageNames = entry?.protocol?.filenames?.filter((stage) => stage !== '') ?? [];
     const isBatchRun = entry?.protocol?.filenames !== undefined;
     const shownStage = stageNames[Math.min(journalStage, Math.max(0, stageNames.length - 1))];
@@ -1632,7 +1638,7 @@ export default function App() {
           <View style={[styles.dialog, { maxWidth: 720 }]}>
             <ScrollView>
               <Text style={styles.dialogTitle}>{entry?.file ?? ''}</Text>
-              <Text style={styles.runnerMeta}>{entry ? `Run started ${new Date(entry.startedAt).toLocaleString()}` : ''}</Text>
+              <Text style={styles.runnerMeta}>{entry ? (journalView?.preview ? 'Current protocol in the runner' : `Run started ${new Date(entry.startedAt).toLocaleString()}`) : ''}</Text>
               {journalView?.kind === 'json' ? (
                 <ScrollView style={styles.jsonBox} nestedScrollEnabled>
                   <Text selectable style={styles.jsonText}>{json}</Text>
