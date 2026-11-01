@@ -69,12 +69,17 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [menuCollapsed, setMenuCollapsed] = useState(false);
+  const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
   const { styles } = theme;
+
+  useEffect(() => {
+    setFilenameDraft(splitFileName(currentFileName).base);
+  }, [currentFileName]);
 
   useEffect(() => {
     void loadSettings().then(setSettings);
@@ -186,7 +191,7 @@ export default function App() {
   }
 
   function createBatch(): void {
-    const base = batchDraftName.trim().replace(/\.vnp4$/i, '') || 'My_Batch';
+    const base = stripFileNameChars(batchDraftName.trim().replace(/\.vnp4$/i, '')) || 'My_Batch';
     const name = createUniqueImportedFileName(`${base}.vnp4`, Object.keys(files));
     const fresh: Protocol = {
       ...createEmptyProtocol(name.replace(/\.vnp4$/i, '')),
@@ -210,10 +215,11 @@ export default function App() {
       return;
     }
     const { directory, extension } = splitFileName(currentFileName);
-    let base = text.trim().replace(/[\\/]/g, '_');
+    let base = text.trim();
     if (extension && base.toLowerCase().endsWith(extension.toLowerCase())) {
       base = base.slice(0, -extension.length);
     }
+    base = stripFileNameChars(base);
     const name = `${directory}${base}${extension}`;
     if (base === '' || name === currentFileName) {
       return;
@@ -324,7 +330,7 @@ export default function App() {
     try {
       const batch = isBatch;
       const importedName = currentFileName.split('/').pop() ?? '';
-      const baseName = importedName.replace(/\.[^.]+$/, '') || String(protocol.filename || 'protocol');
+      const baseName = stripFileNameChars(importedName.replace(/\.[^.]+$/, '') || String(protocol.filename || 'protocol'));
       const outputName = `${baseName}${batch ? '.vnp4' : '.vnp0'}`;
       const contents = JSON.stringify(batch ? protocol : displayedProtocol, null, 2);
       if (Platform.OS === 'web') {
@@ -554,10 +560,10 @@ export default function App() {
         <Text style={styles.panelTitle}>Batch run settings</Text>
         <SettingRow label="Batch filename" accent>
           <TextInput
-            key={currentFileName}
             accessibilityLabel="Batch filename"
-            defaultValue={currentFileName.replace(/\.vnp4$/i, '')}
-            onEndEditing={(event) => renameFile(event.nativeEvent.text)}
+            value={filenameDraft}
+            onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
+            onEndEditing={() => renameFile(filenameDraft)}
             style={[styles.textInput, styles.wideInput]}
           />
         </SettingRow>
@@ -592,12 +598,12 @@ export default function App() {
           <SettingRow label="Filename" accent={false}>
             <View style={[styles.fieldControl, styles.wideInput]}>
               <TextInput
-                key={currentFileName}
                 accessibilityLabel="Filename"
                 autoCapitalize="none"
                 autoCorrect={false}
-                defaultValue={splitFileName(currentFileName).base}
-                onEndEditing={(event) => renameFile(event.nativeEvent.text)}
+                value={filenameDraft}
+                onChangeText={(text) => setFilenameDraft(stripFileNameChars(text))}
+                onEndEditing={() => renameFile(filenameDraft)}
                 style={[styles.textInput, styles.filenameInput]}
               />
               <Text style={styles.unit}>{splitFileName(currentFileName).extension}</Text>
@@ -755,7 +761,7 @@ export default function App() {
               <TextInput
                 accessibilityLabel="Batch filename"
                 value={batchDraftName}
-                onChangeText={setBatchDraftName}
+                onChangeText={(text) => setBatchDraftName(stripFileNameChars(text))}
                 style={[styles.textInput, styles.dialogInput]}
               />
             </View>
@@ -1079,6 +1085,11 @@ function NumberField(props: { label: string; value: unknown; unit: string; onCha
       </View>
     </View>
   );
+}
+
+// Dots and path separators in a file name crash the controller.
+function stripFileNameChars(text: string): string {
+  return text.replace(/[./\\]/g, '');
 }
 
 function downloadBlob(blob: Blob, fileName: string): void {
