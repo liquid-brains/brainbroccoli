@@ -111,6 +111,28 @@ export function isProtocolFile(filename: string): boolean {
   return /\.(vnp[0-4]|json)$/i.test(filename);
 }
 
+export function userCopyExtension(filename: string): '.vnp0' | '.vnp4' | undefined {
+  if (/\.vnp[12]$/i.test(filename)) {
+    return '.vnp0';
+  }
+  return /\.vnp3$/i.test(filename) ? '.vnp4' : undefined;
+}
+
+// Read-only system files become editable user files: new extension, no secret/default flags.
+export function toUserProtocolFile(filename: string, protocol: Protocol): { name: string; protocol: Protocol } {
+  const extension = userCopyExtension(filename);
+  if (!extension) {
+    return { name: filename, protocol };
+  }
+  const name = filename.replace(/\.[^./]+$/, extension);
+  const base = name.slice(name.lastIndexOf('/') + 1, -extension.length);
+  const copy: Protocol = { ...protocol, secretFile: false, defaultFile: false };
+  if (copy.filename !== undefined || extension === '.vnp4') {
+    copy.filename = base;
+  }
+  return { name, protocol: copy };
+}
+
 export function createUniqueProtocolFileName(prefix: string, extension: string, existingFileNames: string[]): string {
   const existing = new Set(existingFileNames.map((name) => name.toLowerCase()));
   let index = 1;
@@ -164,30 +186,30 @@ function numericValue(value: unknown, fallback: number): number {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-export function calculateTotalDuration(protocol: Protocol): number | undefined {
-  let durationMinutes = 0;
+function sweepMinutes(start: number, end: number, step: number, stepDuration: number): number | undefined {
+  if (start > 0 && end >= start && step > 0 && stepDuration > 0) {
+    return (Math.floor((end - start) / step) + 1) * stepDuration / 60;
+  }
+  return undefined;
+}
+
+// Controllers only sweep upward, so end < start or a non-positive step is not a valid sweep.
+export function calculateSweepDuration(protocol: Protocol): number | undefined {
   const frequency = protocol.frequency ?? {};
   const power = protocol.power ?? {};
+  const durations = [
+    frequency.active !== false
+      ? sweepMinutes(Number(frequency.startFreq), Number(frequency.endFreq), Number(frequency.freqStepSize), Number(frequency.stepDuration))
+      : undefined,
+    power.active !== false
+      ? sweepMinutes(Number(power.startPower), Number(power.endPower), Number(power.powerStepSize), Number(power.stepDuration || frequency.stepDuration))
+      : undefined,
+  ].filter((value): value is number => value !== undefined);
+  return durations.length > 0 ? Math.max(...durations) : undefined;
+}
 
-  if (frequency.active !== false) {
-    const start = Number(frequency.startFreq);
-    const end = Number(frequency.endFreq);
-    const step = Number(frequency.freqStepSize);
-    const stepDuration = Number(frequency.stepDuration);
-    if (start > 0 && end > 0 && step > 0 && stepDuration > 0) {
-      durationMinutes = Math.max(durationMinutes, (Math.floor(Math.abs(end - start) / step) + 1) * stepDuration / 60);
-    }
-  }
-
-  if (power.active !== false) {
-    const start = Number(power.startPower);
-    const end = Number(power.endPower);
-    const step = Number(power.powerStepSize);
-    const stepDuration = Number(power.stepDuration || frequency.stepDuration);
-    if (start > 0 && end > 0 && step > 0 && stepDuration > 0) {
-      durationMinutes = Math.max(durationMinutes, (Math.floor(Math.abs(end - start) / step) + 1) * stepDuration / 60);
-    }
-  }
+export function calculateTotalDuration(protocol: Protocol): number | undefined {
+  let durationMinutes = calculateSweepDuration(protocol) ?? 0;
 
   for (const module of Array.isArray(protocol.modules) ? protocol.modules : []) {
     if (module.active !== false) {

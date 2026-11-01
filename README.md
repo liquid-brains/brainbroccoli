@@ -5,7 +5,7 @@ following [brainkandi](https://github.com/liquid-brains/brainkandi)'s
 TypeScript, Electron, and artifact-producing CI structure. Import `.vnp0`–`.vnp4`
 or JSON protocol files individually or from ZIP archives, edit protocol settings
 and modules, and save protocols or export an archive. Files are held in memory
-for the current app session; device communication and session controls are not
+for the current app session; saving to a controller and session controls are not
 implemented.
 
 ## Development
@@ -20,8 +20,8 @@ npm run ios       # requires macOS and Xcode
 npm run web
 ```
 
-The file list adapts to the available screen width. No device requests are sent
-on startup.
+The file list adapts to the available screen width. Device requests are sent only when
+you choose Download Controller Files.
 
 ## NeuroPro2 integration
 
@@ -37,16 +37,28 @@ const device = createNeuroPro2Device('192.168.0.58');
 const files = await device.listFiles('vnp2');
 ```
 
-Use the device's actual IPv4 address on the same local network. The factory
-validates the address and defaults to a 10-second request timeout; brainlight
-options (including an injected `fetch`) can be supplied for testing or future
-platform transports. Android permits HTTP for the device; iOS declares local
-network access. Browser/Electron requests still require device CORS support or
-a future scoped transport adapter; the desktop shell does not disable web
-security or sandboxing. Its content security policy currently allows only
-same-origin connections; a future transport must explicitly authorize device
-requests. The editor modifies protocol files locally and does not send commands
-to a device.
+Use the controller's IPv4 address or host name (Settings → IP address). The
+factory validates it and defaults to a 10-second request timeout; brainlight
+options (including an injected `fetch`) can be supplied for testing or other
+transports. Android permits HTTP for the device; iOS declares local network
+access.
+
+**Download Controller Files** lists the controller's `.vnp0`, `.vnp2` and `.vnp3`
+files with `downloadControllerFiles` and loads them into the editor. In the
+Electron shell the requests go through a preload bridge to the main process,
+which only allows read-only controller paths (`getlistfile`, `getlistbatchfile`,
+`filedata`, `batchfiledata`) over HTTP, so no CORS support is needed on the
+device and the sandbox and content security policy stay unchanged. In a plain
+browser the device must allow CORS. The editor otherwise modifies protocol files
+locally. **Save to Controller** and **Delete** (user `.vnp0`/`.vnp4`
+files only) are the only commands that change a device. They call brainlight's
+`saveFile` and `deleteFile`, and the bridge also allows the file save, delete and
+list-update commands they use, plus `stop`, `filedatarun`, `run` and `activate` for the Protocol Runner. Saving a batch
+uploads its referenced user `.vnp0` stage files first.
+
+The Protocol Runner cannot run controller batches. Starring a batch creates a sequence with the same name and steps, and **New Sequence** builds an ordered list of protocols and rest intervals
+(no 8-phase limit) that is stored only in the app; running it starts each protocol in turn and waits for it to
+finish before starting the next.
 
 ## Validation and builds
 

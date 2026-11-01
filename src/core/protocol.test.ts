@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateSweepDuration,
   calculateTotalDuration,
   createUniqueImportedFileName,
   createUniqueProtocolFileName,
@@ -9,6 +10,7 @@ import {
   normalizePhase,
   parseProtocolJSON,
   protocolDiagramRows,
+  toUserProtocolFile,
 } from './protocol';
 import JSZip from 'jszip';
 import { readProtocolArchive } from './protocol-archive';
@@ -136,5 +138,34 @@ describe('protocol helpers', () => {
     const contents = await archive.generateAsync({ type: 'uint8array' });
 
     await expect(readProtocolArchive(contents)).rejects.toThrow('unsafe file path');
+  });
+});
+
+describe('toUserProtocolFile', () => {
+  it.each([['a/x.vnp1', 'a/x.vnp0'], ['x.vnp2', 'x.vnp0'], ['x.vnp3', 'x.vnp4']])('converts %s to %s', (from, to) => {
+    const result = toUserProtocolFile(from, { ...createEmptyProtocol('x'), secretFile: true, defaultFile: true });
+    expect(result.name).toBe(to);
+    expect(result.protocol).toMatchObject({ secretFile: false, defaultFile: false, filename: 'x' });
+  });
+
+  it('leaves user files unchanged', () => {
+    const protocol = { ...createEmptyProtocol('x'), secretFile: true };
+    expect(toUserProtocolFile('x.vnp0', protocol)).toEqual({ name: 'x.vnp0', protocol });
+  });
+});
+
+describe('calculateSweepDuration', () => {
+  const base = createEmptyProtocol();
+  it('derives minutes from an upward frequency sweep', () => {
+    const protocol = { ...base, frequency: { active: true, startFreq: 10, endFreq: 20, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(protocol)).toBe(3);
+  });
+  it('ignores backward sweeps and inactive sweeps', () => {
+    const backward = { ...base, frequency: { active: true, startFreq: 20, endFreq: 10, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(backward)).toBeUndefined();
+    const negativeStep = { ...base, frequency: { active: true, startFreq: 10, endFreq: 20, freqStepSize: -5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(negativeStep)).toBeUndefined();
+    const off = { ...base, frequency: { active: false, startFreq: 10, endFreq: 20, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
+    expect(calculateSweepDuration(off)).toBeUndefined();
   });
 });

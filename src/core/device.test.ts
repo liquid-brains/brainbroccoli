@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNeuroPro2Device } from './device';
+import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './device';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -28,15 +28,75 @@ describe('NeuroPro2 client', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it.each(['', 'device.local', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path'])(
+  it.each(['', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path', 'np1.local/x', '-bad.local'])(
     'rejects invalid addresses: %s',
     (ip) => expect(() => createNeuroPro2Device(ip)).toThrow('IPv4 address'),
   );
+
+  it('accepts host names', () => {
+    expect(() => createNeuroPro2Device('np1.local')).not.toThrow();
+  });
+
+  it('downloads every protocol file from the controller', async () => {
+    const fetch = vi.fn(async (url: URL) => {
+      const json = url.pathname === '/filedata' ? { single: true } : url.pathname === '/getlistfile' && url.searchParams.get('msg') === 'vnp0' ? ['a.vnp0'] : [];
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }));
+    expect(files.map((file) => file.name)).toEqual(['a.vnp0']);
+  });
+
+  it('skips files that are already downloaded', async () => {
+    const fetch = vi.fn(async (url: URL) => {
+      const json = url.pathname === '/filedata' ? { single: true } : url.pathname === '/getlistfile' && url.searchParams.get('msg') === 'vnp0' ? ['a.vnp0', 'b.vnp0'] : [];
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }), undefined, ['A.vnp0']);
+    expect(files.map((file) => file.name)).toEqual(['b.vnp0']);
+  });
 
   it('propagates connection failures without sending device commands', async () => {
     const fetch = vi.fn().mockRejectedValue(new Error('Device offline'));
     await expect(createNeuroPro2Device('192.168.0.58', { fetch }).listFiles('vnp2'))
       .rejects.toThrow('Device offline');
     expect(fetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('saveControllerFiles', () => {
+  it('sets updateExisting from what the controller already has, without mutating the editor copy', async () => {
+    const saveFile = vi.fn().mockResolvedValue(true);
+    const listFiles = vi.fn(async (type: string) => (type === 'vnp0' ? ['Old.vnp0'] : []));
+    const protocol = { filename: 'a', updateExisting: true };
+    const messages: string[] = [];
+    await saveControllerFiles(
+      { saveFile, listFiles } as never,
+      [
+        { name: 'old.vnp0', protocol: protocol as never },
+        { name: 'new.vnp0', protocol: { filename: 'new', updateExisting: true } as never },
+        { name: 'b.vnp4', protocol: { filename: 'b' } as never },
+      ],
+      (m) => messages.push(m),
+    );
+    expect(saveFile.mock.calls.map((call) => [call[0], call[1].updateExisting, call[2]])).toEqual([
+      ['old.vnp0', true, true],
+      ['new.vnp0', false, false],
+      ['b.vnp4', false, false],
+    ]);
+    expect(protocol.updateExisting).toBe(true);
+    expect(listFiles.mock.calls.map((call) => call[0])).toEqual(['vnp0', 'vnp3']);
+    expect(messages).toHaveLength(3);
+  });
+});
+
+describe('runControllerProtocol', () => {
+  it('runs the file without saving it first', async () => {
+    const calls: string[] = [];
+    const device = {
+      saveFile: async (name: string) => { calls.push(`save ${name}`); },
+      runFile: async (name: string) => { calls.push(`run ${name}`); },
+    };
+    await runControllerProtocol(device as never, 'a.vnp0', new AbortController().signal);
+    expect(calls).toEqual(['run a.vnp0']);
   });
 });
