@@ -884,16 +884,16 @@ export default function App() {
               {runner.folders.map((folder) => (
                 <DropZone key={folder.id} props={folderDropProps(folder.id)}>
                 <View style={styles.runnerFolder}>
-                  <View style={styles.runnerButtons}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))} style={styles.cardClose}>
+                    <Text style={styles.cardCloseText}>✕</Text>
+                  </Pressable>
+                  <View style={[styles.runnerButtons, { paddingRight: 28 }]}>
                     <TextInput
                       accessibilityLabel="Folder name"
                       value={folder.name}
                       onChangeText={(text) => updateRunner((state) => renameRunnerFolder(state, folder.id, text))}
                       style={[styles.textInput, styles.runnerInput]}
                     />
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))} style={styles.thumbButton}>
-                      <Text style={styles.deleteText}>DELETE FOLDER</Text>
-                    </Pressable>
                   </View>
                   {runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item, runner.folders.length))}
                   {runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here or pick this folder on it.</Text>}
