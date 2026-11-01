@@ -857,10 +857,10 @@ export default function App() {
     const shownJournal = journalExpanded ? journal : journal.slice(0, 3);
     return (
       <ScrollView contentContainerStyle={styles.workspace}>
-        <View style={styles.runnerBrand}>
+        {!wideSidebar && <View style={styles.runnerBrand}>
           <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
           <Text style={styles.brandCaption}>Device: {settings.deviceAddress}</Text>
-        </View>
+        </View>}
         <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
             {renderRunStatus()}
@@ -971,12 +971,16 @@ export default function App() {
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => {
+                      if (appMode === 'runner') {
+                        updateRunner((state) => (state.items.some((item) => item.file === name) ? removeFromRunner(state, name) : addToRunner(state, name)));
+                        return;
+                      }
                       const selected = files[name];
                       if (selected) {
                         loadProtocol(name, selected);
                       }
                     }}
-                    style={[styles.fileButton, currentFileName === name && styles.selectedFile]}
+                    style={[styles.fileButton, appMode === 'editor' && currentFileName === name && styles.selectedFile]}
                   >
                     <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
                   </Pressable>
@@ -987,7 +991,7 @@ export default function App() {
                   >
                     <Text style={styles.copyText}>{runnerData.runner.items.some((item) => item.file === name) ? '★' : '☆'}</Text>
                   </Pressable>
-                  {isReadOnlyFile(name) ? (
+                  {appMode === 'runner' ? null : isReadOnlyFile(name) ? (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${userCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
                       <Text style={styles.copyText}>⧉</Text>
                     </Pressable>
@@ -1019,10 +1023,14 @@ export default function App() {
     };
     return (
       <View style={styles.menuItems}>
-        <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
-        <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
-        <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => setDownloadPromptOpen(true))} />
-        <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
+        {appMode === 'editor' && (
+          <>
+            <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
+            <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
+            <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => setDownloadPromptOpen(true))} />
+            <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
+          </>
+        )}
         <ActionButton menu title="⚙️ Settings" onPress={run(() => setSettingsOpen(true))} />
       </View>
     );
@@ -1052,7 +1060,7 @@ export default function App() {
     return (
       <View style={styles.brand}>
         <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
-        <Text style={styles.brandCaption}>Vielight Neuro Pro 2 Protocol Editor</Text>
+        <Text style={styles.brandCaption}>Vielight Neuro Pro 2 Protocol {appMode === 'runner' ? 'Runner' : 'Editor'}</Text>
       </View>
     );
   }
@@ -1521,11 +1529,11 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.appShell}>
-          {wideSidebar && appMode === 'editor' && sidebar}
+          {wideSidebar && sidebar}
           <View style={styles.main}>
             <View style={styles.toolbar}>
               <View style={styles.toolbarHeading}>
-                {!wideSidebar && appMode === 'editor' && (
+                {!wideSidebar && (
                   <Pressable accessibilityRole="button" onPress={() => setSidebarOpen(true)} style={styles.menuButton}>
                     <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
