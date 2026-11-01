@@ -16,6 +16,7 @@ import {
   moveRunnerItemToFolderEnd,
   parseRunnerData,
   removeFromRunner,
+  removeRunnerItem,
   removeRunnerFolder,
   renameRunnerFile,
   setRunnerItemFolder,
@@ -174,6 +175,7 @@ describe('sequences', () => {
     const moved = moveRunnerItemToFolderEnd(state, sequence, state.folders[0]?.id);
     expect(moved.items.find((item) => item.id === sequence)?.sequence).toEqual([step('a.vnp0')]);
     expect(removeFromRunner(state, 'a.vnp0').items).toHaveLength(1);
+    expect(removeRunnerItem(state, sequence).items.map((item) => item.file)).toEqual(['a.vnp0']);
   });
 
   it('renames protocols inside sequences and survives parsing', () => {

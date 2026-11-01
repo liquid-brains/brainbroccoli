@@ -60,6 +60,7 @@ import {
   moveRunnerItemToFolderEnd,
   parseRunnerData,
   removeFromRunner,
+  removeRunnerItem,
   removeRunnerFolder,
   renameRunnerFile,
   renameRunnerFolder,
@@ -852,7 +853,7 @@ export default function App() {
     const hint = dropHint?.id === item.id ? dropHint.after : undefined;
     const row = (
       <View style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeFromRunner(state, item.file))} style={styles.cardClose}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeRunnerItem(state, item.id))} style={styles.cardClose}>
           <Text style={styles.cardCloseText}>✕</Text>
         </Pressable>
         <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{item.file}</Text>

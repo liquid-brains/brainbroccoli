@@ -54,6 +54,10 @@ export function removeFromRunner(state: RunnerState, file: string): RunnerState 
   return { ...state, items: state.items.filter((item) => item.sequence !== undefined || item.file !== file) };
 }
 
+export function removeRunnerItem(state: RunnerState, id: string): RunnerState {
+  return { ...state, items: state.items.filter((item) => item.id !== id) };
+}
+
 export function renameRunnerFile(state: RunnerState, oldName: string, newName: string): RunnerState {
   return {
     ...state,
