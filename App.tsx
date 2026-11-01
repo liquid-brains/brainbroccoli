@@ -1551,11 +1551,11 @@ export default function App() {
                   )}
                   {shown ? (
                     <>
-                      <View style={styles.legend}>
+                      <View style={[styles.legend, { justifyContent: 'center' }]}>
                         <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
                         <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
                       </View>
-                      {renderModuleGrid(shown)}
+                      <View style={{ alignItems: 'center' }}>{renderModuleGrid(shown)}</View>
                       {renderSummaryTable(shown)}
                     </>
                   ) : (
