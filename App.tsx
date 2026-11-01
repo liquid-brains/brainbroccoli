@@ -764,25 +764,26 @@ export default function App() {
                           const module = getProtocolModule(displayedProtocol, number);
                           const currentPhase = normalizePhase(module.moduleControl?.phase);
                           const crossApplied = module.active !== false && module.applyCross === true && displayedProtocol.cross?.active !== false;
+                          const tileInactive = module.active === false || modulePower(displayedProtocol, module) <= 0;
                           const tint = tintColor(currentPhase === 'B' ? '#f9a01b' : '#7bc043', deliveredSaturation(displayedProtocol, module, maxRunTime));
                           return (
                             <Pressable
                               key={number}
                               accessibilityRole="button"
-                              accessibilityLabel={`${name}${module.active === false ? ', inactive' : ''}`}
+                              accessibilityLabel={`${name}${tileInactive ? ', inactive' : ''}`}
                               onPress={() => {
                                 setSelectedModule(number);
                                 setMode('module');
                               }}
                               style={[
                                 styles.moduleTile,
-                                module.active === false ? styles.inactiveTile : { backgroundColor: tint },
+                                tileInactive ? styles.inactiveTile : { backgroundColor: tint },
                                 crossApplied && styles.crossTile,
                                 mode === 'module' && selectedModule === number && styles.selectedTile,
                               ]}
                             >
                               <Text style={styles.moduleTitle}>{name}</Text>
-                              <Text style={styles.moduleSubtitle}>{module.active === false ? 'Inactive' : describeModule(displayedProtocol, module)}</Text>
+                              <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(displayedProtocol, module)}</Text>
                               {crossApplied && <Text style={styles.crossLabel}>X:{String(displayedProtocol.cross?.freq ?? 0)}Hz</Text>}
                             </Pressable>
                           );
