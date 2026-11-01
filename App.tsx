@@ -47,6 +47,8 @@ import {
   emptyRunnerData,
   formatClock,
   moveRunnerItemTo,
+  nextThumbCount,
+  summarizeProtocol,
   moveRunnerItemToFolderEnd,
   parseRunnerData,
   removeFromRunner,
@@ -664,6 +666,15 @@ export default function App() {
     return total > 0 ? total : undefined;
   }
 
+  function runnerSummary(name: string): string {
+    const value = files[name];
+    if (!value) {
+      return '';
+    }
+    const stages = (value.filenames ?? []).map((stage) => files[stage]).filter((stage): stage is Protocol => stage !== undefined);
+    return summarizeProtocol(value, stages);
+  }
+
   async function startRun(name: string): Promise<void> {
     const value = files[name];
     if (session || !value) {
@@ -678,7 +689,7 @@ export default function App() {
     setSession({ file: name, entryId, message: `Connecting to ${settings.deviceAddress}…`, totalSeconds: minutes === undefined ? undefined : minutes * 60 });
     setRunnerData((current) => ({
       ...current,
-      journal: [{ id: entryId, file: name, startedAt: new Date().toISOString(), status: 'running', note: '' }, ...current.journal],
+      journal: [{ id: entryId, file: name, startedAt: new Date().toISOString(), status: 'running', note: '', summary: runnerSummary(name) }, ...current.journal],
     }));
     let outcome: JournalStatus = 'completed';
     try {
@@ -902,12 +913,13 @@ export default function App() {
                 <View key={entry.id} style={styles.runnerRow}>
                   <Text style={styles.runnerTitle}>{entry.file}</Text>
                   <Text style={styles.runnerMeta}>Started {new Date(entry.startedAt).toLocaleString()} · {entry.status}</Text>
+                  {entry.summary ? <Text style={styles.runnerMeta}>{entry.summary}</Text> : null}
                   <View style={styles.runnerButtons}>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { rating: entry.rating === 'up' ? undefined : 'up' })} style={[styles.thumbButton, entry.rating === 'up' && styles.thumbUp]}>
-                      <Text style={styles.runnerButtonText}>👍</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs up" onPress={() => updateJournalEntry(entry.id, { up: nextThumbCount(entry.up) })} style={[styles.thumbButton, (entry.up ?? 0) > 0 && styles.thumbUp]}>
+                      <Text style={styles.runnerButtonText}>👍{(entry.up ?? 0) > 0 ? ` ${'👍'.repeat((entry.up ?? 0) - 1)}` : ''}</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { rating: entry.rating === 'down' ? undefined : 'down' })} style={[styles.thumbButton, entry.rating === 'down' && styles.thumbDown]}>
-                      <Text style={styles.runnerButtonText}>👎</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Thumbs down" onPress={() => updateJournalEntry(entry.id, { down: nextThumbCount(entry.down) })} style={[styles.thumbButton, (entry.down ?? 0) > 0 && styles.thumbDown]}>
+                      <Text style={styles.runnerButtonText}>👎{(entry.down ?? 0) > 0 ? ` ${'👎'.repeat((entry.down ?? 0) - 1)}` : ''}</Text>
                     </Pressable>
                     <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.thumbButton}>
                       <Text style={styles.deleteText}>✕ DELETE</Text>

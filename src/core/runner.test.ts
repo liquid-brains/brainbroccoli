@@ -4,6 +4,8 @@ import {
   addToRunner,
   formatClock,
   moveRunnerItem,
+  nextThumbCount,
+  summarizeProtocol,
   moveRunnerItemTo,
   moveRunnerItemToFolderEnd,
   parseRunnerData,
@@ -80,5 +82,30 @@ describe('runner drag and drop', () => {
     expect(files(inFolder)).toEqual(['b', 'c', 'a']);
     expect(inFolder.items[2]?.folderId).toBe('f');
     expect(moveRunnerItemToFolderEnd(base, '3', undefined).items[2]?.folderId).toBeUndefined();
+  });
+});
+
+describe('journal ratings and summaries', () => {
+  it('cycles thumbs from zero to five and back', () => {
+    expect(nextThumbCount(undefined)).toBe(1);
+    expect(nextThumbCount(4)).toBe(5);
+    expect(nextThumbCount(5)).toBe(0);
+  });
+
+  it('clamps stored thumb counts', () => {
+    const data = parseRunnerData({ journal: [{ id: 'j', file: 'a', startedAt: '', status: 'completed', note: '', up: 9, down: 2 }] });
+    expect(data.journal[0]?.up).toBe(5);
+    expect(data.journal[0]?.down).toBe(2);
+  });
+
+  it('summarizes a protocol', () => {
+    const summary = summarizeProtocol({
+      modules: [
+        { module_no: 1, active: true, activeRunTime: 20, freq: 40, power: 100 },
+        { module_no: 2, active: true, activeRunTime: 20, freq: 10, power: 50 },
+        { module_no: 3, active: false, freq: 99, power: 1 },
+      ],
+    });
+    expect(summary).toBe('2 active module(s) · 10–40 Hz · 50–100% power · 20 min');
   });
 });

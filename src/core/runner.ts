@@ -1,3 +1,6 @@
+import { calculateTotalDuration } from './protocol';
+import type { Protocol } from './protocol';
+
 export type RunnerFolder = { id: string; name: string };
 export type RunnerItem = { id: string; file: string; folderId?: string };
 export type RunnerState = { folders: RunnerFolder[]; items: RunnerItem[] };
@@ -8,7 +11,9 @@ export type JournalEntry = {
   file: string;
   startedAt: string;
   status: JournalStatus;
-  rating?: 'up' | 'down' | undefined;
+  up?: number;
+  down?: number;
+  summary?: string;
   note: string;
 };
 
@@ -132,7 +137,66 @@ export function parseRunnerData(raw: unknown): RunnerData {
   const journal = Array.isArray(data.journal)
     ? data.journal.filter((entry) => typeof entry?.id === 'string' && typeof entry.file === 'string')
     : [];
-  return { runner: { folders, items }, journal: journal.map((entry) => (entry.status === 'running' ? { ...entry, status: 'stopped' } : entry)) };
+  return { runner: { folders, items }, journal: journal.map((entry) => {
+    const { up, down, ...rest } = entry;
+    const counts = { ...(clampThumbs(up) === undefined ? {} : { up: clampThumbs(up) as number }), ...(clampThumbs(down) === undefined ? {} : { down: clampThumbs(down) as number }) };
+    return { ...rest, ...counts, ...(entry.status === 'running' ? { status: 'stopped' as const } : {}) };
+  }) };
+}
+
+export const maxThumbs = 5;
+
+// Each press adds one thumb; pressing at the maximum starts over at zero.
+export function nextThumbCount(count: number | undefined): number {
+  const current = count ?? 0;
+  return current >= maxThumbs ? 0 : current + 1;
+}
+
+function clampThumbs(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.min(maxThumbs, Math.max(0, Math.round(value))) : undefined;
+}
+
+function span(values: number[], unit: string): string {
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  return low === high ? `${low}${unit}` : `${low}–${high}${unit}`;
+}
+
+export function summarizeProtocol(protocol: Protocol, stages: Protocol[] = []): string {
+  const parts: string[] = [];
+  if (protocol.filenames !== undefined) {
+    const names = protocol.filenames.filter((name) => name !== '');
+    parts.push(`Batch of ${names.length} protocol(s): ${names.join(', ')}`);
+    const total = stages.reduce((sum, stage) => sum + (calculateTotalDuration(stage) ?? 0), 0);
+    if (total > 0) {
+      parts.push(`${Math.round(total * 10) / 10} min`);
+    }
+    return parts.join(' · ');
+  }
+  const modules = (Array.isArray(protocol.modules) ? protocol.modules : []).filter((module) => module.active !== false);
+  parts.push(`${modules.length} active module(s)`);
+  const freqs = modules.map((module) => Number(module.freq)).filter(Number.isFinite);
+  const powers = modules.map((module) => Number(module.power)).filter(Number.isFinite);
+  if (freqs.length > 0) {
+    parts.push(span(freqs, ' Hz'));
+  }
+  if (powers.length > 0) {
+    parts.push(`${span(powers, '%')} power`);
+  }
+  if (protocol.frequency?.active === true) {
+    parts.push(`frequency sweep ${Number(protocol.frequency.startFreq)}–${Number(protocol.frequency.endFreq)} Hz`);
+  }
+  if (protocol.power?.active === true) {
+    parts.push(`power sweep ${Number(protocol.power.startPower)}–${Number(protocol.power.endPower)}%`);
+  }
+  if (protocol.cross?.active === true) {
+    parts.push('cross-coupling');
+  }
+  const minutes = calculateTotalDuration(protocol);
+  if (minutes !== undefined) {
+    parts.push(`${minutes} min`);
+  }
+  return parts.join(' · ');
 }
 
 export function formatClock(totalSeconds: number): string {
