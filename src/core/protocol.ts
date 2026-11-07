@@ -133,6 +133,33 @@ export function toUserProtocolFile(filename: string, protocol: Protocol): { name
   return { name, protocol: copy };
 }
 
+// Applied to every file written out: user extensions, never secret/default, and usedByBatch
+// is 1 only for stage files that some batch protocol references.
+export function prepareProtocolForSave(
+  filename: string,
+  protocol: Protocol,
+  allProtocols: Iterable<{ name: string; protocol: Protocol }>,
+): { name: string; protocol: Protocol } {
+  const converted = toUserProtocolFile(filename, protocol);
+  const isBatch = /\.vnp4$/i.test(converted.name) || converted.protocol.filenames !== undefined;
+  const key = converted.name.toLowerCase();
+  const stripped = key.slice(key.lastIndexOf('/') + 1);
+  let used = 0;
+  if (!isBatch) {
+    for (const other of allProtocols) {
+      if (other.name.toLowerCase() === key) {
+        continue;
+      }
+      const refs = other.protocol.filenames;
+      if (Array.isArray(refs) && refs.some((ref) => typeof ref === 'string' && [key, stripped].includes(ref.toLowerCase()))) {
+        used = 1;
+        break;
+      }
+    }
+  }
+  return { name: converted.name, protocol: { ...converted.protocol, secretFile: false, defaultFile: false, usedByBatch: used } };
+}
+
 export function createUniqueProtocolFileName(prefix: string, extension: string, existingFileNames: string[]): string {
   const existing = new Set(existingFileNames.map((name) => name.toLowerCase()));
   let index = 1;
