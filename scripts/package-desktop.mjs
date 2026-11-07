@@ -12,6 +12,7 @@ const stagingDirectory = await mkdtemp(path.join(os.tmpdir(), 'brainbroccoli-des
 try {
   await mkdir(path.join(stagingDirectory, 'linux'));
   await cp(path.join(root, 'linux/main.cjs'), path.join(stagingDirectory, 'linux/main.cjs'));
+  await cp(path.join(root, 'linux/preload.cjs'), path.join(stagingDirectory, 'linux/preload.cjs'));
   await cp(path.join(root, 'dist-linux'), path.join(stagingDirectory, 'dist-linux'), { recursive: true });
   await writeFile(path.join(stagingDirectory, 'package.json'), JSON.stringify({
     name: manifest.name,
