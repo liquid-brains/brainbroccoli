@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "org.brainbroccoli.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "pan"
     }
   }
 }
