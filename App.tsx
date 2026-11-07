@@ -501,11 +501,19 @@ export default function App() {
         const archive = new JSZip();
         archive.file(outputName, contents);
         stageNames.forEach((stage) => archive.file(stage, JSON.stringify(files[stage], null, 2)));
+        if (Platform.OS === 'android') {
+          await saveToAndroidStorage(`${baseName}.zip`, await archive.generateAsync({ type: 'base64' }), 'application/zip', FileSystem.EncodingType.Base64);
+          return;
+        }
         await shareArchive(archive, `${baseName}.zip`, 'Save batch protocol');
         return;
       }
       if (Platform.OS === 'web') {
         downloadBlob(new Blob([contents], { type: 'application/json' }), outputName);
+        return;
+      }
+      if (Platform.OS === 'android') {
+        await saveToAndroidStorage(outputName, contents, 'application/json', FileSystem.EncodingType.UTF8);
         return;
       }
       if (!FileSystem.cacheDirectory) {
@@ -608,6 +616,15 @@ export default function App() {
       setBusy(false);
       setStatus('');
     }
+  }
+
+  async function saveToAndroidStorage(fileName: string, contents: string, mimeType: string, encoding: FileSystem.EncodingType): Promise<void> {
+    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (!permissions.granted) {
+      return;
+    }
+    const uri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
+    await FileSystem.writeAsStringAsync(uri, contents, { encoding });
   }
 
   async function shareArchive(archive: JSZip, archiveName: string, dialogTitle: string): Promise<void> {
