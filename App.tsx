@@ -36,6 +36,7 @@ import {
   parseProtocolJSON,
   protocolDiagramRows,
   protocolModules,
+  prepareProtocolForSave,
   toUserProtocolFile,
   userCopyExtension,
 } from './src/core/protocol';
@@ -494,21 +495,31 @@ export default function App() {
     }
   }
 
+  function preparedForSave(name: string, value: Protocol): { name: string; protocol: Protocol } {
+    const all = Object.entries({ ...files, [currentFileName]: isBatch ? protocol : displayedProtocol }).map(([key, item]) => ({ name: key, protocol: item }));
+    return prepareProtocolForSave(name, value, all);
+  }
+
   async function saveProtocol(): Promise<void> {
     setError('');
     try {
       const batch = isBatch;
+      const prepared = preparedForSave(currentFileName, batch ? protocol : displayedProtocol);
       const importedName = currentFileName.split('/').pop() ?? '';
       const baseName = stripFileNameChars(importedName.replace(/\.[^.]+$/, '') || String(protocol.filename || 'protocol'));
-      const outputName = `${baseName}${splitFileName(currentFileName).extension || (batch ? '.vnp4' : '.vnp0')}`;
-      const contents = JSON.stringify(batch ? protocol : displayedProtocol, null, 2);
+      const preparedExtension = splitFileName(prepared.name).extension;
+      const outputName = `${baseName}${preparedExtension || (batch ? '.vnp4' : '.vnp0')}`;
+      const contents = JSON.stringify(prepared.protocol, null, 2);
       const stageNames = batch
         ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => stage !== '' && stage !== currentFileName && files[stage] !== undefined)))
         : [];
       if (stageNames.length > 0) {
         const archive = new JSZip();
         archive.file(outputName, contents);
-        stageNames.forEach((stage) => archive.file(stage, JSON.stringify(files[stage], null, 2)));
+        stageNames.forEach((stage) => {
+          const stageFile = preparedForSave(stage, files[stage] as Protocol);
+          archive.file(stageFile.name, JSON.stringify(stageFile.protocol, null, 2));
+        });
         if (Platform.OS === 'android') {
           await saveToAndroidStorage(`${baseName}.zip`, await archive.generateAsync({ type: 'base64' }), 'application/zip', FileSystem.EncodingType.Base64);
           return;
@@ -548,8 +559,8 @@ export default function App() {
       ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => /\.vnp0$/i.test(stage) && files[stage] !== undefined)))
       : [];
     const uploads = [
-      ...stages.map((stage) => ({ name: stage, protocol: files[stage] as Protocol })),
-      { name, protocol: isBatch ? protocol : displayedProtocol },
+      ...stages.map((stage) => preparedForSave(stage, files[stage] as Protocol)),
+      preparedForSave(name, isBatch ? protocol : displayedProtocol),
     ];
     setError('');
     setBusy(true);

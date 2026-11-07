@@ -9,6 +9,7 @@ import {
   isProtocolFile,
   normalizePhase,
   parseProtocolJSON,
+  prepareProtocolForSave,
   protocolDiagramRows,
   toUserProtocolFile,
 } from './protocol';
@@ -167,5 +168,21 @@ describe('calculateSweepDuration', () => {
     expect(calculateSweepDuration(negativeStep)).toBeUndefined();
     const off = { ...base, frequency: { active: false, startFreq: 10, endFreq: 20, freqStepSize: 5, stepDuration: 60 }, power: { active: false } };
     expect(calculateSweepDuration(off)).toBeUndefined();
+  });
+});
+
+describe('prepareProtocolForSave', () => {
+  const base = { ...createEmptyProtocol('x'), secretFile: true, defaultFile: true, usedByBatch: 5 };
+  it('converts vnp1/vnp2 to vnp0 and vnp3 to vnp4 with cleared flags', () => {
+    expect(prepareProtocolForSave('a.vnp1', base, []).name).toBe('a.vnp0');
+    expect(prepareProtocolForSave('a.vnp2', base, []).name).toBe('a.vnp0');
+    const batch = prepareProtocolForSave('b.vnp3', { ...base, filenames: ['a.vnp0'] }, []);
+    expect(batch.name).toBe('b.vnp4');
+    expect(batch.protocol).toMatchObject({ secretFile: false, defaultFile: false, usedByBatch: 0 });
+  });
+  it('sets usedByBatch only for stage files referenced by a batch', () => {
+    const batch = { name: 'b.vnp4', protocol: { ...base, filenames: ['a.vnp0'] } };
+    expect(prepareProtocolForSave('a.vnp0', base, [batch]).protocol.usedByBatch).toBe(1);
+    expect(prepareProtocolForSave('c.vnp0', base, [batch]).protocol.usedByBatch).toBe(0);
   });
 });
