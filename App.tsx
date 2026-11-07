@@ -2185,7 +2185,6 @@ export default function App() {
             <ScrollView contentContainerStyle={styles.workspace}>
               <View style={[styles.editorLayout, wideEditor && styles.editorLayoutWide]}>
                 <View style={[styles.diagramPanel, wideEditor && styles.diagramPanelWide]}>
-                  {!wideSidebar && mode === 'global' && renderFileActions()}
                   {!wideSidebar && renderBrand()}
                   <View style={styles.legend}>
                     <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
@@ -2200,7 +2199,6 @@ export default function App() {
                   </Pressable>
                 </View>
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
-                  {wideSidebar && mode === 'global' && renderFileActions()}
                   {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {renderSummary()}
                   {settings.showJson && (
@@ -2221,6 +2219,7 @@ export default function App() {
                   )}
                 </View>
               </View>
+              {mode === 'global' && renderFileActions()}
             </ScrollView>
             )}
           </View>
