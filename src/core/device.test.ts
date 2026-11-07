@@ -55,6 +55,25 @@ describe('NeuroPro2 client', () => {
     expect(files.map((file) => file.name)).toEqual(['b.vnp0']);
   });
 
+  it('only requests extended Gracefire files when asked', async () => {
+    const requested: string[] = [];
+    const fetch = vi.fn(async (url: URL) => {
+      if (url.pathname === '/getlistfile') {
+        requested.push(url.searchParams.get('msg') ?? '');
+      }
+      const json = url.pathname === '/filedata' ? { single: true } : [];
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }));
+    expect(requested).not.toContain('vnp2');
+    requested.length = 0;
+    await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }), undefined, [], true);
+    expect(requested).toContain('vnp2');
+    requested.length = 0;
+    await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }), undefined, [], true, true);
+    expect(requested).toEqual(['vnp2']);
+  });
+
   it('propagates connection failures without sending device commands', async () => {
     const fetch = vi.fn().mockRejectedValue(new Error('Device offline'));
     await expect(createNeuroPro2Device('192.168.0.58', { fetch }).listFiles('vnp2'))

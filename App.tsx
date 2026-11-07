@@ -110,6 +110,8 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadPromptOpen, setDownloadPromptOpen] = useState(false);
+  const [extendedPromptOpen, setExtendedPromptOpen] = useState(false);
+  const logoTaps = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
   const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
   const [runnerData, setRunnerData] = useState<RunnerData>(emptyRunnerData);
   const [runnerLoaded, setRunnerLoaded] = useState(false);
@@ -601,14 +603,15 @@ export default function App() {
     }
   }
 
-  async function downloadFromController(wipe: boolean): Promise<void> {
+  async function downloadFromController(wipe: boolean, extendedOnly = false): Promise<void> {
     setDownloadPromptOpen(false);
+    setExtendedPromptOpen(false);
     setError('');
     setBusy(true);
     try {
       const device = connectToController();
       setStatus(`Connecting to ${settings.deviceAddress}…`);
-      const downloaded = await downloadControllerFiles(device, setStatus, wipe ? [] : Object.keys(files));
+      const downloaded = await downloadControllerFiles(device, setStatus, wipe ? [] : Object.keys(files), settings.extendedUnlocked && settings.showExtended || extendedOnly, extendedOnly);
       if (downloaded.length === 0) {
         setError(wipe ? 'No protocol files were found on the controller; your files were kept.' : 'No new protocol files were found on the controller.');
         return;
@@ -1101,7 +1104,7 @@ export default function App() {
     return (
       <ScrollView contentContainerStyle={styles.workspace} scrollEnabled={touchDragging === undefined}>
         {!wideSidebar && <View style={styles.runnerBrand}>
-          <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo as ImageStyle} />
+          {renderLogo(styles.mobileLogo as ImageStyle)}
           <Text style={styles.brandCaption}>Device: {settings.deviceAddress}</Text>
         </View>}
         <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
@@ -1245,7 +1248,7 @@ export default function App() {
   function renderFileList(): React.JSX.Element {
     return (
       <View style={styles.fileList}>
-        {fileGroups.map((group) => {
+        {fileGroups.filter((group) => group.extension !== '.vnp2' || (settings.extendedUnlocked && settings.showExtended)).map((group) => {
           const names = Object.keys(files)
             .filter((name) => name.toLowerCase().endsWith(group.extension))
             .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
@@ -1349,13 +1352,33 @@ export default function App() {
     );
   }
 
+  function tapLogo(): void {
+    const now = Date.now();
+    const taps = logoTaps.current;
+    taps.count = now - taps.last <= 600 ? taps.count + 1 : 1;
+    taps.last = now;
+    if (taps.count >= 10) {
+      taps.count = 0;
+      updateSettings({ extendedUnlocked: true, showExtended: true });
+      setExtendedPromptOpen(true);
+    }
+  }
+
+  function renderLogo(style: ImageStyle): React.JSX.Element {
+    return (
+      <Pressable accessible={false} onPress={tapLogo}>
+        <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={style} />
+      </Pressable>
+    );
+  }
+
   function renderBrand(): React.JSX.Element {
     if (!wideSidebar) {
-      return <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo as ImageStyle} />;
+      return renderLogo(styles.mobileLogo as ImageStyle);
     }
     return (
       <View style={styles.brand}>
-        <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.logo as ImageStyle} />
+        {renderLogo(styles.logo as ImageStyle)}
         <Text style={styles.brandCaption}>Vielight Neuro Pro 2 Protocol {appMode === 'runner' ? 'Runner' : 'Editor'}</Text>
       </View>
     );
@@ -1977,6 +2000,27 @@ export default function App() {
     );
   }
 
+  function renderExtendedDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={extendedPromptOpen} onRequestClose={() => setExtendedPromptOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Extended Gracefire Protocols enabled</Text>
+            <Text style={styles.settingsHint}>The Extended Gracefire Protocols are now enabled. You can turn them on or off in Settings. Download them from {settings.deviceAddress} now?</Text>
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => { void downloadFromController(false, true); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>DOWNLOAD</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setExtendedPromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderDeleteDialog(): React.JSX.Element {
     const name = deletePrompt ?? '';
     return (
@@ -2031,6 +2075,20 @@ export default function App() {
                   />
                 </View>
                 <Text style={styles.settingsHint}>Show the View Raw JSON Code section below the editor.</Text>
+                {settings.extendedUnlocked && (
+                  <>
+                    <View style={styles.settingsToggleRow}>
+                      <Text style={styles.moduleName}>Extended Gracefire Protocols</Text>
+                      <Switch
+                        accessibilityLabel="Extended Gracefire Protocols"
+                        value={settings.showExtended}
+                        onValueChange={(value) => updateSettings({ showExtended: value })}
+                        trackColor={{ true: theme.accent }}
+                      />
+                    </View>
+                    <Text style={styles.settingsHint}>Show the Extended Gracefire Protocols and include them when downloading files from the controller.</Text>
+                  </>
+                )}
               </View>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Devices</Text>
@@ -2171,6 +2229,7 @@ export default function App() {
           {renderSettingsDialog()}
           {renderDeleteDialog()}
           {renderDownloadDialog()}
+          {renderExtendedDialog()}
           {renderFolderDialog()}
           {renderSequenceDialog()}
           {renderJournalEntryDialog()}
@@ -2666,8 +2725,8 @@ const ReadOnlyContext = createContext(false);
 type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
 
 type AppMode = 'editor' | 'runner';
-type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode };
-const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor' };
+type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
+const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
 
@@ -2685,6 +2744,8 @@ async function loadSettings(): Promise<Settings> {
       showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
       appMode: saved.appMode === 'runner' ? 'runner' : 'editor',
+      extendedUnlocked: saved.extendedUnlocked === true,
+      showExtended: saved.extendedUnlocked === true && saved.showExtended === true,
     };
   } catch {
     return defaultSettings;

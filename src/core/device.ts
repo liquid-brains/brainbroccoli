@@ -26,10 +26,12 @@ export async function downloadControllerFiles(
   device: VielightDevice,
   onProgress: (message: string) => void = () => undefined,
   skipNames: Iterable<string> = [],
+  includeExtended = false,
+  extendedOnly = false,
 ): Promise<ProtocolFile[]> {
   onProgress('Requesting the file list from the controller…');
   const skip = new Set(Array.from(skipNames, (name) => name.toLowerCase()));
-  const names = (await device.listFiles(['vnp0', 'vnp2', 'vnp3'])).filter((name) => !skip.has(name.toLowerCase()));
+  const names = (await device.listFiles(extendedOnly ? ['vnp2'] : includeExtended ? ['vnp0', 'vnp2', 'vnp3'] : ['vnp0', 'vnp3'])).filter((name) => !skip.has(name.toLowerCase()));
   const files: ProtocolFile[] = [];
   for (const [index, name] of names.entries()) {
     onProgress(`Downloading ${name} (${index + 1} of ${names.length})…`);
