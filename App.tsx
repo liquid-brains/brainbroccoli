@@ -1899,11 +1899,11 @@ export default function App() {
               </View>
             </ScrollView>
             <View style={styles.deleteButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setSequenceDraft(null)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>CANCEL</Text>
-              </Pressable>
               <Pressable accessibilityRole="button" disabled={!valid} onPress={saveSequence} style={[styles.backButton, !valid && styles.fieldDisabled]}>
                 <Text style={styles.backButtonText}>{draft?.id === undefined ? 'SAVE SEQUENCE' : 'SAVE CHANGES'}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setSequenceDraft(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
           </View>
@@ -1929,11 +1929,11 @@ export default function App() {
               style={styles.textInput}
             />
             <View style={styles.deleteButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setFolderPromptOpen(false)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>CANCEL</Text>
-              </Pressable>
               <Pressable accessibilityRole="button" disabled={newFolderName.trim() === ''} onPress={createFolder} style={[styles.backButton, newFolderName.trim() === '' && styles.fieldDisabled]}>
                 <Text style={styles.backButtonText}>CREATE</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setFolderPromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
           </View>
@@ -1975,14 +1975,14 @@ export default function App() {
             <Text style={styles.dialogTitle}>Delete {name}?</Text>
             <Text style={styles.settingsHint}>Delete it only from this app, or from both the app and the controller at {settings.deviceAddress}? Deleting from the controller cannot be undone.</Text>
             <View style={styles.deleteButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setDeletePrompt(null)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>CANCEL</Text>
-              </Pressable>
               <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, false); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>APP ONLY</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setDeletePrompt(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
           </View>
