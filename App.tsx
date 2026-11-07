@@ -1950,14 +1950,14 @@ export default function App() {
             <Text style={styles.dialogTitle}>Download controller files</Text>
             <Text style={styles.settingsHint}>Download only files that aren't in the app yet, or erase everything in the app and download all files from {settings.deviceAddress} again? Erasing removes every file in the app, including files that were never saved to the controller or disk.</Text>
             <View style={styles.deleteButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setDownloadPromptOpen(false)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>CANCEL</Text>
-              </Pressable>
               <Pressable accessibilityRole="button" onPress={() => { void downloadFromController(false); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>NEW FILES ONLY</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => { void downloadFromController(true); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>ERASE AND DOWNLOAD ALL</Text>
+                <Text style={styles.backButtonText}>{Object.keys(files).length === 0 ? 'DOWNLOAD ALL' : 'ERASE AND DOWNLOAD ALL'}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setDownloadPromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
           </View>
