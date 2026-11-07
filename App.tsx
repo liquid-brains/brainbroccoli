@@ -1902,10 +1902,12 @@ export default function App() {
   function renderSidebarModal(): React.JSX.Element {
     return (
       <Modal transparent animationType="slide" visible={sidebarOpen} onRequestClose={() => setSidebarOpen(false)}>
-        <View style={styles.modalRoot}>
-          {sidebar}
-          <Pressable accessibilityLabel="Close file list" onPress={() => setSidebarOpen(false)} style={styles.modalBackdrop} />
-        </View>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.modalRoot}>
+            {sidebar}
+            <Pressable accessibilityLabel="Close file list" onPress={() => setSidebarOpen(false)} style={styles.modalBackdrop} />
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     );
   }
