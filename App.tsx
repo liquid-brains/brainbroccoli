@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -1917,7 +1918,7 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.appShell}>
           {wideSidebar && sidebar}
-          <View style={styles.main}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'android' ? 'height' : undefined} style={styles.main}>
             <View style={styles.toolbar}>
               <View style={styles.toolbarHeading}>
                 {!wideSidebar && (
@@ -2004,7 +2005,7 @@ export default function App() {
               </View>
             </ScrollView>
             )}
-          </View>
+          </KeyboardAvoidingView>
           {!wideSidebar && renderSidebarModal()}
           {renderBatchDialog()}
           {renderSettingsDialog()}
