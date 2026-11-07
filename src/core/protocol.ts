@@ -157,7 +157,11 @@ export function prepareProtocolForSave(
       }
     }
   }
-  return { name: converted.name, protocol: { ...converted.protocol, secretFile: false, defaultFile: false, usedByBatch: used } };
+  const result: Protocol = { ...converted.protocol, secretFile: false, defaultFile: false, usedByBatch: used };
+  if (Array.isArray(result.filenames)) {
+    result.filenames = result.filenames.map((ref) => (userCopyExtension(ref) ? ref.replace(/\.[^./]+$/, '.vnp0') : ref));
+  }
+  return { name: converted.name, protocol: result };
 }
 
 export function createUniqueProtocolFileName(prefix: string, extension: string, existingFileNames: string[]): string {
