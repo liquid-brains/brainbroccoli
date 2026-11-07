@@ -439,21 +439,27 @@ export default function App() {
     return [toUserProtocolFile(asset.name, parseProtocolJSON(await readAssetText(asset)))];
   }
 
-  async function importFiles(): Promise<void> {
+  async function importFiles(dropped?: File[]): Promise<void> {
     setError('');
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: Platform.OS === 'web' ? ['.vnp0', '.vnp1', '.vnp2', '.vnp3', '.vnp4', '.zip'] : '*/*',
-        multiple: true,
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) {
-        return;
+      let assets: DocumentPicker.DocumentPickerAsset[];
+      if (dropped) {
+        assets = dropped.map((file) => ({ name: file.name, uri: '', lastModified: file.lastModified, file }));
+      } else {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: Platform.OS === 'web' ? ['.vnp0', '.vnp1', '.vnp2', '.vnp3', '.vnp4', '.zip'] : '*/*',
+          multiple: true,
+          copyToCacheDirectory: true,
+        });
+        if (result.canceled) {
+          return;
+        }
+        assets = result.assets;
       }
       setBusy(true);
       const imported: ProtocolFile[] = [];
-      for (const [index, asset] of result.assets.entries()) {
-        setStatus(`Reading ${asset.name} (${index + 1} of ${result.assets.length})…`);
+      for (const [index, asset] of assets.entries()) {
+        setStatus(`Reading ${asset.name} (${index + 1} of ${assets.length})…`);
         imported.push(...await importAsset(asset));
         setStatus(`Read ${asset.name}: ${imported.length} protocol file${imported.length === 1 ? '' : 's'} found so far`);
       }
@@ -1386,6 +1392,22 @@ export default function App() {
 
   const canDrop = Platform.OS === 'web' && wideSidebar;
 
+  function wrapFileDrop(child: React.JSX.Element): React.JSX.Element {
+    if (Platform.OS !== 'web') {
+      return child;
+    }
+    return createElement('div', {
+      onDragOver: (event: DragEvent) => { event.preventDefault(); },
+      onDrop: (event: DragEvent) => {
+        event.preventDefault();
+        const dropped = Array.from(event.dataTransfer?.files ?? []);
+        if (dropped.length > 0 && !busy) {
+          void importFiles(dropped);
+        }
+      },
+    }, child);
+  }
+
   const sidebar = (
     <View style={styles.sidebar}>
       {wideSidebar && renderBrand()}
@@ -1402,11 +1424,11 @@ export default function App() {
         )}
         {(!wideSidebar || !menuCollapsed) && renderActions()}
       </View>
-      {appMode === 'editor' && (
-        <Pressable accessibilityRole="button" onPress={importFiles} disabled={busy} style={styles.uploadButton}>
+      {appMode === 'editor' && wrapFileDrop(
+        <Pressable accessibilityRole="button" onPress={() => { void importFiles(); }} disabled={busy} style={styles.uploadButton}>
           <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
           <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
-        </Pressable>
+        </Pressable>,
       )}
       <ScrollView style={[styles.fileScroll, appMode === 'runner' && { paddingTop: 14 }]}>{renderFileList()}</ScrollView>
     </View>
