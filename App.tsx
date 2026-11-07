@@ -2265,17 +2265,39 @@ function Select(props: { label: string; value: string; disabled?: boolean; optio
       props.options.map((option) => createElement('option', { key: option.value, value: option.value }, option.label)),
     );
   }
+  const [open, setOpen] = useState(false);
   const index = Math.max(0, props.options.findIndex((option) => option.value === props.value));
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={props.label}
-      disabled={props.disabled}
-      onPress={() => props.onChange(props.options[(index + 1) % props.options.length]?.value ?? '')}
-      style={[styles.selectButton, props.disabled && styles.fieldDisabled]}
-    >
-      <Text style={styles.selectText}>{props.options[index]?.label}</Text>
-    </Pressable>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={props.label}
+        disabled={props.disabled}
+        onPress={() => setOpen(true)}
+        style={[styles.selectButton, props.disabled && styles.fieldDisabled]}
+      >
+        <Text style={styles.selectText}>{props.options[index]?.label} ▾</Text>
+      </Pressable>
+      <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
+        <Pressable accessibilityLabel="Close menu" onPress={() => setOpen(false)} style={styles.selectBackdrop}>
+          <View style={styles.selectMenu}>
+            <ScrollView>
+              {props.options.map((option) => (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ selected: option.value === props.value }}
+                  onPress={() => { setOpen(false); props.onChange(option.value); }}
+                  style={[styles.selectOption, option.value === props.value && styles.selectOptionActive]}
+                >
+                  <Text style={styles.selectText}>{option.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -2491,6 +2513,10 @@ const styleDefs = {
   viewPillActiveText: { color: '#fff' },
   selectButton: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, padding: 11 },
   selectText: { color: '#1e293b', fontSize: 15 },
+  selectBackdrop: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', flex: 1, justifyContent: 'center', padding: 24 },
+  selectMenu: { backgroundColor: '#fff', borderRadius: 8, maxHeight: '70%', maxWidth: 480, overflow: 'hidden', width: '100%' },
+  selectOption: { borderBottomColor: '#e2e8f0', borderBottomWidth: 1, padding: 14 },
+  selectOptionActive: { backgroundColor: '#e6f4d7' },
   dialogRoot: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', flex: 1, justifyContent: 'center', padding: 16 },
   dialog: { backgroundColor: '#fff', borderRadius: 16, maxHeight: '90%', maxWidth: 560, padding: 28, width: '100%' },
   dialogTitle: { color: '#7bc043', fontSize: 20, fontWeight: '800', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' },
