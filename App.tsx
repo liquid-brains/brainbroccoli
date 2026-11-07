@@ -2239,9 +2239,9 @@ export default function App() {
                       )}
                     </View>
                   )}
+                  {mode === 'global' && renderFileActions()}
                 </View>
               </View>
-              {mode === 'global' && renderFileActions()}
             </ScrollView>
             )}
           </View>
