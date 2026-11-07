@@ -114,6 +114,13 @@ export default function App() {
   const [runnerLoaded, setRunnerLoaded] = useState(false);
   const dragId = useRef<string | undefined>(undefined);
   const [dropHint, setDropHint] = useState<{ id: string; after: boolean } | undefined>(undefined);
+  const [zoneHint, setZoneHint] = useState<string | undefined>(undefined);
+  const [touchDragging, setTouchDragging] = useState<{ id: string; label: string; x: number; y: number } | undefined>(undefined);
+  const panelView = useRef<ViewType | null>(null);
+  const panelBounds = useRef({ x: 0, y: 0 });
+  const rowViews = useRef(new Map<string, ViewType>());
+  const zoneViews = useRef(new Map<string, ViewType>());
+  const touchDrag = useRef<{ id: string; rows: { id: string; top: number; bottom: number }[]; zones: { key: string; top: number; bottom: number }[]; row?: { id: string; after: boolean } | undefined; zone?: string | undefined } | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
   const [sequenceDraft, setSequenceDraft] = useState<{ id?: string; name: string; description: string; steps: SequenceStep[]; next: string; rest: string } | null>(null);
@@ -901,12 +908,80 @@ export default function App() {
     return length || 'Duration not set';
   }
 
+  function measureViews<T extends string>(views: Map<string, ViewType>, ids: T[]): Promise<{ id: T; top: number; bottom: number }[]> {
+    return Promise.all(ids.map((id) => new Promise<{ id: T; top: number; bottom: number } | undefined>((resolve) => {
+      const view = views.get(id);
+      if (!view) {
+        resolve(undefined);
+        return;
+      }
+      view.measureInWindow((_x, y, _w, h) => resolve({ id, top: y, bottom: y + h }));
+    }))).then((rects) => rects.filter((rect): rect is { id: T; top: number; bottom: number } => rect !== undefined));
+  }
+
+  function startTouchDrag(id: string, pageX: number, pageY: number): void {
+    const drag: NonNullable<typeof touchDrag.current> = { id, rows: [], zones: [] };
+    touchDrag.current = drag;
+    const item = runnerData.runner.items.find((candidate) => candidate.id === id);
+    panelView.current?.measureInWindow((x, y) => {
+      panelBounds.current = { x, y };
+      setTouchDragging({ id, label: item?.file ?? '', x: pageX - x, y: pageY - y });
+    });
+    void measureViews(rowViews.current, [...rowViews.current.keys()]).then((rows) => { drag.rows = rows; });
+    void measureViews(zoneViews.current, [...zoneViews.current.keys()]).then((zones) => { drag.zones = zones.map(({ id: key, top, bottom }) => ({ key, top, bottom })); });
+    moveTouchDrag(pageX, pageY);
+  }
+
+  function moveTouchDrag(pageX: number, y: number): void {
+    const drag = touchDrag.current;
+    if (!drag) {
+      return;
+    }
+    setTouchDragging((current) => (current ? { ...current, x: pageX - panelBounds.current.x, y: y - panelBounds.current.y } : current));
+    const over = drag.rows.find((row) => row.id !== drag.id && y >= row.top && y <= row.bottom);
+    if (over) {
+      drag.row = { id: over.id, after: y > (over.top + over.bottom) / 2 };
+      drag.zone = undefined;
+    } else {
+      drag.row = undefined;
+      drag.zone = drag.zones.filter((zone) => y >= zone.top && y <= zone.bottom).sort((a, b) => (a.bottom - a.top) - (b.bottom - b.top))[0]?.key;
+    }
+    const hint = drag.row;
+    setDropHint((current) => (current?.id === hint?.id && current?.after === hint?.after ? current : hint));
+    setZoneHint(drag.zone);
+  }
+
+  function endTouchDrag(drop: boolean): void {
+    const drag = touchDrag.current;
+    touchDrag.current = undefined;
+    setTouchDragging(undefined);
+    setDropHint(undefined);
+    setZoneHint(undefined);
+    if (!drag || !drop) {
+      return;
+    }
+    const { id, row, zone } = drag;
+    if (row) {
+      updateRunner((state) => moveRunnerItemTo(state, id, row.id, row.after));
+    } else if (zone !== undefined) {
+      updateRunner((state) => moveRunnerItemToFolderEnd(state, id, zone === '' ? undefined : zone));
+    }
+  }
+
   function renderRunnerItem(item: RunnerItem): React.JSX.Element {
     const canRun = !session && itemProblem(item) === undefined;
     const viewable = item.sequence !== undefined || files[item.file] !== undefined;
     const hint = dropHint?.id === item.id ? dropHint.after : undefined;
+    const floating = touchDragging;
     const row = (
-      <View style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter]}>
+      <Pressable
+        ref={(view) => { if (view) { rowViews.current.set(item.id, view); } else { rowViews.current.delete(item.id); } }}
+        accessible={false}
+        collapsable={false}
+        delayLongPress={400}
+        onLongPress={Platform.OS === 'web' ? undefined : (event) => startTouchDrag(item.id, event.nativeEvent.pageX, event.nativeEvent.pageY)}
+        style={[styles.runnerRow, hint === false && styles.dropBefore, hint === true && styles.dropAfter, floating?.id === item.id && styles.runnerRowMoving]}
+      >
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeRunnerItem(state, item.id))} style={styles.cardClose}>
           <Text style={styles.cardCloseText}>✕</Text>
         </Pressable>
@@ -932,7 +1007,7 @@ export default function App() {
             </Pressable>
           )}
         </View>
-      </View>
+      </Pressable>
     );
     if (Platform.OS !== 'web') {
       return <Fragment key={item.id}>{row}</Fragment>;
@@ -1013,7 +1088,7 @@ export default function App() {
       );
     };
     return (
-      <ScrollView contentContainerStyle={styles.workspace}>
+      <ScrollView contentContainerStyle={styles.workspace} scrollEnabled={touchDragging === undefined}>
         {!wideSidebar && <View style={styles.runnerBrand}>
           <Image accessibilityLabel="Brain Broccoli logo" source={require('./assets/brain-broccoli.png')} resizeMode="contain" style={styles.mobileLogo as ImageStyle} />
           <Text style={styles.brandCaption}>Device: {settings.deviceAddress}</Text>
@@ -1021,7 +1096,19 @@ export default function App() {
         <View style={[styles.editorLayout, runnerWide && styles.editorLayoutWide]}>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
             {renderRunStatus()}
-            <View style={styles.runnerPanel}>
+            <View
+              ref={panelView}
+              collapsable={false}
+              style={styles.runnerPanel}
+              onMoveShouldSetResponderCapture={() => touchDrag.current !== undefined}
+              onResponderGrant={(event) => moveTouchDrag(event.nativeEvent.pageX, event.nativeEvent.pageY)}
+              onResponderMove={(event) => moveTouchDrag(event.nativeEvent.pageX, event.nativeEvent.pageY)}
+              onResponderRelease={() => endTouchDrag(true)}
+              onResponderTerminate={() => endTouchDrag(false)}
+              onResponderTerminationRequest={() => false}
+              onTouchEnd={() => endTouchDrag(true)}
+              onTouchCancel={() => endTouchDrag(false)}
+            >
               <Text style={styles.panelTitle}>Protocols</Text>
               <View style={styles.runnerButtons}>
                 <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
@@ -1031,7 +1118,7 @@ export default function App() {
                 <Text style={styles.runnerEmpty}>No protocols yet. Press ☆ next to a file in the file list to add it here, or create a sequence to run several protocols in order.</Text>
               )}
               {runner.folders.map((folder) => (
-                <DropZone key={folder.id} props={folderDropProps(folder.id)}>
+                <DropZone key={folder.id} zoneKey={folder.id} zones={zoneViews.current} active={zoneHint === folder.id} props={folderDropProps(folder.id)}>
                 <View style={styles.runnerFolder}>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))} style={styles.cardClose}>
                     <Text style={styles.cardCloseText}>✕</Text>
@@ -1050,13 +1137,18 @@ export default function App() {
                   {folder.collapsed === true
                     ? <Text style={styles.runnerMeta}>{runner.items.filter((item) => item.folderId === folder.id).length} protocol(s) hidden</Text>
                     : runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
-                  {folder.collapsed !== true && runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here.</Text>}
+                  {folder.collapsed !== true && runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here (press and hold a protocol, then move it).</Text>}
                 </View>
                 </DropZone>
               ))}
-              <DropZone props={folderDropProps(undefined)}>
+              <DropZone zoneKey="" zones={zoneViews.current} active={zoneHint === ''} props={folderDropProps(undefined)}>
                 {runner.items.filter((item) => !knownFolder(item)).map((item) => renderRunnerItem(item))}
               </DropZone>
+              {touchDragging && (
+                <View pointerEvents="none" style={[styles.dragFloating, { left: Math.max(0, touchDragging.x - 80), top: Math.max(0, touchDragging.y - 35) }]}>
+                  <Text numberOfLines={2} style={styles.runnerTitle}>{touchDragging.label}</Text>
+                </View>
+              )}
             </View>
           </View>
           <View style={[styles.rightColumn, runnerWide && styles.rightColumnWide]}>
@@ -2285,6 +2377,8 @@ const styleDefs = {
   journalBadge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   journalBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   runnerRow: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, gap: 8, padding: 12 },
+  runnerRowMoving: { borderColor: '#2f9e44', opacity: 0.4 },
+  dragFloating: { backgroundColor: '#fff', borderColor: '#2f9e44', borderRadius: 12, borderWidth: 3, height: 70, justifyContent: 'center', padding: 8, position: 'absolute', width: 160 },
   dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
   runnerPanel: { backgroundColor: '#12301a', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
@@ -2604,11 +2698,24 @@ async function persistSettings(settings: Settings): Promise<void> {
   }
 }
 
+type ViewType = React.ElementRef<typeof View>;
+
 const runnerKey = 'brainbroccoli.runner';
 const runnerPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}runner.json` : '';
 
-function DropZone({ props, children }: { props: Record<string, unknown>; children: ReactNode }): React.JSX.Element {
-  return Platform.OS === 'web' ? createElement('div', { ...props, style: { display: 'flex', flexDirection: 'column', gap: 8, minHeight: 16 } }, children) : <Fragment>{children}</Fragment>;
+function DropZone({ props, zoneKey, zones, active, children }: { props: Record<string, unknown>; zoneKey: string; zones: Map<string, ViewType>; active: boolean; children: ReactNode }): React.JSX.Element {
+  if (Platform.OS === 'web') {
+    return createElement('div', { ...props, style: { display: 'flex', flexDirection: 'column', gap: 8, minHeight: 16 } }, children);
+  }
+  return (
+    <View
+      ref={(view) => { if (view) { zones.set(zoneKey, view); } else { zones.delete(zoneKey); } }}
+      collapsable={false}
+      style={[{ gap: 8, minHeight: 16 }, active && { borderColor: '#2f9e44', borderRadius: 8, borderWidth: 2 }]}
+    >
+      {children}
+    </View>
+  );
 }
 
 async function loadStoredRunner(): Promise<RunnerData> {
