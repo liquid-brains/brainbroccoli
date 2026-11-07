@@ -24,6 +24,9 @@ try {
     name: 'BrainBroccoli',
     appBundleId: 'org.brainbroccoli.app',
     electronVersion: electronManifest.version,
+    icon: path.join(root, 'assets', process.platform === 'darwin'
+      ? 'brain-broccoli.icns'
+      : process.platform === 'win32' ? 'brain-broccoli.ico' : 'brain-broccoli.png'),
     asar: true,
     overwrite: true,
   });

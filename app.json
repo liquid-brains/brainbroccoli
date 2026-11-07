@@ -3,8 +3,12 @@
     "name": "Brain Broccoli",
     "slug": "brainbroccoli",
     "version": "0.1.0",
+    "icon": "./assets/brain-broccoli.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "web": {
+      "favicon": "./assets/brain-broccoli.png"
+    },
     "plugins": [
       "./plugins/with-device-network.js",
       "expo-sharing"
