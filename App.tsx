@@ -532,7 +532,7 @@ export default function App() {
         return;
       }
       if (Platform.OS === 'android') {
-        await saveToAndroidStorage(outputName, contents, 'application/json', FileSystem.EncodingType.UTF8);
+        await saveToAndroidStorage(outputName, contents, 'application/octet-stream', FileSystem.EncodingType.UTF8);
         return;
       }
       if (!FileSystem.cacheDirectory) {
