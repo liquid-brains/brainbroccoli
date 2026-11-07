@@ -186,3 +186,10 @@ describe('prepareProtocolForSave', () => {
     expect(prepareProtocolForSave('c.vnp0', base, [batch]).protocol.usedByBatch).toBe(0);
   });
 });
+
+describe('prepareProtocolForSave batch references', () => {
+  it('points converted stage references at the new vnp0 files', () => {
+    const batch = { ...createEmptyProtocol('b'), filenames: ['a.vnp2', 'c.vnp0', 'd.vnp1'] };
+    expect(prepareProtocolForSave('b.vnp3', batch, []).protocol.filenames).toEqual(['a.vnp0', 'c.vnp0', 'd.vnp0']);
+  });
+});

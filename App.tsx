@@ -556,7 +556,7 @@ export default function App() {
       return;
     }
     const stages = isBatch
-      ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => /\.vnp0$/i.test(stage) && files[stage] !== undefined)))
+      ? Array.from(new Set((protocol.filenames ?? []).filter((stage) => /\.vnp[012]$/i.test(stage) && files[stage] !== undefined)))
       : [];
     const uploads = [
       ...stages.map((stage) => preparedForSave(stage, files[stage] as Protocol)),
