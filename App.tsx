@@ -120,6 +120,7 @@ export default function App() {
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
   const [confirmUnrated, setConfirmUnrated] = useState(false);
+  const [journalDraft, setJournalDraft] = useState<{ id: string; note: string } | null>(null);
   const [journalView, setJournalView] = useState<{ id: string; kind: 'json' | 'diagram'; preview?: JournalEntry } | null>(null);
   const [journalStage, setJournalStage] = useState(0);
   const [session, setSession] = useState<RunSession | null>(null);
@@ -698,6 +699,13 @@ export default function App() {
     setRunnerData((current) => ({ ...current, journal: current.journal.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)) }));
   }
 
+  function saveJournalEntry(): void {
+    if (journalDraft) {
+      updateJournalEntry(journalDraft.id, { note: journalDraft.note });
+      setJournalDraft(null);
+    }
+  }
+
   function runnerDurationMinutes(name: string): number | undefined {
     const value = files[name];
     return value ? calculateTotalDuration(value) : undefined;
@@ -1093,15 +1101,15 @@ export default function App() {
                       </Pressable>
                     )}
                   </View>
-                  <TextInput
-                    accessibilityLabel="Journal entry"
-                    multiline
-                    placeholder="Journal entry: how did it go?"
-                    placeholderTextColor="#94a3b8"
-                    value={entry.note}
-                    onChangeText={(text) => updateJournalEntry(entry.id, { note: text })}
-                    style={[styles.textInput, styles.noteInput]}
-                  />
+                  {entry.note !== '' && <Text numberOfLines={3} style={styles.notePreview}>{entry.note}</Text>}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={entry.note === '' ? 'Add journal entry' : 'Edit journal entry'}
+                    onPress={() => setJournalDraft({ id: entry.id, note: entry.note })}
+                    style={styles.thumbButton}
+                  >
+                    <Text style={styles.runnerButtonText}>{entry.note === '' ? 'ADD JOURNAL ENTRY' : 'EDIT JOURNAL ENTRY'}</Text>
+                  </Pressable>
                 </View>
               ))}
               {journal.length > 3 && (
@@ -1685,6 +1693,37 @@ export default function App() {
     );
   }
 
+  function renderJournalEntryDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={journalDraft !== null} onRequestClose={() => setJournalDraft(null)}>
+        <View style={styles.dialogRoot}>
+          <View style={[styles.dialog, styles.journalDialog]}>
+            <Text style={styles.journalDialogTitle}>Journal entry</Text>
+            <Text style={styles.journalDialogSubtitle}>Optionally record how this session felt. Leave it blank and save to remove an existing entry.</Text>
+            <TextInput
+              accessibilityLabel="Journal entry"
+              autoFocus
+              multiline
+              placeholder="How did this session go?"
+              placeholderTextColor="#94a3b8"
+              value={journalDraft?.note ?? ''}
+              onChangeText={(note) => setJournalDraft((draft) => draft ? { ...draft, note } : draft)}
+              style={[styles.textInput, styles.journalDialogInput]}
+            />
+            <View style={styles.journalDialogButtons}>
+              <Pressable accessibilityRole="button" onPress={saveJournalEntry} style={styles.journalSaveButton}>
+                <Text style={styles.journalSaveButtonText}>SAVE JOURNAL ENTRY</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setJournalDraft(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function saveSequence(): void {
     if (!sequenceDraft || sequenceDraft.name.trim() === '' || sequenceFiles(sequenceDraft.steps).length === 0) {
       return;
@@ -2012,6 +2051,7 @@ export default function App() {
           {renderDownloadDialog()}
           {renderFolderDialog()}
           {renderSequenceDialog()}
+          {renderJournalEntryDialog()}
           {renderJournalViewDialog()}
         </View>
         <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
@@ -2242,7 +2282,7 @@ const styleDefs = {
   thumbButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
   thumbUp: { backgroundColor: '#4ade80', borderColor: '#16a34a' },
   thumbDown: { backgroundColor: '#ff8a80', borderColor: '#dc2626' },
-  noteInput: { minHeight: 56, textAlignVertical: 'top' },
+  notePreview: { color: '#334155', fontSize: 13, lineHeight: 19 },
   progressTrack: { backgroundColor: '#e2e8f0', borderRadius: 5, height: 10, overflow: 'hidden' },
   progressFill: { backgroundColor: '#7bc043', height: 10 },
   toolbarHeading: { alignItems: 'center', flexDirection: 'row', gap: 12 },
@@ -2346,6 +2386,13 @@ const styleDefs = {
   dialogInput: { flex: 2 },
   dialogStages: { flexGrow: 0, marginVertical: 8, maxHeight: 400 },
   dialogButtons: { flexDirection: 'row', gap: 15, justifyContent: 'center', marginTop: 14 },
+  journalDialog: { gap: 12, height: '90%', maxWidth: 720, padding: 20 },
+  journalDialogTitle: { color: '#7bc043', fontSize: 24, fontWeight: '800' },
+  journalDialogSubtitle: { color: '#475569', fontSize: 15, lineHeight: 21 },
+  journalDialogInput: { flex: 1, minHeight: 180, textAlignVertical: 'top' },
+  journalDialogButtons: { gap: 10 },
+  journalSaveButton: { alignItems: 'center', backgroundColor: '#7bc043', borderRadius: 6, paddingVertical: 12 },
+  journalSaveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   deleteButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 14 },
   backButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 44, paddingVertical: 11 },
   backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
