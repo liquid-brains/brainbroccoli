@@ -2413,7 +2413,7 @@ const styleDefs = {
   journalSaveButton: { alignItems: 'center', backgroundColor: '#7bc043', borderRadius: 6, paddingVertical: 12 },
   journalSaveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   deleteButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 14 },
-  backButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 44, paddingVertical: 11 },
+  backButton: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 44, paddingVertical: 11 },
   backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
   addButton: { backgroundColor: '#7bc043', borderRadius: 6, paddingHorizontal: 22, paddingVertical: 12 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
