@@ -25,6 +25,10 @@
     },
     "android": {
       "package": "org.brainbroccoli.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundColor": "#b2d1a2"
+      },
       "softwareKeyboardLayoutMode": "pan"
     }
   }
