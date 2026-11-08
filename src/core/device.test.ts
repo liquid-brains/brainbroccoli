@@ -119,3 +119,24 @@ describe('runControllerProtocol', () => {
     expect(calls).toEqual(['run a.vnp0']);
   });
 });
+
+describe('saveControllerFiles retry', () => {
+  it('deletes and re-saves a file when updating it fails', async () => {
+    const calls: string[] = [];
+    let first = true;
+    const device = {
+      listFiles: async () => ['a.vnp0'],
+      saveFile: async (name: string, _data: unknown, force: boolean) => {
+        if (force && first) {
+          first = false;
+          throw new Error('Request failed with status 400: Failed to update existing file');
+        }
+        calls.push(`save ${name} ${String(force)}`);
+      },
+      deleteFile: async (name: string) => { calls.push(`delete ${name}`); return true; },
+    };
+    await saveControllerFiles(device as never, [{ name: 'a.vnp0', protocol: {} as never }]);
+    expect(calls).toEqual(['delete a.vnp0', 'save a.vnp0 false']);
+  });
+});
+
