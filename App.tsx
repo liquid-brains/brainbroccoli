@@ -2109,19 +2109,22 @@ export default function App() {
 
   function renderDeleteDialog(): React.JSX.Element {
     const name = deletePrompt ?? '';
+    const unsynced = name !== '' && isUnsynced(name);
     return (
       <Modal transparent animationType="fade" visible={deletePrompt !== null} onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.dialogRoot}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>Delete {name}?</Text>
-            <Text style={styles.settingsHint}>Delete it only from this app, or from both the app and the controller at {settings.deviceAddress}? Deleting from the controller cannot be undone.</Text>
+            <Text style={styles.settingsHint}>{unsynced ? 'This file has not been synced to the controller. Delete it from this app? This cannot be undone.' : `Delete it only from this app, or from both the app and the controller at ${settings.deviceAddress}? Deleting from the controller cannot be undone.`}</Text>
             <View style={styles.deleteButtons}>
               <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, false); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>APP ONLY</Text>
+                <Text style={styles.backButtonText}>{unsynced ? 'DELETE' : 'APP ONLY'}</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
-              </Pressable>
+              {!unsynced && (
+                <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
+                </Pressable>
+              )}
               <Pressable accessibilityRole="button" onPress={() => setDeletePrompt(null)} style={styles.backButton}>
                 <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
