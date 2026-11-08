@@ -58,7 +58,16 @@ export async function saveControllerFiles(
     onProgress(`Saving ${name} to the controller (${index + 1} of ${files.length})…`);
     const exists = existing.has(name.toLowerCase());
     const data = { ...(JSON.parse(JSON.stringify(protocol)) as Record<string, unknown>), updateExisting: exists };
-    await device.saveFile(name, data, exists);
+    try {
+      await device.saveFile(name, data, exists);
+    } catch (reason) {
+      if (!exists) {
+        throw reason;
+      }
+      onProgress(`Replacing ${name} on the controller…`);
+      await device.deleteFile(name);
+      await device.saveFile(name, { ...data, updateExisting: false }, false);
+    }
   }
 }
 
