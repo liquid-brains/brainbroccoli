@@ -649,14 +649,21 @@ export default function App() {
     try {
       const device = connectToController();
       setStatus(`Connecting to ${settings.deviceAddress}…`);
-      const downloaded = await downloadControllerFiles(device, setStatus, wipe ? [] : Object.keys(files), settings.extendedUnlocked && settings.showExtended || extendedOnly, extendedOnly);
+      const downloaded = await downloadControllerFiles(device, setStatus, [], settings.extendedUnlocked && settings.showExtended || extendedOnly, extendedOnly);
       if (downloaded.length === 0) {
         setError(wipe ? 'No protocol files were found on the controller; your files were kept.' : 'No new protocol files were found on the controller.');
         return;
       }
-      const nextFiles = Object.fromEntries(downloaded.map(({ name, protocol: value }) => [name, value]));
+      const lookup = new Map(Object.entries(files).map(([name, value]) => [name.toLowerCase(), JSON.stringify(value)]));
+      const fresh = wipe ? downloaded : downloaded.filter(({ name }) => !lookup.has(name.toLowerCase()));
+      const identical = wipe ? [] : downloaded.filter(({ name, protocol: value }) => lookup.get(name.toLowerCase()) === JSON.stringify(value));
+      if (fresh.length === 0 && identical.length === 0) {
+        setError('No new protocol files were found on the controller.');
+        return;
+      }
+      const nextFiles = Object.fromEntries(fresh.map(({ name, protocol: value }) => [name, value]));
       setFiles((current) => (wipe ? nextFiles : { ...current, ...nextFiles }));
-      markSynced(downloaded, wipe);
+      markSynced([...fresh, ...identical.map(({ name, protocol: value }) => ({ name: Object.keys(files).find((key) => key.toLowerCase() === name.toLowerCase()) ?? name, protocol: value }))], wipe);
       setExpandedGroups((current) => {
         const next = { ...current };
         downloaded.forEach(({ name }) => {
@@ -667,7 +674,7 @@ export default function App() {
         });
         return next;
       });
-      const first = downloaded[0];
+      const first = fresh[0];
       if (first) {
         loadProtocol(first.name, first.protocol, true);
       }
