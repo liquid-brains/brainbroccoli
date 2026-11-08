@@ -2334,7 +2334,7 @@ export default function App() {
                   {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
                   {!extraWideEditor && renderSummary()}
                   {!extraWideEditor && settings.showJson && renderJsonViewer()}
-                  {mode === 'global' && renderFileActions()}
+                  {renderFileActions()}
                 </View>
                 {extraWideEditor && (
                   <View style={[styles.rightColumn, styles.rightColumnWide]}>
