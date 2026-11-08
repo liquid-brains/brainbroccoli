@@ -240,7 +240,11 @@ export function calculateSweepDuration(protocol: Protocol): number | undefined {
 }
 
 export function calculateTotalDuration(protocol: Protocol): number | undefined {
-  let durationMinutes = calculateSweepDuration(protocol) ?? 0;
+  const sweep = calculateSweepDuration(protocol);
+  if (sweep !== undefined) {
+    return Math.round(sweep * 10) / 10;
+  }
+  let durationMinutes = 0;
 
   for (const module of Array.isArray(protocol.modules) ? protocol.modules : []) {
     if (module.active !== false) {

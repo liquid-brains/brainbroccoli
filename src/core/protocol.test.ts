@@ -155,6 +155,19 @@ describe('toUserProtocolFile', () => {
   });
 });
 
+describe('calculateTotalDuration with a sweep', () => {
+  it('ignores stored module run times that a sweep overrides', () => {
+    const base = createEmptyProtocol();
+    const protocol = {
+      ...base,
+      frequency: { active: true, startFreq: 45, endFreq: 49, freqStepSize: 1, stepDuration: 60 },
+      power: { active: false },
+      modules: [{ number: 1, active: true, activeRunTime: 20 }],
+    };
+    expect(calculateTotalDuration(protocol as never)).toBe(5);
+  });
+});
+
 describe('calculateSweepDuration', () => {
   const base = createEmptyProtocol();
   it('derives minutes from an upward frequency sweep', () => {
