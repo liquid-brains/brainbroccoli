@@ -16,9 +16,8 @@ jobs:
         include:
           - platform: android
             os: ubuntu-latest
-          # iOS build disabled until its CI failure is fixed.
-          # - platform: ios
-          #   os: macos-latest
+          - platform: ios
+            os: macos-latest
           - platform: linux
             os: ubuntu-latest
           - platform: windows
@@ -95,6 +94,9 @@ jobs:
       - name: Build unsigned iOS app
         if: matrix.platform == 'ios'
         run: make BUILD_TARGET=ipa
+      - name: Archive iOS app
+        if: matrix.platform == 'ios'
+        run: ditto -c -k --keepParent .xcode-derived-data/Build/Products/Release-iphoneos/BrainBroccoli.app BrainBroccoli-ios.zip
       - name: Package desktop app
         if: matrix.platform == 'linux' || matrix.platform == 'windows' || matrix.platform == 'macos'
         run: |
@@ -117,6 +119,5 @@ jobs:
           if-no-files-found: error
           path: |
             android/app/build/outputs/apk/release/app-release.apk
-            .xcode-derived-data/Build/Products/Release-iphoneos/BrainBroccoli.app
             BrainBroccoli-*.tar.gz
             BrainBroccoli-*.zip
