@@ -89,6 +89,7 @@ export default function App() {
   const { width } = useWindowDimensions();
   const wideSidebar = width >= 980;
   const wideEditor = width - (wideSidebar ? 300 : 0) >= 860;
+  const extraWideEditor = width >= 1400;
   const [protocol, setProtocol] = useState<Protocol>(() => createEmptyProtocol());
   const [files, setFiles] = useState<Record<string, Protocol>>({});
   const [filesLoaded, setFilesLoaded] = useState(false);
@@ -1749,6 +1750,25 @@ export default function App() {
     );
   }
 
+  function renderJsonViewer(): React.JSX.Element {
+    return (
+      <View style={styles.panel}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: jsonExpanded }}
+          onPress={() => setJsonExpanded((expanded) => !expanded)}
+        >
+          <Text style={styles.collapseTitle}>{jsonExpanded ? '▼' : '▶'} View Raw JSON Code</Text>
+        </Pressable>
+        {jsonExpanded && (
+          <ScrollView style={styles.jsonBox} nestedScrollEnabled>
+            <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
   function renderBatchDialog(): React.JSX.Element {
     const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: name }))];
     return (
@@ -2230,25 +2250,16 @@ export default function App() {
                 </View>
                 <View style={[styles.rightColumn, wideEditor && styles.rightColumnWide]}>
                   {isBatch && mode === 'global' ? renderBatchSettings() : mode === 'global' ? renderGlobalEditor() : mode === 'all' ? renderModuleEditor('all') : renderModuleEditor(selectedModule)}
-                  {renderSummary()}
-                  {settings.showJson && (
-                    <View style={styles.panel}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ expanded: jsonExpanded }}
-                        onPress={() => setJsonExpanded((expanded) => !expanded)}
-                      >
-                        <Text style={styles.collapseTitle}>{jsonExpanded ? '▼' : '▶'} View Raw JSON Code</Text>
-                      </Pressable>
-                      {jsonExpanded && (
-                        <ScrollView style={styles.jsonBox} nestedScrollEnabled>
-                          <Text selectable style={styles.jsonText}>{JSON.stringify(isBatch ? protocol : displayedProtocol, null, 2)}</Text>
-                        </ScrollView>
-                      )}
-                    </View>
-                  )}
+                  {!extraWideEditor && renderSummary()}
+                  {!extraWideEditor && settings.showJson && renderJsonViewer()}
                   {mode === 'global' && renderFileActions()}
                 </View>
+                {extraWideEditor && (
+                  <View style={[styles.rightColumn, styles.rightColumnWide]}>
+                    {renderSummary()}
+                    {settings.showJson && renderJsonViewer()}
+                  </View>
+                )}
               </View>
             </ScrollView>
             )}
