@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -97,6 +98,8 @@ export default function App() {
   const [mode, setMode] = useState<EditorMode>('global');
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
   const [syncedFiles, setSyncedFiles] = useState<Record<string, string>>({});
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const settingsScroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [multiSelected, setMultiSelected] = useState<number[]>([]);
   const targetModules = multiSelected.length >= 2 ? multiSelected : undefined;
   const [activeBatchStage, setActiveBatchStage] = useState(0);
@@ -147,6 +150,18 @@ export default function App() {
   const { styles } = theme;
 
   const running = session !== null;
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => setKeyboardHeight(event.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   useEffect(() => {
     setMultiSelected([]);
   }, [currentFileName]);
@@ -2138,10 +2153,10 @@ export default function App() {
   function renderSettingsDialog(): React.JSX.Element {
     return (
       <Modal transparent animationType="fade" visible={settingsOpen} onRequestClose={() => setSettingsOpen(false)}>
-        <View style={styles.dialogRoot}>
+        <View style={[styles.dialogRoot, keyboardHeight > 0 && { paddingBottom: 16 + keyboardHeight }]}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>Settings</Text>
-            <ScrollView>
+            <ScrollView ref={settingsScroll}>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Appearance</Text>
                 <View style={styles.settingsToggleRow}>
@@ -2190,6 +2205,7 @@ export default function App() {
                   placeholderTextColor="#94a3b8"
                   value={settings.deviceAddress}
                   onChangeText={(value) => updateSettings({ deviceAddress: value.trim() })}
+                  onFocus={() => setTimeout(() => settingsScroll.current?.scrollToEnd({ animated: true }), 300)}
                   style={styles.textInput}
                 />
               </View>
