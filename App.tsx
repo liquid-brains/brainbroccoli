@@ -71,6 +71,7 @@ import {
 import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState, SequenceStep } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
+import { normalizeErrorMessage } from './src/core/error-message';
 
 type EditorMode = 'global' | 'module' | 'all';
 type SectionName = 'frequency' | 'power' | 'cross';
@@ -2188,7 +2189,14 @@ export default function App() {
                 <Text style={styles.statusText}>{status || 'Working…'}</Text>
               </View>
             )}
-            {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+            {error !== '' && (
+              <View style={styles.error}>
+                <Text accessibilityRole="alert" style={styles.errorText}>{normalizeErrorMessage(error)}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setError('')} style={styles.errorDismiss}>
+                  <Text style={styles.errorDismissText}>×</Text>
+                </Pressable>
+              </View>
+            )}
             {appMode === 'editor' && readOnly && (
               <View style={styles.readOnlyBanner}>
                 <Text style={styles.readOnlyText}>
@@ -2585,7 +2593,10 @@ const styleDefs = {
   summaryHeading: { color: '#7bc043', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   jsonBox: { backgroundColor: '#0f172a', borderRadius: 7, maxHeight: 320, padding: 12 },
   jsonText: { color: '#e2e8f0', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined, fontSize: 11 },
-  error: { backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: 13, paddingHorizontal: 18, paddingVertical: 10 },
+  error: { alignItems: 'center', backgroundColor: '#fef2f2', flexDirection: 'row', gap: 12, paddingHorizontal: 18, paddingVertical: 10 },
+  errorText: { color: '#b91c1c', flex: 1, fontSize: 13 },
+  errorDismiss: { alignItems: 'center', justifyContent: 'center', minHeight: 32, minWidth: 32 },
+  errorDismissText: { color: '#b91c1c', fontSize: 22, lineHeight: 26 },
   modalRoot: { backgroundColor: 'rgba(0,0,0,0.45)', flex: 1, flexDirection: 'row' },
   modalBackdrop: { flex: 1 },
   collapseTitle: { color: '#1e293b', fontSize: 17, fontWeight: '700' },
