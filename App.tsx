@@ -1702,9 +1702,11 @@ export default function App() {
                     styles.moduleTile,
                     tileInactive ? styles.inactiveTile : { backgroundColor: tint },
                     crossApplied && styles.crossTile,
-                    (selectedNumber === number || multi.includes(number)) && styles.selectedTile,
+                    selectedNumber === number && styles.selectedTile,
+                    multi.includes(number) && styles.multiTile,
                   ]}
                 >
+                  {multi.includes(number) && <Text accessibilityLabel="selected" style={styles.multiBadge}>✓</Text>}
                   <Text style={styles.moduleTitle}>{name}</Text>
                   <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
                   {crossApplied && <Text style={styles.crossLabel}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
@@ -2581,6 +2583,8 @@ const styleDefs = {
   crossTile: { borderColor: '#000', borderWidth: 4 },
   crossLabel: { color: '#000', fontSize: 10, fontWeight: '800', textAlign: 'center' },
   selectedTile: { borderColor: '#000', borderWidth: 3 },
+  multiTile: { borderColor: '#0050ff', borderWidth: 4, shadowColor: '#0050ff', shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+  multiBadge: { backgroundColor: '#0050ff', borderRadius: 9, color: '#fff', fontSize: 12, fontWeight: '900', height: 18, lineHeight: 18, overflow: 'hidden', position: 'absolute', right: 3, textAlign: 'center', top: 3, width: 18 },
   disabledMode: { backgroundColor: '#f3f7f1', borderColor: '#dde6da' },
   disabledModeText: { color: '#94a3b8' },
   moduleTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
@@ -2692,7 +2696,7 @@ const fixedStyles = new Set<string>([
   'journalBadge',
   'journalBadgeText',
   'phaseASwatch', 'phaseBSwatch', 'phaseA', 'phaseB', 'phaseAButton', 'phaseBButton', 'moduleTile', 'moduleTitle',
-  'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
+  'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'multiTile', 'multiBadge', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
