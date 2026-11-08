@@ -96,6 +96,7 @@ export default function App() {
   const [currentFileName, setCurrentFileName] = useState('');
   const [mode, setMode] = useState<EditorMode>('global');
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
+  const [syncedFiles, setSyncedFiles] = useState<Record<string, string>>({});
   const [multiSelected, setMultiSelected] = useState<number[]>([]);
   const targetModules = multiSelected.length >= 2 ? multiSelected : undefined;
   const [activeBatchStage, setActiveBatchStage] = useState(0);
@@ -164,8 +165,9 @@ export default function App() {
 
   useEffect(() => {
     void loadSettings().then(setSettings);
-    void loadStoredFiles().then((saved) => {
+    void Promise.all([loadStoredFiles(), loadStoredSynced()]).then(([saved, synced]) => {
       setFiles((current) => ({ ...saved, ...current }));
+      setSyncedFiles((current) => ({ ...synced, ...current }));
       setFilesLoaded(true);
     });
   }, []);
@@ -177,6 +179,12 @@ export default function App() {
     const timer = setTimeout(() => void persistFiles(files), 400);
     return () => clearTimeout(timer);
   }, [files, filesLoaded]);
+
+  useEffect(() => {
+    if (filesLoaded) {
+      void persistSynced(syncedFiles);
+    }
+  }, [syncedFiles, filesLoaded]);
 
   useEffect(() => {
     void loadStoredRunner().then((saved) => {
@@ -583,6 +591,7 @@ export default function App() {
     try {
       setStatus(`Connecting to ${settings.deviceAddress}…`);
       await saveControllerFiles(connectToController(), uploads, setStatus);
+      markSynced(uploads.map((upload) => ({ name: upload.name, protocol: files[upload.name] ?? (upload.name === name ? (isBatch ? protocol : displayedProtocol) : upload.protocol) })));
       setStatus(`Saved ${uploads.length === 1 ? name : `${name} and ${uploads.length - 1} stage file${uploads.length === 2 ? '' : 's'}`} to the controller.`);
     } catch (reason) {
       setError(`Unable to save to ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
@@ -632,6 +641,7 @@ export default function App() {
       }
       const nextFiles = Object.fromEntries(downloaded.map(({ name, protocol: value }) => [name, value]));
       setFiles((current) => (wipe ? nextFiles : { ...current, ...nextFiles }));
+      markSynced(downloaded, wipe);
       setExpandedGroups((current) => {
         const next = { ...current };
         downloaded.forEach(({ name }) => {
@@ -714,6 +724,11 @@ export default function App() {
       return;
     }
     setFiles((current) => {
+      const remaining = { ...current };
+      delete remaining[name];
+      return remaining;
+    });
+    setSyncedFiles((current) => {
       const remaining = { ...current };
       delete remaining[name];
       return remaining;
@@ -1295,7 +1310,7 @@ export default function App() {
                     }}
                     style={[styles.fileButton, appMode === 'editor' && currentFileName === name && styles.selectedFile]}
                   >
-                    <Text numberOfLines={1} style={styles.fileName}>{name}</Text>
+                    <Text accessibilityLabel={isUnsynced(name) ? `${name}, not synced to the controller` : name} numberOfLines={1} style={[styles.fileName, isUnsynced(name) && styles.unsyncedName]}>{isUnsynced(name) ? '● ' : ''}{name}</Text>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -1599,6 +1614,20 @@ export default function App() {
       });
       return { ...current, modules: [...others, ...modules] };
     });
+  }
+
+  function isControllerFile(name: string): boolean {
+    return /\.vnp[04]$/i.test(name);
+  }
+
+  function isUnsynced(name: string): boolean {
+    const file = files[name];
+    return file !== undefined && isControllerFile(name) && syncedFiles[name] !== JSON.stringify(file);
+  }
+
+  function markSynced(entries: Array<{ name: string; protocol: Protocol }>, replace = false): void {
+    const added = Object.fromEntries(entries.filter(({ name }) => isControllerFile(name)).map(({ name, protocol: value }) => [name, JSON.stringify(value)]));
+    setSyncedFiles((current) => (replace ? added : { ...current, ...added }));
   }
 
   function toggleMultiSelect(number: number): void {
@@ -2080,19 +2109,22 @@ export default function App() {
 
   function renderDeleteDialog(): React.JSX.Element {
     const name = deletePrompt ?? '';
+    const unsynced = name !== '' && isUnsynced(name);
     return (
       <Modal transparent animationType="fade" visible={deletePrompt !== null} onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.dialogRoot}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>Delete {name}?</Text>
-            <Text style={styles.settingsHint}>Delete it only from this app, or from both the app and the controller at {settings.deviceAddress}? Deleting from the controller cannot be undone.</Text>
+            <Text style={styles.settingsHint}>{unsynced ? 'This file has not been synced to the controller. Delete it from this app? This cannot be undone.' : `Delete it only from this app, or from both the app and the controller at ${settings.deviceAddress}? Deleting from the controller cannot be undone.`}</Text>
             <View style={styles.deleteButtons}>
               <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, false); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>APP ONLY</Text>
+                <Text style={styles.backButtonText}>{unsynced ? 'DELETE' : 'APP ONLY'}</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
-              </Pressable>
+              {!unsynced && (
+                <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, true); }} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>APP AND CONTROLLER</Text>
+                </Pressable>
+              )}
               <Pressable accessibilityRole="button" onPress={() => setDeletePrompt(null)} style={styles.backButton}>
                 <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
@@ -2582,6 +2614,7 @@ const styleDefs = {
   inactiveTile: { backgroundColor: '#fff' },
   crossTile: { borderColor: '#000', borderWidth: 4 },
   crossLabel: { color: '#000', fontSize: 10, fontWeight: '800', textAlign: 'center' },
+  unsyncedName: { color: '#d9480f', fontWeight: '800' },
   selectedTile: { borderColor: '#000', borderWidth: 3 },
   multiTile: { borderColor: '#0050ff', borderWidth: 4, shadowColor: '#0050ff', shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
   multiBadge: { backgroundColor: '#0050ff', borderRadius: 9, color: '#fff', fontSize: 12, fontWeight: '900', height: 18, lineHeight: 18, overflow: 'hidden', position: 'absolute', right: 3, textAlign: 'center', top: 3, width: 18 },
@@ -2839,6 +2872,37 @@ async function loadStoredFiles(): Promise<Record<string, Protocol>> {
     return saved !== null && typeof saved === 'object' && !Array.isArray(saved) ? (saved as Record<string, Protocol>) : {};
   } catch {
     return {};
+  }
+}
+
+const syncedKey = 'brainbroccoli.synced';
+const syncedPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}synced.json` : '';
+
+async function loadStoredSynced(): Promise<Record<string, string>> {
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      raw = window.localStorage.getItem(syncedKey);
+    } else if (syncedPath && (await FileSystem.getInfoAsync(syncedPath)).exists) {
+      raw = await FileSystem.readAsStringAsync(syncedPath);
+    }
+    const saved = raw ? (JSON.parse(raw) as unknown) : {};
+    return saved !== null && typeof saved === 'object' && !Array.isArray(saved) ? (saved as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function persistSynced(synced: Record<string, string>): Promise<void> {
+  try {
+    const raw = JSON.stringify(synced);
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(syncedKey, raw);
+    } else if (syncedPath) {
+      await FileSystem.writeAsStringAsync(syncedPath, raw);
+    }
+  } catch {
+    // Sync tracking is a convenience; failing to save should not interrupt editing.
   }
 }
 
