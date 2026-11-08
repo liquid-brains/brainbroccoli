@@ -96,6 +96,8 @@ export default function App() {
   const [currentFileName, setCurrentFileName] = useState('');
   const [mode, setMode] = useState<EditorMode>('global');
   const [selectedModule, setSelectedModule] = useState<number>(protocolModules[0].number);
+  const [multiSelected, setMultiSelected] = useState<number[]>([]);
+  const targetModules = multiSelected.length >= 2 ? multiSelected : undefined;
   const [activeBatchStage, setActiveBatchStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -144,6 +146,10 @@ export default function App() {
   const { styles } = theme;
 
   const running = session !== null;
+  useEffect(() => {
+    setMultiSelected([]);
+  }, [currentFileName]);
+
   useEffect(() => {
     if (!running) {
       return undefined;
@@ -1589,16 +1595,21 @@ export default function App() {
       const others = (current.modules ?? []).filter((item) => !protocolModules.some(({ number }) => number === item.module_no));
       const modules = protocolModules.map(({ number }) => {
         const module = getProtocolModule(current, number);
-        return { ...module, ...patch(module) };
+        return targetModules && !targetModules.includes(number) ? module : { ...module, ...patch(module) };
       });
       return { ...current, modules: [...others, ...modules] };
     });
   }
 
+  function toggleMultiSelect(number: number): void {
+    setMultiSelected((current) => (current.includes(number) ? current.filter((item) => item !== number) : [...current, number]));
+  }
+
   function renderModuleEditor(moduleNumber: number | 'all'): React.JSX.Element {
     const all = moduleNumber === 'all';
+    const candidates = protocolModules.filter(({ number }) => !targetModules || targetModules.includes(number));
     const referenceNumber = all
-      ? (protocolModules.find(({ number }) => getProtocolModule(displayedProtocol, number).active !== false) ?? protocolModules[0]).number
+      ? (candidates.find(({ number }) => getProtocolModule(displayedProtocol, number).active !== false) ?? candidates[0] ?? protocolModules[0]).number
       : moduleNumber;
     const module = getProtocolModule(displayedProtocol, referenceNumber);
     const control = module.moduleControl ?? {};
@@ -1624,7 +1635,7 @@ export default function App() {
     };
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Data entry: {all ? 'all modules' : `module ${protocolModules.find((item) => item.number === moduleNumber)?.name}`}</Text>
+        <Text style={styles.panelTitle}>Data entry: {all ? (targetModules ? 'selected modules' : 'all modules') : `module ${protocolModules.find((item) => item.number === moduleNumber)?.name}`}</Text>
         {renderDurationBar()}
         <SettingRow label="Module status" accent>
           <ToggleButton active={module.active !== false} title={module.active === false ? 'Activate' : 'Active'} onPress={() => setModule({ active: module.active === false })} />
@@ -1655,7 +1666,7 @@ export default function App() {
           <NumberField label="Power" value={module.power ?? control.power} unit="%" onChange={(value) => setControl('power', value)} />
         )}
         {(frequencyActive || powerActive) && (
-          <Text style={styles.helpText}>Global sweeps control {frequencyActive && powerActive ? 'frequency and power' : frequencyActive ? 'frequency' : 'power'} for {all ? 'all modules' : 'this module'}.</Text>
+          <Text style={styles.helpText}>Global sweeps control {frequencyActive && powerActive ? 'frequency and power' : frequencyActive ? 'frequency' : 'power'} for {all ? (targetModules ? 'the selected modules' : 'all modules') : 'this module'}.</Text>
         )}
         <SettingRow label="Apply cross frequency" accent={false}>
           <ToggleButton active={module.applyCross === true} title={module.applyCross === true ? 'Yes' : 'No'} onPress={() => setModule({ applyCross: module.applyCross !== true })} />
@@ -1664,7 +1675,7 @@ export default function App() {
     );
   }
 
-  function renderModuleGrid(source: Protocol, onSelect?: (number: number) => void, selectedNumber?: number): React.JSX.Element {
+  function renderModuleGrid(source: Protocol, onSelect?: (number: number) => void, selectedNumber?: number, onLongPress?: (number: number) => void, multi: number[] = []): React.JSX.Element {
     const maxRun = Math.max(0, ...protocolModules.map((item) => moduleRunTime(source, getProtocolModule(source, item.number))));
     return (
       <View style={styles.moduleGrid}>
@@ -1686,11 +1697,12 @@ export default function App() {
                   accessibilityLabel={`${name}${tileInactive ? ', inactive' : ''}`}
                   disabled={!onSelect}
                   onPress={() => onSelect?.(number)}
+                  onLongPress={onLongPress ? () => onLongPress(number) : undefined}
                   style={[
                     styles.moduleTile,
                     tileInactive ? styles.inactiveTile : { backgroundColor: tint },
                     crossApplied && styles.crossTile,
-                    selectedNumber === number && styles.selectedTile,
+                    (selectedNumber === number || multi.includes(number)) && styles.selectedTile,
                   ]}
                 >
                   <Text style={styles.moduleTitle}>{name}</Text>
@@ -2240,9 +2252,22 @@ export default function App() {
                     <View style={styles.legendItem}><View style={styles.phaseASwatch} /><Text style={styles.legendText}>Phase A</Text></View>
                     <View style={styles.legendItem}><View style={styles.phaseBSwatch} /><Text style={styles.legendText}>Phase B</Text></View>
                   </View>
-                  {renderModuleGrid(displayedProtocol, (number) => { setSelectedModule(number); setMode('module'); }, mode === 'module' ? selectedModule : undefined)}
+                  {renderModuleGrid(
+                    displayedProtocol,
+                    (number) => {
+                      if (multiSelected.length > 0) {
+                        toggleMultiSelect(number);
+                        return;
+                      }
+                      setSelectedModule(number);
+                      setMode('module');
+                    },
+                    mode === 'module' && multiSelected.length === 0 ? selectedModule : undefined,
+                    toggleMultiSelect,
+                    multiSelected,
+                  )}
                   <Pressable disabled={isBatch} onPress={() => setMode('all')} style={[styles.modeButton, !isBatch && mode === 'all' && styles.activeMode, isBatch && styles.disabledMode]}>
-                    <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>Edit all modules</Text>
+                    <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>{targetModules ? 'Edit selected modules' : 'Edit all modules'}</Text>
                   </Pressable>
                   <Pressable disabled={isBatch} onPress={() => setMode('global')} style={[styles.modeButton, !isBatch && mode === 'global' && styles.activeMode, isBatch && styles.disabledMode]}>
                     <Text style={[styles.modeText, isBatch && styles.disabledModeText]}>Global protocol settings</Text>
