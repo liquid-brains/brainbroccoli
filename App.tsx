@@ -2824,13 +2824,13 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string;
     phaseA: '#2f7f86',
     phaseB: '#d98b2b',
     fill: {
-      '#2f5d1f': '#d9ecec', '#cbd5e1': '#aecfd2', '#f1f5f9': '#e2eff0', '#f8fafc': '#f1f7f7', '#f0fdf4': '#e2eff0',
-      [ACCENT_GREEN]: '#2f7f86', [ACCENT_ORANGE]: '#d98b2b', '#dcfce7': '#cfe8e6', '#e2e8f0': '#d5e6e7',
-      '#f3f7f1': '#f1f7f7', '#dde6da': '#e2eff0', '#8dc63f': '#ffffff', '#6fa82c': '#d9ecec',
+      '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5e5ea',
+      [ACCENT_GREEN]: '#2f7f86', [ACCENT_ORANGE]: '#d98b2b', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
+      '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea',
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#1f6f76', [ACCENT_ORANGE]: '#b4690e', '#166534': '#1f6f76', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#4d6b6e',
+      [ACCENT_GREEN]: '#1f6f76', [ACCENT_ORANGE]: '#b4690e', '#166534': '#1f6f76', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
     },
   },
   dark: {
