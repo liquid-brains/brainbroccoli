@@ -2888,12 +2888,34 @@ function buildTheme(scheme: Scheme): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
-  const greys = scheme === 'dark'
-    ? { journalCompleted: ['#2c2c2e', '#8e8e93'], journalStopped: ['#353538', '#aeaeb2'], journalFailed: ['#3d3d40', '#c7c7cc'], journalRunning: ['#262628', '#636366'] }
-    : { journalCompleted: ['#ececf0', '#636366'], journalStopped: ['#dedee3', '#8e8e93'], journalFailed: ['#d0d0d6', '#3a3a3c'], journalRunning: ['#f4f4f7', '#aeaeb2'] };
-  for (const [name, [fill, edge]] of Object.entries(greys) as [string, [string, string]][]) {
+  const dark = scheme === 'dark';
+  const teal = dark ? '#3a9aa3' : '#2f7f86';
+  const tealText = dark ? '#5cc0c8' : '#1f6f76';
+  const amber = dark ? '#d9953a' : '#d98b2b';
+  const cards = dark
+    ? { journalCompleted: ['#1d2b2d', teal], journalStopped: ['#2d261b', amber], journalFailed: ['#2e1f1f', '#d9645a'], journalRunning: ['#1f2530', '#6a9fd0'] }
+    : { journalCompleted: ['#e9f3f3', teal], journalStopped: ['#fbf1e2', amber], journalFailed: ['#f8e8e6', '#c0524a'], journalRunning: ['#eaf0f6', '#5b8fb0'] };
+  for (const [name, [fill, edge]] of Object.entries(cards) as [string, [string, string]][]) {
     mapped[name] = { ...mapped[name], backgroundColor: fill, borderColor: edge, borderLeftColor: edge };
   }
+  const accents: Record<string, Record<string, unknown>> = {
+    menuItem: { borderLeftColor: teal, borderLeftWidth: 5 },
+    menuItemText: { color: tealText },
+    menuHeaderText: { color: tealText },
+    modeButton: { borderColor: teal },
+    activeMode: { borderColor: amber },
+    modeText: { color: tealText },
+    settingLabel: { color: tealText },
+    collapseTitle: { color: tealText },
+    durationBarText: { color: tealText },
+    selectButton: { borderColor: teal },
+    backButtonText: { color: tealText },
+    backButton: { borderColor: teal },
+    runnerButtonText: { color: tealText },
+    runnerTitle: { color: tealText },
+    dialogSubtitle: { color: tealText },
+  };
+  for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
@@ -2904,7 +2926,7 @@ function buildTheme(scheme: Scheme): Theme {
     phaseA: palette.phaseA,
     phaseB: palette.phaseB,
     inputBackground: palette.fill['#f8fafc'] ?? '#f8fafc',
-    inputBorder: palette.fill['#cbd5e1'] ?? '#cbd5e1',
+    inputBorder: teal,
     inputText: palette.text['#1e293b'] ?? '#1e293b',
   };
 }
