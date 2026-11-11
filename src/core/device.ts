@@ -72,14 +72,41 @@ export async function saveControllerFiles(
 }
 
 // Makes sure user protocols are on the controller, then runs one until it finishes or is aborted.
+// The controller normally reports when a protocol ends, but if that never arrives we stop it once its scheduled time has passed.
+const END_GRACE_MS = 10_000;
+
 export async function runControllerProtocol(
   device: VielightDevice,
   name: string,
   signal: AbortSignal,
   onProgress: (message: string) => void = () => undefined,
   onStart: () => void = () => undefined,
+  expectedMinutes?: number,
 ): Promise<void> {
   onProgress(`Starting ${name}…`);
   onStart();
-  await device.runFile(name, { signal, waitForCompletion: true });
+  if (expectedMinutes === undefined || expectedMinutes <= 0) {
+    await device.runFile(name, { signal, waitForCompletion: true });
+    return;
+  }
+  const inner = new AbortController();
+  const forwardAbort = (): void => inner.abort();
+  signal.addEventListener('abort', forwardAbort);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    inner.abort();
+  }, expectedMinutes * 60_000 + END_GRACE_MS);
+  try {
+    await device.runFile(name, { signal: inner.signal, waitForCompletion: true });
+  } catch (error) {
+    if (!timedOut || signal.aborted) {
+      throw error;
+    }
+    onProgress(`${name} did not report finishing; stopping it`);
+    await device.stop().catch(() => undefined);
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', forwardAbort);
+  }
 }

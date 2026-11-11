@@ -118,6 +118,25 @@ describe('runControllerProtocol', () => {
     await runControllerProtocol(device as never, 'a.vnp0', new AbortController().signal);
     expect(calls).toEqual(['run a.vnp0']);
   });
+
+  it('stops the controller and moves on when it never reports completion', async () => {
+    vi.useFakeTimers();
+    try {
+      const stop = vi.fn(async () => undefined);
+      const device = {
+        stop,
+        runFile: (_name: string, options: { signal: AbortSignal }) => new Promise<void>((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new Error('stopped')));
+        }),
+      };
+      const done = runControllerProtocol(device as never, 'a.vnp0', new AbortController().signal, undefined, undefined, 1);
+      await vi.advanceTimersByTimeAsync(70_000);
+      await done;
+      expect(stop).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('saveControllerFiles retry', () => {
