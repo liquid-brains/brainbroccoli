@@ -2820,31 +2820,31 @@ const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor'
 
 const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
-    accent: '#636366',
+    accent: '#2f7f86',
     phaseA: '#2f7f86',
     phaseB: '#d98b2b',
     fill: {
-      '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5e5ea',
-      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
-      '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea',
+      '#2f5d1f': '#d9ecec', '#cbd5e1': '#aecfd2', '#f1f5f9': '#e2eff0', '#f8fafc': '#f1f7f7', '#f0fdf4': '#e2eff0',
+      [ACCENT_GREEN]: '#2f7f86', [ACCENT_ORANGE]: '#d98b2b', '#dcfce7': '#cfe8e6', '#e2e8f0': '#d5e6e7',
+      '#f3f7f1': '#f1f7f7', '#dde6da': '#e2eff0', '#8dc63f': '#ffffff', '#6fa82c': '#d9ecec',
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#166534': '#636366', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
+      [ACCENT_GREEN]: '#1f6f76', [ACCENT_ORANGE]: '#b4690e', '#166534': '#1f6f76', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#4d6b6e',
     },
   },
   dark: {
-    accent: '#8e8e93',
+    accent: '#3a9aa3',
     phaseA: '#4aa3ab',
     phaseB: '#e0a050',
     fill: {
-      '#2f5d1f': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
-      '#f0fdf4': '#3a3a3c', [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#dcfce7': '#3a3a3c',
-      '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c', '#8dc63f': '#1c1c1e', '#6fa82c': '#3a3a3c',
+      '#2f5d1f': '#0b2a2e', '#fff': '#141d1f', '#cbd5e1': '#2f5a5f', '#f1f5f9': '#1d2b2d', '#f8fafc': '#1d2b2d',
+      '#f0fdf4': '#25393c', [ACCENT_GREEN]: '#3a9aa3', [ACCENT_ORANGE]: '#d9953a', '#dcfce7': '#25393c',
+      '#e2e8f0': '#25393c', '#f3f7f1': '#141d1f', '#dde6da': '#1d2b2d', '#fef2f2': '#3a1c1c', '#8dc63f': '#141d1f', '#6fa82c': '#25393c',
     },
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#166534': '#d1d1d6', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
+      [ACCENT_GREEN]: '#5cc0c8', [ACCENT_ORANGE]: '#f0b45c', '#166534': '#5cc0c8', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
     },
   },
 };
