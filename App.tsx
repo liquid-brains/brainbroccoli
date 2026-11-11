@@ -122,6 +122,7 @@ export default function App() {
   const [downloadPromptOpen, setDownloadPromptOpen] = useState(false);
   const [extendedPromptOpen, setExtendedPromptOpen] = useState(false);
   const logoTaps = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
+  const [erasePromptOpen, setErasePromptOpen] = useState(false);
   const [deletePrompt, setDeletePrompt] = useState<string | null>(null);
   const [runnerData, setRunnerData] = useState<RunnerData>(emptyRunnerData);
   const [runnerLoaded, setRunnerLoaded] = useState(false);
@@ -2144,6 +2145,39 @@ export default function App() {
     );
   }
 
+  async function eraseAllData(): Promise<void> {
+    setErasePromptOpen(false);
+    setSettingsOpen(false);
+    await eraseStoredData();
+    setFiles({});
+    setSyncedFiles({});
+    setRunnerData(emptyRunnerData);
+    setSettings(defaultSettings);
+    setCurrentFileName('');
+    setStatus('All app files and settings were erased.');
+  }
+
+  function renderEraseDialog(): React.JSX.Element {
+    return (
+      <Modal transparent animationType="fade" visible={erasePromptOpen} onRequestClose={() => setErasePromptOpen(false)}>
+        <View style={styles.dialogRoot}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Erase all data?</Text>
+            <Text style={styles.settingsHint}>This deletes every protocol file, the runner list and journal, and all settings stored in this app. Files on the controller are not touched. This cannot be undone.</Text>
+            <View style={styles.deleteButtons}>
+              <Pressable accessibilityRole="button" onPress={() => { void eraseAllData(); }} style={styles.backButton}>
+                <Text style={styles.backButtonText}>ERASE</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(false)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   function renderDeleteDialog(): React.JSX.Element {
     const name = deletePrompt ?? '';
     const unsynced = name !== '' && isUnsynced(name);
@@ -2233,6 +2267,9 @@ export default function App() {
               </View>
             </ScrollView>
             <View style={styles.dialogButtons}>
+              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(true)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>ERASE ALL DATA</Text>
+              </Pressable>
               <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
                 <Text style={styles.backButtonText}>BACK</Text>
               </Pressable>
@@ -2365,6 +2402,7 @@ export default function App() {
           {renderBatchDialog()}
           {renderSettingsDialog()}
           {renderDeleteDialog()}
+          {renderEraseDialog()}
           {renderDownloadDialog()}
           {renderExtendedDialog()}
           {renderFolderDialog()}
@@ -2988,6 +3026,18 @@ function DropZone({ props, zoneKey, zones, active, children }: { props: Record<s
       {children}
     </View>
   );
+}
+
+async function eraseStoredData(): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      [settingsKey, filesKey, syncedKey, runnerKey].forEach((key) => window.localStorage.removeItem(key));
+    } else {
+      await Promise.all([settingsPath, filesPath, syncedPath, runnerPath].filter((path) => path !== '').map((path) => FileSystem.deleteAsync(path, { idempotent: true })));
+    }
+  } catch {
+    // Nothing more can be done if storage is unavailable.
+  }
 }
 
 async function loadStoredRunner(): Promise<RunnerData> {
