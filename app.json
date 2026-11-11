@@ -4,14 +4,15 @@
     "slug": "brainbroccoli",
     "version": "0.1.0",
     "icon": "./assets/app-icon.png",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "web": {
       "favicon": "./assets/app-icon.png"
     },
     "plugins": [
       "./plugins/with-device-network.js",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-screen-orientation"
     ],
     "ios": {
       "supportsTablet": true,
