@@ -42,7 +42,7 @@ import {
   userCopyExtension,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
-import { createNeuroPro2Device, downloadControllerFiles, downloadControllerFilesByName, runControllerProtocol, saveControllerFiles } from './src/core/device';
+import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './src/core/device';
 import {
   addRunnerFolder,
   addRunnerSequence,
@@ -772,39 +772,16 @@ export default function App() {
     return runnerData.runner.items.some((item) => item.file === name && (item.sequence !== undefined) === isBatchFile);
   }
 
-  async function toggleStar(name: string): Promise<void> {
+  function toggleStar(name: string): void {
     const batchStages = files[name]?.filenames;
     if (batchStages === undefined) {
       updateRunner((state) => (isStarred(name) ? removeFromRunner(state, name) : addToRunner(state, name)));
       return;
     }
-    const existing = runnerData.runner.items.find((item) => item.sequence !== undefined && item.file === name);
-    if (!existing) {
-      const known = new Set(Object.keys(files).map((file) => file.toLowerCase()));
-      const missing = Array.from(new Set(batchStages.filter((stage) => /\.vnp2$/i.test(stage) && !known.has(stage.toLowerCase()))));
-      if (missing.length > 0) {
-        await fetchHiddenStages(missing);
-      }
-    }
     updateRunner((state) => {
-      const found = state.items.find((item) => item.sequence !== undefined && item.file === name);
-      return found ? removeRunnerItem(state, found.id) : addRunnerSequence(state, name, batchStages.filter((stage) => stage !== '').map((stage) => ({ file: stage })));
+      const existing = state.items.find((item) => item.sequence !== undefined && item.file === name);
+      return existing ? removeRunnerItem(state, existing.id) : addRunnerSequence(state, name, batchStages.filter((stage) => stage !== '').map((stage) => ({ file: stage })));
     });
-  }
-
-  async function fetchHiddenStages(names: string[]): Promise<void> {
-    setError('');
-    setBusy(true);
-    try {
-      setStatus(`Connecting to ${settings.deviceAddress}…`);
-      const downloaded = await downloadControllerFilesByName(connectToController(), names, setStatus);
-      setFiles((current) => ({ ...current, ...Object.fromEntries(downloaded.map(({ name, protocol: value }) => [name, value])) }));
-    } catch (reason) {
-      setError(`Unable to download ${names.join(', ')} from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
-    } finally {
-      setBusy(false);
-      setStatus('');
-    }
   }
 
   function updateJournalEntry(id: string, change: Partial<JournalEntry>): void {
@@ -837,6 +814,10 @@ export default function App() {
     for (const name of itemFiles(item)) {
       const value = files[name];
       if (!value) {
+        // Read-only system files live on the controller and may not be loaded in the app.
+        if (/\.vnp[123]$/i.test(name)) {
+          continue;
+        }
         return `${name} is not in the app.`;
       }
       if (value.filenames !== undefined) {
@@ -1345,7 +1326,7 @@ export default function App() {
                     accessibilityRole="button"
                     onPress={() => {
                       if (appMode === 'runner') {
-                        void toggleStar(name);
+                        toggleStar(name);
                         return;
                       }
                       const selected = files[name];
@@ -1360,7 +1341,7 @@ export default function App() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={isStarred(name) ? `Remove ${name} from the runner` : `Add ${name} to the runner`}
-                    onPress={() => { void toggleStar(name); }}
+                    onPress={() => toggleStar(name)}
                   >
                     <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
                   </Pressable>
@@ -1506,7 +1487,7 @@ export default function App() {
   const moduleControl = currentModule.moduleControl ?? {};
   const phase = normalizePhase(moduleControl.phase ?? 'A');
   const duration = calculateTotalDuration(displayedProtocol);
-    const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4') && !isHiddenFile(name));
+    const availableStageFiles = Object.keys(files).filter((name) => !name.toLowerCase().endsWith('.vnp4'));
 
   function renderDurationBar(): React.JSX.Element {
     return (
@@ -1659,10 +1640,6 @@ export default function App() {
       });
       return { ...current, modules: [...others, ...modules] };
     });
-  }
-
-  function isHiddenFile(name: string): boolean {
-    return /\.vnp2$/i.test(name) && !(settings.extendedUnlocked && settings.showExtended);
   }
 
   function isControllerFile(name: string): boolean {
@@ -2017,7 +1994,7 @@ export default function App() {
 
   function renderSequenceDialog(): React.JSX.Element {
     const draft = sequenceDraft;
-    const available = Object.keys(files).filter((name) => files[name]?.filenames === undefined && !isHiddenFile(name)).sort((left, right) => left.localeCompare(right));
+    const available = Object.keys(files).filter((name) => files[name]?.filenames === undefined).sort((left, right) => left.localeCompare(right));
     const nextProfile = draft !== null && available.includes(draft.next) ? draft.next : available[0] ?? '';
     const restSeconds = Math.round(Number(draft?.rest));
     const restValid = Number.isFinite(restSeconds) && restSeconds > 0;
@@ -2644,8 +2621,8 @@ const styleDefs = {
   currentFile: { color: '#fdfdfd', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
-  actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
-  actionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
+  actionText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   workspace: { padding: 14 },
   editorLayout: { gap: 14 },
   editorLayoutWide: { alignItems: 'flex-start', flexDirection: 'row' },
