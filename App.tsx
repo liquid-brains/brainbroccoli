@@ -1763,6 +1763,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
+              const onDark = !tileInactive && isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -1780,9 +1781,9 @@ export default function App() {
                   ]}
                 >
                   {multi.includes(number) && <Text accessibilityLabel="selected" style={styles.multiBadge}>✓</Text>}
-                  <Text style={styles.moduleTitle}>{name}</Text>
-                  <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
-                  {crossApplied && <Text style={styles.crossLabel}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
+                  <Text style={[styles.moduleTitle, onDark && styles.tileTextLight]}>{name}</Text>
+                  <Text style={[styles.moduleSubtitle, onDark && styles.tileTextLight]}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
+                  {crossApplied && <Text style={[styles.crossLabel, onDark && styles.tileTextLight]}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
                 </Pressable>
               );
             })}
@@ -2475,6 +2476,12 @@ function tintColor(hex: string, saturation: number): string {
   return `rgb(${channels.map((channel) => Math.round(255 - (255 - channel) * saturation)).join(',')})`;
 }
 
+function isDarkColor(color: string): boolean {
+  const channels = (color.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+  const [red = 255, green = 255, blue = 255] = channels;
+  return (0.299 * red + 0.587 * green + 0.114 * blue) < 140;
+}
+
 function describeModule(protocol: Protocol, module: ProtocolModule): string {
   const frequency = protocol.frequency ?? {};
   const power = protocol.power ?? {};
@@ -2706,6 +2713,7 @@ const styleDefs = {
   disabledMode: { backgroundColor: '#f3f7f1', borderColor: '#dde6da' },
   disabledModeText: { color: '#94a3b8' },
   moduleTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
+  tileTextLight: { color: '#fff' },
   moduleSubtitle: { color: '#334155', fontSize: 10, marginTop: 3, textAlign: 'center' },
   modeButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 2, marginTop: 12, padding: 12, width: '100%' },
   activeMode: { backgroundColor: '#f0fdf4', borderColor: '#7bc043' },
@@ -2814,7 +2822,7 @@ const fixedStyles = new Set<string>([
   'journalBadge',
   'journalBadgeText',
   'phaseASwatch', 'phaseBSwatch', 'phaseA', 'phaseB', 'phaseAButton', 'phaseBButton', 'moduleTile', 'moduleTitle',
-  'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'multiTile', 'multiBadge', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
+  'moduleSubtitle', 'tileTextLight', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'multiTile', 'multiBadge', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
