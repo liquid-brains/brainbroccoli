@@ -1397,7 +1397,7 @@ export default function App() {
           <>
             <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
             <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
-            <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => setDownloadPromptOpen(true))} />
+            <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { if (Object.keys(files).length === 0) { void downloadFromController(false); } else { setDownloadPromptOpen(true); } })} />
             <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
           </>
         )}
