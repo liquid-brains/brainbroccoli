@@ -5,6 +5,7 @@ import {
   Image,
   Keyboard,
   Modal,
+  Dimensions,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +19,7 @@ import {
 } from 'react-native';
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -150,6 +152,15 @@ export default function App() {
   const { styles } = theme;
 
   const running = session !== null;
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
+    const screen = Dimensions.get('screen');
+    const isTablet = Math.min(screen.width, screen.height) >= 600;
+    void (isTablet ? ScreenOrientation.unlockAsync() : ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)).catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     if (Platform.OS !== 'android') {
       return undefined;
