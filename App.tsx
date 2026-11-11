@@ -1410,6 +1410,7 @@ export default function App() {
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Save</Text>
         <View style={styles.fileActions}>
+          <ActionButton title={isStarred(currentFileName) ? '★ Unstar' : '☆ Star'} onPress={() => toggleStar(currentFileName)} />
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
           {!fileReadOnly && <ActionButton title="⧉ Make a Copy" onPress={() => copyUserFile(currentFileName)} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={() => { void saveToController(); }} />}
