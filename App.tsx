@@ -2423,6 +2423,9 @@ export default function App() {
                   {renderModuleGrid(
                     displayedProtocol,
                     (number) => {
+                      if (isBatch && mode === 'global') {
+                        return;
+                      }
                       if (multiSelected.length > 0) {
                         toggleMultiSelect(number);
                         return;
