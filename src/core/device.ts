@@ -40,20 +40,6 @@ export async function downloadControllerFiles(
   return files;
 }
 
-// Fetches specific files by name, e.g. extended stage files that a batch references.
-export async function downloadControllerFilesByName(
-  device: VielightDevice,
-  names: string[],
-  onProgress: (message: string) => void = () => undefined,
-): Promise<ProtocolFile[]> {
-  const files: ProtocolFile[] = [];
-  for (const [index, name] of names.entries()) {
-    onProgress(`Downloading ${name} (${index + 1} of ${names.length})…`);
-    files.push({ name, protocol: parseProtocolJSON(JSON.stringify(await device.getFile(name))) });
-  }
-  return files;
-}
-
 // Uploads user protocol files; a batch is uploaded after the stage files it uses.
 // The controller rejects an update of a missing file, so updateExisting follows what it already has.
 export async function saveControllerFiles(

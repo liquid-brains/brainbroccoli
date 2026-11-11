@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNeuroPro2Device, downloadControllerFiles, downloadControllerFilesByName, runControllerProtocol, saveControllerFiles } from './device';
+import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './device';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -53,18 +53,6 @@ describe('NeuroPro2 client', () => {
     });
     const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }), undefined, ['A.vnp0']);
     expect(files.map((file) => file.name)).toEqual(['b.vnp0']);
-  });
-
-  it('downloads specific files by name', async () => {
-    const paths: string[] = [];
-    const fetch = vi.fn(async (url: URL) => {
-      paths.push(`${url.pathname}?${url.searchParams.toString()}`);
-      const json = { single: true };
-      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
-    });
-    const files = await downloadControllerFilesByName(createNeuroPro2Device('np1.local', { fetch }), ['x.vnp2']);
-    expect(files.map((file) => file.name)).toEqual(['x.vnp2']);
-    expect(paths.some((path) => path.includes('x.vnp2'))).toBe(true);
   });
 
   it('only requests extended Gracefire files when asked', async () => {
