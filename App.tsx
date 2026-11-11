@@ -814,6 +814,10 @@ export default function App() {
     for (const name of itemFiles(item)) {
       const value = files[name];
       if (!value) {
+        // Read-only system files live on the controller and may not be loaded in the app.
+        if (/\.vnp[123]$/i.test(name)) {
+          continue;
+        }
         return `${name} is not in the app.`;
       }
       if (value.filenames !== undefined) {
