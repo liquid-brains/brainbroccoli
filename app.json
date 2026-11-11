@@ -11,6 +11,7 @@
     },
     "plugins": [
       "./plugins/with-device-network.js",
+      "./plugins/with-session-background.js",
       "expo-sharing",
       "expo-screen-orientation"
     ],

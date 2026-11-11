@@ -20,6 +20,7 @@ import {
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -904,29 +905,31 @@ export default function App() {
     const device = connectToController();
     let current = '';
     try {
-      for (const [index, step] of steps.entries()) {
-        if (controller.signal.aborted) {
-          throw new Error('stopped');
+      await runWithSessionBackground(async () => {
+        for (const [index, step] of steps.entries()) {
+          if (controller.signal.aborted) {
+            throw new Error('stopped');
+          }
+          const prefix = item.sequence === undefined ? '' : `Step ${index + 1} of ${steps.length}: ${describeStep(step)} · `;
+          if (isRestStep(step)) {
+            current = 'rest interval';
+            setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Resting` } : state));
+            await waitWhileResting(step.rest, controller.signal, (left) => setSession((state) => (state ? { ...state, message: `${prefix}${left}s left` } : state)));
+            continue;
+          }
+          const name = step.file;
+          current = name;
+          await runControllerProtocol(
+            device,
+            name,
+            controller.signal,
+            (message) => setSession((state) => (state ? { ...state, message: `${prefix}${message}` } : state)),
+            () => {
+              setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Protocol running` } : state));
+            },
+          );
         }
-        const prefix = item.sequence === undefined ? '' : `Step ${index + 1} of ${steps.length}: ${describeStep(step)} · `;
-        if (isRestStep(step)) {
-          current = 'rest interval';
-          setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Resting` } : state));
-          await waitWhileResting(step.rest, controller.signal, (left) => setSession((state) => (state ? { ...state, message: `${prefix}${left}s left` } : state)));
-          continue;
-        }
-        const name = step.file;
-        current = name;
-        await runControllerProtocol(
-          device,
-          name,
-          controller.signal,
-          (message) => setSession((state) => (state ? { ...state, message: `${prefix}${message}` } : state)),
-          () => {
-            setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Protocol running` } : state));
-          },
-        );
-      }
+      });
     } catch (reason) {
       if (controller.signal.aborted) {
         outcome = 'stopped';
