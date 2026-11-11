@@ -37,6 +37,19 @@ export async function downloadControllerFiles(
     onProgress(`Downloading ${name} (${index + 1} of ${names.length})…`);
     files.push({ name, protocol: parseProtocolJSON(JSON.stringify(await device.getFile(name))) });
   }
+  // Batches reference Extended stage files; fetch them so the batch can be shown in the editor.
+  const have = new Set([...skip, ...files.map(({ name }) => name.toLowerCase())]);
+  const stages = [...new Set(files.flatMap(({ name, protocol }) => (/\.vnp3$/i.test(name) ? protocol.filenames ?? [] : [])))].filter(
+    (stage) => /\.vnp2$/i.test(stage) && !have.has(stage.toLowerCase()),
+  );
+  for (const [index, stage] of stages.entries()) {
+    onProgress(`Downloading ${stage} used by a batch (${index + 1} of ${stages.length})…`);
+    try {
+      files.push(await downloadControllerFile(device, stage));
+    } catch {
+      // A missing stage file only limits the batch preview.
+    }
+  }
   return files;
 }
 
