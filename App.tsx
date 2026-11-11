@@ -1763,6 +1763,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
+              const onDark = !tileInactive && isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -1780,9 +1781,9 @@ export default function App() {
                   ]}
                 >
                   {multi.includes(number) && <Text accessibilityLabel="selected" style={styles.multiBadge}>✓</Text>}
-                  <Text style={styles.moduleTitle}>{name}</Text>
-                  <Text style={styles.moduleSubtitle}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
-                  {crossApplied && <Text style={styles.crossLabel}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
+                  <Text style={[styles.moduleTitle, onDark && styles.tileTextLight]}>{name}</Text>
+                  <Text style={[styles.moduleSubtitle, onDark && styles.tileTextLight]}>{tileInactive ? 'Inactive' : describeModule(source, module)}</Text>
+                  {crossApplied && <Text style={[styles.crossLabel, onDark && styles.tileTextLight]}>X:{String(source.cross?.freq ?? 0)}Hz</Text>}
                 </Pressable>
               );
             })}
@@ -2475,6 +2476,12 @@ function tintColor(hex: string, saturation: number): string {
   return `rgb(${channels.map((channel) => Math.round(255 - (255 - channel) * saturation)).join(',')})`;
 }
 
+function isDarkColor(color: string): boolean {
+  const channels = (color.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+  const [red = 255, green = 255, blue = 255] = channels;
+  return (0.299 * red + 0.587 * green + 0.114 * blue) < 140;
+}
+
 function describeModule(protocol: Protocol, module: ProtocolModule): string {
   const frequency = protocol.frequency ?? {};
   const power = protocol.power ?? {};
@@ -2706,6 +2713,7 @@ const styleDefs = {
   disabledMode: { backgroundColor: '#f3f7f1', borderColor: '#dde6da' },
   disabledModeText: { color: '#94a3b8' },
   moduleTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
+  tileTextLight: { color: '#fff' },
   moduleSubtitle: { color: '#334155', fontSize: 10, marginTop: 3, textAlign: 'center' },
   modeButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 2, marginTop: 12, padding: 12, width: '100%' },
   activeMode: { backgroundColor: '#f0fdf4', borderColor: '#7bc043' },
@@ -2814,37 +2822,37 @@ const fixedStyles = new Set<string>([
   'journalBadge',
   'journalBadgeText',
   'phaseASwatch', 'phaseBSwatch', 'phaseA', 'phaseB', 'phaseAButton', 'phaseBButton', 'moduleTile', 'moduleTitle',
-  'moduleSubtitle', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'multiTile', 'multiBadge', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
+  'moduleSubtitle', 'tileTextLight', 'inactiveTile', 'crossTile', 'crossLabel', 'selectedTile', 'multiTile', 'multiBadge', 'phaseToggle', 'phaseToggleText', 'jsonBox', 'jsonText',
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
 const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
-    accent: '#636366',
+    accent: '#2f7f86',
     phaseA: '#2f7f86',
     phaseB: '#d98b2b',
     fill: {
       '#2f5d1f': '#f2f2f7', '#cbd5e1': '#c7c7cc', '#f1f5f9': '#e5e5ea', '#f8fafc': '#f2f2f7', '#f0fdf4': '#e5e5ea',
-      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
+      [ACCENT_GREEN]: '#2f7f86', [ACCENT_ORANGE]: '#d98b2b', '#dcfce7': '#d1d1d6', '#e2e8f0': '#e5e5ea',
       '#f3f7f1': '#f2f2f7', '#dde6da': '#e5e5ea', '#8dc63f': '#ffffff', '#6fa82c': '#e5e5ea',
     },
     text: {
       '#334155': '#1c1c1e', '#475569': '#3a3a3c', '#1e293b': '#1c1c1e', '#64748b': '#6c6c70', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#636366', [ACCENT_ORANGE]: '#636366', '#166534': '#636366', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
+      [ACCENT_GREEN]: '#1f6f76', [ACCENT_ORANGE]: '#b4690e', '#166534': '#1f6f76', '#fefefe': '#1c1c1e', '#fdfdfd': '#1c1c1e', '#e9f3df': '#6c6c70',
     },
   },
   dark: {
-    accent: '#8e8e93',
+    accent: '#3a9aa3',
     phaseA: '#4aa3ab',
     phaseB: '#e0a050',
     fill: {
-      '#2f5d1f': '#000000', '#fff': '#1c1c1e', '#cbd5e1': '#48484a', '#f1f5f9': '#2c2c2e', '#f8fafc': '#2c2c2e',
-      '#f0fdf4': '#3a3a3c', [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#dcfce7': '#3a3a3c',
-      '#e2e8f0': '#3a3a3c', '#f3f7f1': '#1c1c1e', '#dde6da': '#2c2c2e', '#fef2f2': '#3a1c1c', '#8dc63f': '#1c1c1e', '#6fa82c': '#3a3a3c',
+      '#2f5d1f': '#0b2a2e', '#fff': '#141d1f', '#cbd5e1': '#2f5a5f', '#f1f5f9': '#1d2b2d', '#f8fafc': '#1d2b2d',
+      '#f0fdf4': '#25393c', [ACCENT_GREEN]: '#3a9aa3', [ACCENT_ORANGE]: '#d9953a', '#dcfce7': '#25393c',
+      '#e2e8f0': '#25393c', '#f3f7f1': '#141d1f', '#dde6da': '#1d2b2d', '#fef2f2': '#3a1c1c', '#8dc63f': '#141d1f', '#6fa82c': '#25393c',
     },
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
-      [ACCENT_GREEN]: '#8e8e93', [ACCENT_ORANGE]: '#8e8e93', '#166534': '#d1d1d6', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
+      [ACCENT_GREEN]: '#5cc0c8', [ACCENT_ORANGE]: '#f0b45c', '#166534': '#5cc0c8', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
     },
   },
 };
@@ -2888,23 +2896,46 @@ function buildTheme(scheme: Scheme): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
-  const greys = scheme === 'dark'
-    ? { journalCompleted: ['#2c2c2e', '#8e8e93'], journalStopped: ['#353538', '#aeaeb2'], journalFailed: ['#3d3d40', '#c7c7cc'], journalRunning: ['#262628', '#636366'] }
-    : { journalCompleted: ['#ececf0', '#636366'], journalStopped: ['#dedee3', '#8e8e93'], journalFailed: ['#d0d0d6', '#3a3a3c'], journalRunning: ['#f4f4f7', '#aeaeb2'] };
-  for (const [name, [fill, edge]] of Object.entries(greys) as [string, [string, string]][]) {
-    mapped[name] = { ...mapped[name], backgroundColor: fill, borderColor: edge, borderLeftColor: edge };
+  const dark = scheme === 'dark';
+  const teal = dark ? '#3a9aa3' : '#2f7f86';
+  const tealText = dark ? '#5cc0c8' : '#1f6f76';
+  const amber = dark ? '#d9953a' : '#d98b2b';
+  const cardFill = dark ? '#262628' : '#efeff2';
+  const cardEdge = dark ? '#48484a' : '#c7c7cc';
+  const cards = { journalCompleted: teal, journalStopped: amber, journalFailed: dark ? '#d9645a' : '#c0524a', journalRunning: dark ? '#6a9fd0' : '#5b8fb0' };
+  for (const [name, ribbon] of Object.entries(cards)) {
+    mapped[name] = { ...mapped[name], backgroundColor: cardFill, borderColor: cardEdge, borderLeftColor: ribbon };
   }
+  const accents: Record<string, Record<string, unknown>> = {
+    menuItem: { borderLeftColor: teal, borderLeftWidth: 5 },
+    menuItemText: { color: tealText },
+    menuHeaderText: { color: tealText },
+    modeButton: { borderColor: teal },
+    activeMode: { borderColor: amber },
+    modeText: { color: tealText },
+    settingLabel: { color: tealText },
+    collapseTitle: { color: tealText },
+    durationBarText: { color: tealText },
+    selectButton: { borderColor: teal },
+    backButtonText: { color: tealText },
+    backButton: { borderColor: teal },
+    runnerButtonText: { color: tealText },
+    runnerTitle: { color: tealText },
+    runnerRow: { borderColor: teal },
+    runnerFolder: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    dialogSubtitle: { color: tealText },
+  };
+  for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
-  mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
     phaseA: palette.phaseA,
     phaseB: palette.phaseB,
     inputBackground: palette.fill['#f8fafc'] ?? '#f8fafc',
-    inputBorder: palette.fill['#cbd5e1'] ?? '#cbd5e1',
+    inputBorder: teal,
     inputText: palette.text['#1e293b'] ?? '#1e293b',
   };
 }
