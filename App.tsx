@@ -2892,11 +2892,11 @@ function buildTheme(scheme: Scheme): Theme {
   const teal = dark ? '#3a9aa3' : '#2f7f86';
   const tealText = dark ? '#5cc0c8' : '#1f6f76';
   const amber = dark ? '#d9953a' : '#d98b2b';
-  const cards = dark
-    ? { journalCompleted: ['#1d2b2d', teal], journalStopped: ['#2d261b', amber], journalFailed: ['#2e1f1f', '#d9645a'], journalRunning: ['#1f2530', '#6a9fd0'] }
-    : { journalCompleted: ['#e9f3f3', teal], journalStopped: ['#fbf1e2', amber], journalFailed: ['#f8e8e6', '#c0524a'], journalRunning: ['#eaf0f6', '#5b8fb0'] };
-  for (const [name, [fill, edge]] of Object.entries(cards) as [string, [string, string]][]) {
-    mapped[name] = { ...mapped[name], backgroundColor: fill, borderColor: edge, borderLeftColor: edge };
+  const cardFill = dark ? '#262628' : '#efeff2';
+  const cardEdge = dark ? '#48484a' : '#c7c7cc';
+  const cards = { journalCompleted: teal, journalStopped: amber, journalFailed: dark ? '#d9645a' : '#c0524a', journalRunning: dark ? '#6a9fd0' : '#5b8fb0' };
+  for (const [name, ribbon] of Object.entries(cards)) {
+    mapped[name] = { ...mapped[name], backgroundColor: cardFill, borderColor: cardEdge, borderLeftColor: ribbon };
   }
   const accents: Record<string, Record<string, unknown>> = {
     menuItem: { borderLeftColor: teal, borderLeftWidth: 5 },
@@ -2913,13 +2913,14 @@ function buildTheme(scheme: Scheme): Theme {
     backButton: { borderColor: teal },
     runnerButtonText: { color: tealText },
     runnerTitle: { color: tealText },
+    runnerRow: { borderColor: teal },
+    runnerFolder: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
   };
   for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
-  mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: palette.fill['#f1f5f9'] ?? '#f1f5f9', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
