@@ -40,6 +40,10 @@ export async function downloadControllerFiles(
   return files;
 }
 
+export async function downloadControllerFile(device: VielightDevice, name: string): Promise<ProtocolFile> {
+  return { name, protocol: parseProtocolJSON(JSON.stringify(await device.getFile(name))) };
+}
+
 // Uploads user protocol files; a batch is uploaded after the stage files it uses.
 // The controller rejects an update of a missing file, so updateExisting follows what it already has.
 export async function saveControllerFiles(

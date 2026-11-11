@@ -45,7 +45,7 @@ import {
   userCopyExtension,
 } from './src/core/protocol';
 import type { Protocol, ProtocolModule, ProtocolSection } from './src/core/protocol';
-import { createNeuroPro2Device, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './src/core/device';
+import { createNeuroPro2Device, downloadControllerFile, downloadControllerFiles, runControllerProtocol, saveControllerFiles } from './src/core/device';
 import {
   addRunnerFolder,
   addRunnerSequence,
@@ -785,16 +785,69 @@ export default function App() {
     return runnerData.runner.items.some((item) => item.file === name && (item.sequence !== undefined) === isBatchFile);
   }
 
-  function toggleStar(name: string): void {
+  // Stage files that aren't user files (.vnp1/.vnp2) can't be run on their own, so the sequence uses .vnp0 copies of them.
+  async function userStageCopies(stages: string[]): Promise<Map<string, string> | undefined> {
+    const known: Record<string, Protocol> = { ...files };
+    const added: Array<{ name: string; protocol: Protocol }> = [];
+    const mapping = new Map<string, string>();
+    const comparable = (value: Protocol): string => JSON.stringify({ ...value, usedByBatch: 0 });
+    let device: ReturnType<typeof connectToController> | undefined;
+    for (const stage of stages) {
+      if (/\.vnp0$/i.test(stage)) {
+        continue;
+      }
+      let source = files[stage];
+      if (!source) {
+        device ??= connectToController();
+        setStatus(`Downloading ${stage} from ${settings.deviceAddress}…`);
+        source = (await downloadControllerFile(device, stage)).protocol;
+      }
+      const copy = prepareProtocolForSave(stage, source, []);
+      const existing = known[copy.name];
+      let name = copy.name;
+      if (existing && comparable(existing) !== comparable(copy.protocol)) {
+        name = createUniqueImportedFileName(copy.name, Object.keys(known));
+        copy.protocol = { ...copy.protocol, filename: splitFileName(name).base };
+      }
+      mapping.set(stage, name);
+      if (!existing || name !== copy.name) {
+        known[name] = copy.protocol;
+        added.push({ name, protocol: copy.protocol });
+      }
+    }
+    if (added.length > 0) {
+      device ??= connectToController();
+      await saveControllerFiles(device, added, setStatus);
+      const created = Object.fromEntries(added.map(({ name, protocol: value }) => [name, value]));
+      setFiles((current) => ({ ...current, ...created }));
+      markSynced(added);
+      setStatus(`Created ${added.length} .vnp0 cop${added.length === 1 ? 'y' : 'ies'} of system stage files for the sequence.`);
+    }
+    return mapping;
+  }
+
+  async function toggleStar(name: string): Promise<void> {
     const batchStages = files[name]?.filenames;
     if (batchStages === undefined) {
       updateRunner((state) => (isStarred(name) ? removeFromRunner(state, name) : addToRunner(state, name)));
       return;
     }
-    updateRunner((state) => {
-      const existing = state.items.find((item) => item.sequence !== undefined && item.file === name);
-      return existing ? removeRunnerItem(state, existing.id) : addRunnerSequence(state, name, batchStages.filter((stage) => stage !== '').map((stage) => ({ file: stage })));
-    });
+    const existing = runnerData.runner.items.find((item) => item.sequence !== undefined && item.file === name);
+    if (existing) {
+      updateRunner((state) => removeRunnerItem(state, existing.id));
+      return;
+    }
+    const stages = batchStages.filter((stage) => stage !== '');
+    setError('');
+    setBusy(true);
+    try {
+      const mapping = await userStageCopies(stages);
+      updateRunner((state) => addRunnerSequence(state, name, stages.map((stage) => ({ file: mapping?.get(stage) ?? stage }))));
+    } catch (reason) {
+      setError(`Unable to prepare the stage files for ${name}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function updateJournalEntry(id: string, change: Partial<JournalEntry>): void {
@@ -1341,7 +1394,7 @@ export default function App() {
                     accessibilityRole="button"
                     onPress={() => {
                       if (appMode === 'runner') {
-                        toggleStar(name);
+                        void toggleStar(name);
                         return;
                       }
                       const selected = files[name];
@@ -1356,7 +1409,7 @@ export default function App() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={isStarred(name) ? `Remove ${name} from the runner` : `Add ${name} to the runner`}
-                    onPress={() => toggleStar(name)}
+                    onPress={() => { void toggleStar(name); }}
                   >
                     <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
                   </Pressable>
@@ -1413,7 +1466,7 @@ export default function App() {
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Save</Text>
         <View style={styles.fileActions}>
-          <ActionButton title={isStarred(currentFileName) ? '★ Unstar' : '☆ Star'} onPress={() => toggleStar(currentFileName)} />
+          <ActionButton title={isStarred(currentFileName) ? '★ Unstar' : '☆ Star'} onPress={() => { void toggleStar(currentFileName); }} />
           <ActionButton title="💾 Save to Disk" onPress={() => { void saveProtocol(); }} />
           {!fileReadOnly && <ActionButton title="⧉ Make a Copy" onPress={() => copyUserFile(currentFileName)} />}
           {/\.vnp[04]$/i.test(currentFileName) && <ActionButton title="📥 Save to Controller" onPress={() => { void saveToController(); }} />}
