@@ -2163,7 +2163,7 @@ export default function App() {
 
   function renderEraseDialog(): React.JSX.Element {
     return (
-      <Modal transparent animationType="fade" visible={erasePromptOpen} onRequestClose={() => setErasePromptOpen(false)}>
+      <Modal transparent animationType="fade" visible={erasePromptOpen} onRequestClose={() => { setErasePromptOpen(false); setSettingsOpen(true); }}>
         <View style={styles.dialogRoot}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>Erase all data?</Text>
@@ -2172,7 +2172,7 @@ export default function App() {
               <Pressable accessibilityRole="button" onPress={() => { void eraseAllData(); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>ERASE</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(false)} style={styles.backButton}>
+              <Pressable accessibilityRole="button" onPress={() => { setErasePromptOpen(false); setSettingsOpen(true); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
@@ -2271,7 +2271,7 @@ export default function App() {
               </View>
             </ScrollView>
             <View style={styles.dialogButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(true)} style={styles.backButton}>
+              <Pressable accessibilityRole="button" onPress={() => { setSettingsOpen(false); setErasePromptOpen(true); }} style={styles.backButton}>
                 <Text style={styles.backButtonText}>ERASE ALL DATA</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
