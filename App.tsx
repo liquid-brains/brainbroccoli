@@ -1858,15 +1858,15 @@ export default function App() {
           {protocolModules.map(({ name, number }) => {
             const module = getProtocolModule(source, number);
             const control = module.moduleControl ?? {};
-            const active = module.active !== false;
+            const power = module.power ?? control.power ?? 0;
+            const off = module.active === false || power === 0;
+            const cells = off
+              ? ['-', '-', '-', '-', '-']
+              : [String(power), String(module.freq ?? control.freq ?? 0), module.applyCross ? 'on' : 'off', normalizePhase(control.phase), `${String(module.delayStartTime ?? 0)}/${String(Math.round(moduleRunTime(source, module) * 10) / 10)}`];
             return (
               <View key={number} style={styles.summaryRow}>
                 <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
-                <Text style={styles.summaryCell}>{String(active ? module.power ?? control.power ?? 0 : 0)}</Text>
-                <Text style={styles.summaryCell}>{String(active ? module.freq ?? control.freq ?? 0 : 0)}</Text>
-                <Text style={styles.summaryCell}>{active && module.applyCross ? 'on' : 'off'}</Text>
-                <Text style={styles.summaryCell}>{active ? normalizePhase(control.phase) : 'A'}</Text>
-                <Text style={styles.summaryCell}>{String(module.delayStartTime ?? 0)}/{String(Math.round(moduleRunTime(source, module) * 10) / 10)}</Text>
+                {cells.map((cell, index) => <Text key={index} style={styles.summaryCell}>{cell}</Text>)}
               </View>
             );
           })}
