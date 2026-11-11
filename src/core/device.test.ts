@@ -46,6 +46,16 @@ describe('NeuroPro2 client', () => {
     expect(files.map((file) => file.name)).toEqual(['a.vnp0']);
   });
 
+  it('also downloads the Extended stage files a batch references', async () => {
+    const fetch = vi.fn(async (url: URL) => {
+      const list = url.pathname === '/getlistbatchfile' ? ['Seq.vnp3'] : [];
+      const json = url.pathname === '/batchfiledata' ? { filenames: ['S1.vnp2'] } : url.pathname === '/filedata' ? { single: true } : list;
+      return { ok: true, status: 200, text: async () => JSON.stringify(json), json: async () => json };
+    });
+    const files = await downloadControllerFiles(createNeuroPro2Device('np1.local', { fetch }));
+    expect(files.map((file) => file.name)).toEqual(['Seq.vnp3', 'S1.vnp2']);
+  });
+
   it('skips files that are already downloaded', async () => {
     const fetch = vi.fn(async (url: URL) => {
       const json = url.pathname === '/filedata' ? { single: true } : url.pathname === '/getlistfile' && url.searchParams.get('msg') === 'vnp0' ? ['a.vnp0', 'b.vnp0'] : [];
