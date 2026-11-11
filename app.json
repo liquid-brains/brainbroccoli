@@ -29,7 +29,6 @@
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#b2d1a2"
       },
-      "allowBackup": false,
       "softwareKeyboardLayoutMode": "pan"
     }
   }
