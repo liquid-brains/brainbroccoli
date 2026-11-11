@@ -928,6 +928,7 @@ export default function App() {
             () => {
               setSession((state) => (state ? { ...state, startedAt: state.startedAt ?? Date.now(), message: `${prefix}Protocol running` } : state));
             },
+            runnerDurationMinutes(name),
           );
         }
       });
