@@ -34,7 +34,7 @@ export async function downloadControllerFiles(
   const names = (await device.listFiles(extendedOnly ? ['vnp2'] : includeExtended ? ['vnp0', 'vnp2', 'vnp3'] : ['vnp0', 'vnp3'])).filter((name) => !skip.has(name.toLowerCase()));
   const files: ProtocolFile[] = [];
   for (const [index, name] of names.entries()) {
-    onProgress(`Downloading ${name} (${index + 1} of ${names.length})…`);
+    onProgress(`Downloading ${shown(name)} (${index + 1} of ${names.length})…`);
     files.push({ name, protocol: parseProtocolJSON(JSON.stringify(await device.getFile(name))) });
   }
   // Batches reference Extended stage files; fetch them so the batch can be shown in the editor.
@@ -43,7 +43,7 @@ export async function downloadControllerFiles(
     (stage) => /\.vnp2$/i.test(stage) && !have.has(stage.toLowerCase()),
   );
   for (const [index, stage] of stages.entries()) {
-    onProgress(`Downloading ${stage} used by a batch (${index + 1} of ${stages.length})…`);
+    onProgress(`Downloading ${shown(stage)} used by a batch (${index + 1} of ${stages.length})…`);
     try {
       files.push(await downloadControllerFile(device, stage));
     } catch {
@@ -72,7 +72,7 @@ export async function saveControllerFiles(
     }
   }
   for (const [index, { name, protocol }] of files.entries()) {
-    onProgress(`Saving ${name} to the controller (${index + 1} of ${files.length})…`);
+    onProgress(`Saving ${shown(name)} to the controller (${index + 1} of ${files.length})…`);
     const exists = existing.has(name.toLowerCase());
     const data = { ...(JSON.parse(JSON.stringify(protocol)) as Record<string, unknown>), updateExisting: exists };
     try {
@@ -81,7 +81,7 @@ export async function saveControllerFiles(
       if (!exists) {
         throw reason;
       }
-      onProgress(`Replacing ${name} on the controller…`);
+      onProgress(`Replacing ${shown(name)} on the controller…`);
       await device.deleteFile(name);
       await device.saveFile(name, { ...data, updateExisting: false }, false);
     }
@@ -100,7 +100,7 @@ export async function runControllerProtocol(
   onStart: () => void = () => undefined,
   expectedMinutes?: number,
 ): Promise<void> {
-  onProgress(`Starting ${name}…`);
+  onProgress(`Starting ${shown(name)}…`);
   onStart();
   if (expectedMinutes === undefined || expectedMinutes <= 0) {
     await device.runFile(name, { signal, waitForCompletion: true });
@@ -120,10 +120,14 @@ export async function runControllerProtocol(
     if (!timedOut || signal.aborted) {
       throw error;
     }
-    onProgress(`${name} did not report finishing; stopping it`);
+    onProgress(`${shown(name)} did not report finishing; stopping it`);
     await device.stop().catch(() => undefined);
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', forwardAbort);
   }
+}
+
+function shown(name: string): string {
+  return name.replace(/\.(vnp[0-4]|json)$/i, '');
 }

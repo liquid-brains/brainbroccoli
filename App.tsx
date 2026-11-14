@@ -937,7 +937,7 @@ export default function App() {
         outcome = 'stopped';
       } else {
         outcome = 'failed';
-        setError(`Unable to run ${current || label} on ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+        setError(`Unable to run ${displayName(current || label)} on ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
       }
     } finally {
       runAbort.current = null;
