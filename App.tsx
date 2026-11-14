@@ -1096,7 +1096,7 @@ export default function App() {
             </Pressable>
           )}
           {item.sequence !== undefined && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: item.file, description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: displayName(item.file), description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
               <Text style={styles.actionText}>EDIT</Text>
             </Pressable>
           )}
@@ -2010,7 +2010,9 @@ export default function App() {
       return;
     }
     const { id, name, description, steps } = sequenceDraft;
-    updateRunner((state) => (id === undefined ? addRunnerSequence(state, name, steps, description) : updateRunnerSequence(state, id, name, steps, description)));
+    const original = id === undefined ? undefined : runnerData.runner.items.find((item) => item.id === id)?.file;
+    const savedName = original !== undefined && displayName(original) === name ? original : name;
+    updateRunner((state) => (id === undefined ? addRunnerSequence(state, name, steps, description) : updateRunnerSequence(state, id, savedName, steps, description)));
     setSequenceDraft(null);
   }
 
