@@ -2272,11 +2272,11 @@ export default function App() {
                   style={styles.textInput}
                 />
               </View>
+              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(true)} style={styles.eraseLink}>
+                <Text style={styles.eraseLinkText}>Erase all data…</Text>
+              </Pressable>
             </ScrollView>
             <View style={styles.dialogButtons}>
-              <Pressable accessibilityRole="button" onPress={() => setErasePromptOpen(true)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>ERASE ALL DATA</Text>
-              </Pressable>
               <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
                 <Text style={styles.backButtonText}>BACK</Text>
               </Pressable>
@@ -2805,6 +2805,8 @@ const styleDefs = {
   backButtonText: { color: '#334155', fontSize: 14, fontWeight: '700' },
   addButton: { backgroundColor: '#7bc043', borderRadius: 6, paddingHorizontal: 22, paddingVertical: 12 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  eraseLink: { alignSelf: 'center', marginTop: 18, padding: 8 },
+  eraseLinkText: { color: '#64748b', fontSize: 12, textDecorationLine: 'underline' },
   settingsHint: { color: '#64748b', fontSize: 12, lineHeight: 18, marginBottom: 6 },
   settingsSection: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1, gap: 6, paddingBottom: 14, paddingTop: 10 },
   settingsToggleRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
