@@ -2775,7 +2775,7 @@ const styleDefs = {
   runnerButtonText: { color: '#334155', fontSize: 13, fontWeight: '700' },
   runnerInput: { flex: 1, minWidth: 140 },
   dangerButton: { backgroundColor: '#b91c1c', borderColor: '#b91c1c', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
-  sequenceStep: { backgroundColor: '#dcfce7', borderColor: '#86efac', borderRadius: 10, borderWidth: 1, gap: 8, marginBottom: 10, padding: 12 },
+  sequenceStep: { backgroundColor: '#d6f5c2', borderColor: '#8fd16a', borderRadius: 10, borderWidth: 1, gap: 8, marginBottom: 10, padding: 12 },
   thumbButton: { backgroundColor: '#fff', borderColor: '#cbd5e1', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
   thumbUp: { backgroundColor: '#4ade80', borderColor: '#16a34a' },
   thumbDown: { backgroundColor: '#ff8a80', borderColor: '#dc2626' },
