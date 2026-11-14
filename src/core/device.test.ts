@@ -28,13 +28,13 @@ describe('NeuroPro2 client', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it.each(['', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path', 'np1.local/x', '-bad.local'])(
+  it.each(['', 'http://192.168.0.58', '256.0.0.1', '1.2.3', '01.2.3.4', '1.2.3.4/path', '1.2.3.4:', '1.2.3.4:0', '1.2.3.4:65536', 'localhost:80:80', 'localhost:ab', 'np1.local/x', '-bad.local'])(
     'rejects invalid addresses: %s',
     (ip) => expect(() => createNeuroPro2Device(ip)).toThrow('IPv4 address'),
   );
 
-  it('accepts host names', () => {
-    expect(() => createNeuroPro2Device('np1.local')).not.toThrow();
+  it.each(['np1.local', 'localhost:8080', '127.0.0.1:8080'])('accepts %s', (ip) => {
+    expect(() => createNeuroPro2Device(ip)).not.toThrow();
   });
 
   it('downloads every protocol file from the controller', async () => {
