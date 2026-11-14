@@ -3050,6 +3050,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     runnerRow: { borderColor: teal },
     runnerFolder: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
+    sequenceStep: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
   };
   for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
