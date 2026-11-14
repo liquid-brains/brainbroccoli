@@ -134,6 +134,11 @@ export default function App() {
   const [touchDragging, setTouchDragging] = useState<{ id: string; label: string; x: number; y: number } | undefined>(undefined);
   const panelView = useRef<ViewType | null>(null);
   const panelBounds = useRef({ x: 0, y: 0 });
+  const seqRows = useRef(new Map<number, ViewType>());
+  const seqDrag = useRef<{ from: number; rows: { index: number; top: number; bottom: number }[]; over?: { index: number; after: boolean } | undefined } | undefined>(undefined);
+  const seqWebDrag = useRef<number | undefined>(undefined);
+  const [seqDragging, setSeqDragging] = useState<number | undefined>(undefined);
+  const [seqHint, setSeqHint] = useState<{ index: number; after: boolean } | undefined>(undefined);
   const rowViews = useRef(new Map<string, ViewType>());
   const zoneViews = useRef(new Map<string, ViewType>());
   const touchDrag = useRef<{ id: string; rows: { id: string; top: number; bottom: number }[]; zones: { key: string; top: number; bottom: number }[]; row?: { id: string; after: boolean } | undefined; zone?: string | undefined } | undefined>(undefined);
@@ -2013,6 +2018,50 @@ export default function App() {
     setSequenceDraft((draft) => (draft ? { ...draft, ...change(draft) } : draft));
   }
 
+  function reorderStep(from: number, index: number, after: boolean): void {
+    changeSequence((current) => {
+      const steps = [...current.steps];
+      const [moved] = steps.splice(from, 1);
+      let position = index + (after ? 1 : 0);
+      if (from < position) {
+        position -= 1;
+      }
+      steps.splice(position, 0, moved as SequenceStep);
+      return { steps };
+    });
+  }
+
+  function startSeqDrag(index: number, pageY: number): void {
+    const drag: NonNullable<typeof seqDrag.current> = { from: index, rows: [] };
+    seqDrag.current = drag;
+    setSeqDragging(index);
+    void Promise.all([...seqRows.current.entries()].map(([row, view]) => new Promise<{ index: number; top: number; bottom: number }>((resolve) => {
+      view.measureInWindow((_x, y, _w, h) => resolve({ index: row, top: y, bottom: y + h }));
+    }))).then((rows) => { drag.rows = rows; });
+    moveSeqDrag(pageY);
+  }
+
+  function moveSeqDrag(y: number): void {
+    const drag = seqDrag.current;
+    if (!drag) {
+      return;
+    }
+    const over = drag.rows.find((row) => row.index !== drag.from && y >= row.top && y <= row.bottom);
+    drag.over = over ? { index: over.index, after: y > (over.top + over.bottom) / 2 } : undefined;
+    const hint = drag.over;
+    setSeqHint((current) => (current?.index === hint?.index && current?.after === hint?.after ? current : hint));
+  }
+
+  function endSeqDrag(drop: boolean): void {
+    const drag = seqDrag.current;
+    seqDrag.current = undefined;
+    setSeqDragging(undefined);
+    setSeqHint(undefined);
+    if (drag && drop && drag.over) {
+      reorderStep(drag.from, drag.over.index, drag.over.after);
+    }
+  }
+
   function renderSequenceDialog(): React.JSX.Element {
     const draft = sequenceDraft;
     const available = Object.keys(files).filter((name) => files[name]?.filenames === undefined).sort((left, right) => left.localeCompare(right));
@@ -2020,11 +2069,6 @@ export default function App() {
     const restSeconds = Math.round(Number(draft?.rest));
     const restValid = Number.isFinite(restSeconds) && restSeconds > 0;
     const valid = draft !== null && draft.name.trim() !== '' && sequenceFiles(draft.steps).length > 0;
-    const move = (index: number, other: number) => changeSequence((current) => {
-      const next = [...current.steps];
-      [next[index], next[other]] = [next[other] as SequenceStep, next[index] as SequenceStep];
-      return { steps: next };
-    });
     const stepButton = (label: string, onPress: () => void, options: { disabled?: boolean; danger?: boolean } = {}) => (
       <Pressable accessibilityRole="button" disabled={options.disabled === true} onPress={onPress} style={[options.danger ? styles.dangerButton : styles.actionButton, options.disabled === true && styles.fieldDisabled]}>
         <Text style={styles.actionText}>{label}</Text>
@@ -2033,27 +2077,80 @@ export default function App() {
     return (
       <Modal transparent animationType="fade" visible={draft !== null} onRequestClose={() => setSequenceDraft(null)}>
         <View style={styles.dialogRoot}>
-          <View style={[styles.dialog, { maxWidth: 600 }]}>
-            <ScrollView nestedScrollEnabled>
+          <View
+            style={[styles.dialog, { maxWidth: 600 }]}
+            onMoveShouldSetResponderCapture={() => seqDrag.current !== undefined}
+            onResponderGrant={(event) => moveSeqDrag(event.nativeEvent.pageY)}
+            onResponderMove={(event) => moveSeqDrag(event.nativeEvent.pageY)}
+            onResponderRelease={() => endSeqDrag(true)}
+            onResponderTerminate={() => endSeqDrag(false)}
+            onResponderTerminationRequest={() => false}
+            onTouchEnd={() => endSeqDrag(true)}
+            onTouchCancel={() => endSeqDrag(false)}
+          >
+            <ScrollView nestedScrollEnabled scrollEnabled={seqDragging === undefined}>
               <Text style={styles.dialogTitle}>{draft?.id === undefined ? 'New sequence' : 'Edit sequence'}</Text>
               <Text style={styles.fieldLabel}>Sequence name</Text>
               <TextInput accessibilityLabel="Sequence name" autoFocus placeholder="My sequence" placeholderTextColor="#94a3b8" value={draft?.name ?? ''} onChangeText={(text) => changeSequence(() => ({ name: text }))} style={styles.textInput} />
               <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Description (optional)</Text>
               <TextInput accessibilityLabel="Sequence description" multiline value={draft?.description ?? ''} onChangeText={(text) => changeSequence(() => ({ description: text }))} style={[styles.textInput, { minHeight: 64, textAlignVertical: 'top' }]} />
               <Text style={[styles.runnerMeta, { marginVertical: 12 }]}>
-                Steps run in order, one at a time, and each protocol must finish before the next starts. Sequences are kept in the Protocol Runner only and are never saved to the controller.
+                Steps run in order, one at a time, and each protocol must finish before the next starts. Drag a step to reorder it (press and hold on a touch screen). Sequences are kept in the Protocol Runner only and are never saved to the controller.
               </Text>
               {draft?.steps.length === 0 && <Text style={styles.runnerMeta}>No steps yet. Add a protocol or a rest interval below.</Text>}
-              {draft?.steps.map((step, index) => (
-                <View key={`${describeStep(step)}-${index}`} style={styles.sequenceStep}>
-                  <Text style={styles.runnerTitle}>{index + 1}. {describeStep(step)}</Text>
-                  <View style={styles.runnerButtons}>
-                    {stepButton('MOVE UP', () => move(index, index - 1), { disabled: index === 0 })}
-                    {stepButton('MOVE DOWN', () => move(index, index + 1), { disabled: index === draft.steps.length - 1 })}
-                    {stepButton('REMOVE STEP', () => changeSequence((current) => ({ steps: current.steps.filter((_, position) => position !== index) })), { danger: true })}
-                  </View>
-                </View>
-              ))}
+              {draft?.steps.map((step, index) => {
+                const row = (
+                  <Pressable
+                    ref={(view) => { if (view) { seqRows.current.set(index, view); } else { seqRows.current.delete(index); } }}
+                    accessible={false}
+                    collapsable={false}
+                    delayLongPress={300}
+                    onLongPress={Platform.OS === 'web' ? undefined : (event) => startSeqDrag(index, event.nativeEvent.pageY)}
+                    style={[styles.sequenceStep, seqHint?.index === index && (seqHint.after ? styles.dropAfter : styles.dropBefore), seqDragging === index && styles.runnerRowMoving]}
+                  >
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Remove step ${index + 1}`} onPress={() => changeSequence((current) => ({ steps: current.steps.filter((_, position) => position !== index) }))} style={styles.cardClose}>
+                      <Text style={styles.cardCloseText}>✕</Text>
+                    </Pressable>
+                    <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{index + 1}. {describeStep(step)}</Text>
+                  </Pressable>
+                );
+                if (Platform.OS !== 'web') {
+                  return <Fragment key={`${describeStep(step)}-${index}`}>{row}</Fragment>;
+                }
+                return createElement(
+                  'div',
+                  {
+                    key: `${describeStep(step)}-${index}`,
+                    draggable: true,
+                    style: { cursor: 'grab' },
+                    onDragStart: (event: DragEvent) => {
+                      event.dataTransfer?.setData('text/plain', String(index));
+                      seqWebDrag.current = index;
+                    },
+                    onDragEnd: () => { seqWebDrag.current = undefined; setSeqHint(undefined); },
+                    onDragOver: (event: DragEvent) => {
+                      if (seqWebDrag.current === undefined) {
+                        return;
+                      }
+                      event.preventDefault();
+                      const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                      const after = event.clientY > box.top + box.height / 2;
+                      setSeqHint((current) => (current?.index === index && current.after === after ? current : { index, after }));
+                    },
+                    onDrop: (event: DragEvent) => {
+                      event.preventDefault();
+                      const from = seqWebDrag.current;
+                      const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                      seqWebDrag.current = undefined;
+                      setSeqHint(undefined);
+                      if (from !== undefined && from !== index) {
+                        reorderStep(from, index, event.clientY > box.top + box.height / 2);
+                      }
+                    },
+                  },
+                  row,
+                );
+              })}
               <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Protocol for next step</Text>
               <Select label="Protocol for next step" value={nextProfile} options={available.map((name) => ({ value: name, label: displayName(name) }))} onChange={(name) => changeSequence(() => ({ next: name }))} />
               <View style={{ marginTop: 10 }}>
