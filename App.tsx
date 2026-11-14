@@ -21,6 +21,8 @@ import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -149,7 +151,8 @@ export default function App() {
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
-  const theme = useMemo(() => buildTheme(scheme), [scheme]);
+  const [fontsLoaded] = useFonts({ Righteous_400Regular });
+  const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
   const running = session !== null;
@@ -1161,7 +1164,7 @@ export default function App() {
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
     const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
     const journalBadgeColor = scheme === 'brand'
-      ? { completed: '#2f8f1f', stopped: '#d97706', failed: '#b91c1c', running: '#1d6fc4' }
+      ? { completed: '#5f7f1f', stopped: '#c9561a', failed: '#a8321a', running: '#1d6fc4' }
       : { completed: '#636366', stopped: '#7c7c80', failed: '#3a3a3c', running: '#8e8e93' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
@@ -2874,10 +2877,33 @@ const brandPaneFills: Record<string, string> = {
   thumbButton: '#c8e6a0',
 };
 
-function buildTheme(scheme: Scheme): Theme {
+// 1970s palette for the Broccoli theme: avocado and olive greens, harvest gold and cream.
+const retroColors: Record<string, string> = {
+  '#2f5d1f': '#34501a', '#8dc63f': '#7d9a2a', '#6fa82c': '#566e1b', '#12301a': '#243a12',
+  '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#e0701c', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
+  '#2f9e44': '#7d9a2a', '#2f8f1f': '#5f7f1f', '#d97706': '#c9561a',
+  '#e3f4d0': '#faefcf', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f1e8c4', '#cdeaa9': '#ebe0b4',
+  '#d8efbd': '#f1e8c4', '#c8e6a0': '#ebe0b4', '#e6f4d7': '#f1e8c4', '#f3f7f1': '#f5eed6', '#dde6da': '#d9d0ab',
+  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f3ebcf', '#e2e8f0': '#e6dcb8', '#cbd5e1': '#d3c89f',
+  '#e9f3df': '#eef3c8', '#fefefe': '#fbf7dc', '#fdfdfd': '#fbf7dc',
+  '#1e293b': '#23301a', '#334155': '#34452a', '#475569': '#47593a', '#64748b': '#66784f', '#166534': '#5f7f1f',
+};
+const retroProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor', 'borderLeftColor', 'borderTopColor', 'color']);
+
+function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   if (scheme === 'brand') {
-    const greened = Object.fromEntries(Object.entries(brandPaneFills).map(([name, backgroundColor]) => [name, { ...styleDefs[name as keyof typeof styleDefs], backgroundColor }]));
-    return { styles: StyleSheet.create({ ...styleDefs, ...greened }) as Styles, accent: ACCENT_GREEN, phaseA: ACCENT_GREEN, phaseB: ACCENT_ORANGE, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
+    const retro: Record<string, Record<string, unknown>> = {};
+    for (const [name, style] of Object.entries(styleDefs)) {
+      const base: Record<string, unknown> = { ...style, ...(brandPaneFills[name] ? { backgroundColor: brandPaneFills[name] } : {}) };
+      retro[name] = Object.fromEntries(Object.entries(base).map(([prop, value]) => [prop, retroProps.has(prop) && typeof value === 'string' ? retroColors[value.toLowerCase()] ?? value : value]));
+      if (fontsLoaded && 'fontSize' in base && !('fontFamily' in base)) {
+        delete retro[name]?.fontWeight;
+        retro[name] = { ...retro[name], fontFamily: 'Righteous_400Regular' };
+      }
+    }
+    retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
+    retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
+    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d3c89f', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
