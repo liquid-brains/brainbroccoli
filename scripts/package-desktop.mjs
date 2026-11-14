@@ -2,6 +2,7 @@ import { packager } from '@electron/packager';
 import { chmod, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -37,6 +38,10 @@ try {
       await rename(launcher, path.join(output, 'BrainBroccoli.bin'));
       await cp(path.join(root, 'linux/launch.sh'), launcher);
       await chmod(launcher, 0o755);
+    }
+    if (process.platform === 'darwin') {
+      // Ad-hoc sign so the bundle seals its resources; otherwise Gatekeeper reports it as damaged.
+      execFileSync('codesign', ['--force', '--deep', '--sign', '-', path.join(output, 'BrainBroccoli.app')], { stdio: 'inherit' });
     }
     console.log(`Desktop app: ${output}`);
   }

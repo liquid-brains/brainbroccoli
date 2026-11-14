@@ -103,6 +103,13 @@ CI checks types/tests and builds Android, unsigned iOS, Linux, Windows, and macO
 artifacts on main pushes and pull requests. Native projects and build outputs
 are generated and ignored. Store publishing and signing are not configured.
 
+The macOS app is only ad-hoc signed (not notarized). If macOS says it is
+"damaged" after download, clear the quarantine flag:
+
+```bash
+xattr -cr BrainBroccoli.app
+```
+
 The scaffold uses current Expo/Electron/Vitest releases rather than inheriting
 known-vulnerable tool versions from the reference. Transitive overrides keep
 glob/minimatch patched and deepmerge on an unaffected release.
