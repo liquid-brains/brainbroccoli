@@ -23,7 +23,7 @@ import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
-import { Shrikhand_400Regular } from '@expo-google-fonts/shrikhand';
+import { BowlbyOne_400Regular } from '@expo-google-fonts/bowlby-one';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -152,7 +152,7 @@ export default function App() {
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
-  const [fontsLoaded] = useFonts({ Righteous_400Regular, Shrikhand_400Regular });
+  const [fontsLoaded] = useFonts({ Righteous_400Regular, BowlbyOne_400Regular });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
@@ -1165,7 +1165,7 @@ export default function App() {
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
     const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
     const journalBadgeColor = scheme === 'brand'
-      ? { completed: '#76761c', stopped: '#c9561a', failed: '#a8321a', running: '#1d6fc4' }
+      ? { completed: '#5f7f1f', stopped: '#c9561a', failed: '#a8321a', running: '#1d6fc4' }
       : { completed: '#636366', stopped: '#7c7c80', failed: '#3a3a3c', running: '#8e8e93' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
@@ -2878,16 +2878,16 @@ const brandPaneFills: Record<string, string> = {
   thumbButton: '#c8e6a0',
 };
 
-// 1970s palette for the Broccoli theme: chocolate brown, burnt orange, harvest gold, avocado and cream.
+// 1970s palette for the Broccoli theme: avocado and olive greens, harvest gold and cream.
 const retroColors: Record<string, string> = {
-  '#2f5d1f': '#4a2a14', '#8dc63f': '#c9561a', '#6fa82c': '#8a3a10', '#12301a': '#3b2012',
-  '#7bc043': '#9a9a2a', '#5fa12f': '#76761c', '#f9a01b': '#e08a12', '#4ade80': '#c4c24a', '#16a34a': '#76761c',
-  '#2f9e44': '#c9561a', '#2f8f1f': '#76761c', '#d97706': '#c9561a',
-  '#e3f4d0': '#f7e6bd', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f3dca0', '#cdeaa9': '#efce85',
-  '#d8efbd': '#f1d9a0', '#c8e6a0': '#ecd08a', '#e6f4d7': '#f3dca0', '#f3f7f1': '#f2e8cf', '#dde6da': '#dcc99b',
-  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f4e6c3', '#e2e8f0': '#e8d6a8', '#cbd5e1': '#d6bf8a',
-  '#e9f3df': '#f3d9a4', '#fefefe': '#fff3d6', '#fdfdfd': '#fff3d6',
-  '#1e293b': '#3a2616', '#334155': '#4a3322', '#475569': '#5e4630', '#64748b': '#7d6444', '#166534': '#76761c',
+  '#2f5d1f': '#34501a', '#8dc63f': '#7d9a2a', '#6fa82c': '#566e1b', '#12301a': '#243a12',
+  '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#e08a12', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
+  '#2f9e44': '#7d9a2a', '#2f8f1f': '#5f7f1f', '#d97706': '#c9561a',
+  '#e3f4d0': '#e4edc4', '#eaf7dc': '#eef3d2', '#f0fdf4': '#f1f5d9', '#dcfce7': '#dfe8b0', '#cdeaa9': '#d3e08e',
+  '#d8efbd': '#dde8a8', '#c8e6a0': '#cddc86', '#e6f4d7': '#dfe8b0', '#f3f7f1': '#eef0dc', '#dde6da': '#cfd6ad',
+  '#fff': '#fdfdf0', '#f8fafc': '#f7f8e6', '#f1f5f9': '#eaedcc', '#e2e8f0': '#dde2b8', '#cbd5e1': '#b9c48c',
+  '#e9f3df': '#eef3c8', '#fefefe': '#fbf7dc', '#fdfdfd': '#fbf7dc',
+  '#1e293b': '#23301a', '#334155': '#34452a', '#475569': '#47593a', '#64748b': '#66784f', '#166534': '#5f7f1f',
 };
 const retroProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor', 'borderLeftColor', 'borderTopColor', 'color']);
 
@@ -2901,12 +2901,12 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
       retro[name] = Object.fromEntries(Object.entries(base).map(([prop, value]) => [prop, retroProps.has(prop) && typeof value === 'string' ? retroColors[value.toLowerCase()] ?? value : value]));
       if (fontsLoaded && 'fontSize' in base && !('fontFamily' in base)) {
         delete retro[name]?.fontWeight;
-        retro[name] = { ...retro[name], fontFamily: retroHeadings.has(name) ? 'Shrikhand_400Regular' : 'Righteous_400Regular' };
+        retro[name] = { ...retro[name], fontFamily: retroHeadings.has(name) ? 'BowlbyOne_400Regular' : 'Righteous_400Regular' };
       }
     }
-    retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#e0a82e', borderColor: '#b07a14' };
+    retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
     retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
-    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d6bf8a', inputText: '#3a2616' };
+    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#f7f8e6', inputBorder: '#b9c48c', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};

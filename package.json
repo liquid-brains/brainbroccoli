@@ -3,8 +3,8 @@
   "version": "0.2.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/bowlby-one": "0.4.1",
     "@expo-google-fonts/righteous": "0.4.1",
-    "@expo-google-fonts/shrikhand": "0.4.1",
     "@liquid-brains/brainlight": "1.0.11",
     "expo": "~58.0.22",
     "expo-document-picker": "~58.0.4",
