@@ -1161,7 +1161,7 @@ export default function App() {
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
     const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
     const journalBadgeColor = scheme === 'brand'
-      ? { completed: '#2f8f1f', stopped: '#d97706', failed: '#b91c1c', running: '#1d6fc4' }
+      ? { completed: '#76761c', stopped: '#c9561a', failed: '#a8321a', running: '#1d6fc4' }
       : { completed: '#636366', stopped: '#7c7c80', failed: '#3a3a3c', running: '#8e8e93' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
@@ -2874,10 +2874,29 @@ const brandPaneFills: Record<string, string> = {
   thumbButton: '#c8e6a0',
 };
 
+// 1970s palette for the Broccoli theme: chocolate brown, burnt orange, harvest gold, avocado and cream.
+const retroColors: Record<string, string> = {
+  '#2f5d1f': '#4a2a14', '#8dc63f': '#c9561a', '#6fa82c': '#8a3a10', '#12301a': '#3b2012',
+  '#7bc043': '#9a9a2a', '#5fa12f': '#76761c', '#f9a01b': '#e08a12', '#4ade80': '#c4c24a', '#16a34a': '#76761c',
+  '#2f9e44': '#c9561a', '#2f8f1f': '#76761c', '#d97706': '#c9561a',
+  '#e3f4d0': '#f7e6bd', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f3dca0', '#cdeaa9': '#efce85',
+  '#d8efbd': '#f1d9a0', '#c8e6a0': '#ecd08a', '#e6f4d7': '#f3dca0', '#f3f7f1': '#f2e8cf', '#dde6da': '#dcc99b',
+  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f4e6c3', '#e2e8f0': '#e8d6a8', '#cbd5e1': '#d6bf8a',
+  '#e9f3df': '#f3d9a4', '#fefefe': '#fff3d6', '#fdfdfd': '#fff3d6',
+  '#1e293b': '#3a2616', '#334155': '#4a3322', '#475569': '#5e4630', '#64748b': '#7d6444', '#166534': '#76761c',
+};
+const retroProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor', 'borderLeftColor', 'borderTopColor', 'color']);
+
 function buildTheme(scheme: Scheme): Theme {
   if (scheme === 'brand') {
-    const greened = Object.fromEntries(Object.entries(brandPaneFills).map(([name, backgroundColor]) => [name, { ...styleDefs[name as keyof typeof styleDefs], backgroundColor }]));
-    return { styles: StyleSheet.create({ ...styleDefs, ...greened }) as Styles, accent: ACCENT_GREEN, phaseA: ACCENT_GREEN, phaseB: ACCENT_ORANGE, inputBackground: '#f8fafc', inputBorder: '#cbd5e1', inputText: '#1e293b' };
+    const retro: Record<string, Record<string, unknown>> = {};
+    for (const [name, style] of Object.entries(styleDefs)) {
+      const base: Record<string, unknown> = { ...style, ...(brandPaneFills[name] ? { backgroundColor: brandPaneFills[name] } : {}) };
+      retro[name] = Object.fromEntries(Object.entries(base).map(([prop, value]) => [prop, retroProps.has(prop) && typeof value === 'string' ? retroColors[value.toLowerCase()] ?? value : value]));
+    }
+    retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#e0a82e', borderColor: '#b07a14' };
+    retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
+    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d6bf8a', inputText: '#3a2616' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
