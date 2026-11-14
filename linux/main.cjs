@@ -21,7 +21,7 @@ const deviceWritePaths = new Set([
   '/deletefile', '/deletebatchModule', '/updatelistbatchfile', '/updatelistfile',
   '/filename', '/savenewfile', '/datafileExisting',
   '/batchfilename', '/savenewbatchfile', '/batchdatafileExisting', '/usedBatchFileTrue',
-  '/stop', '/filedatarun', '/run', '/activate',
+  '/stop', '/filedatarun', '/run', '/runFreq', '/runPower', '/activate',
 ]);
 
 ipcMain.handle('device-request', async (_event, urlText) => {
