@@ -2882,9 +2882,9 @@ const retroColors: Record<string, string> = {
   '#2f5d1f': '#34501a', '#8dc63f': '#7d9a2a', '#6fa82c': '#566e1b', '#12301a': '#243a12',
   '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#e0701c', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
   '#2f9e44': '#7d9a2a', '#2f8f1f': '#5f7f1f', '#d97706': '#c9561a',
-  '#e3f4d0': '#f7e6bd', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f3dca0', '#cdeaa9': '#efce85',
-  '#d8efbd': '#f1d9a0', '#c8e6a0': '#ecd08a', '#e6f4d7': '#f3dca0', '#f3f7f1': '#f2e8cf', '#dde6da': '#dcc99b',
-  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f4e6c3', '#e2e8f0': '#e8d6a8', '#cbd5e1': '#d6bf8a',
+  '#e3f4d0': '#faefcf', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f1e8c4', '#cdeaa9': '#ebe0b4',
+  '#d8efbd': '#f1e8c4', '#c8e6a0': '#ebe0b4', '#e6f4d7': '#f1e8c4', '#f3f7f1': '#f5eed6', '#dde6da': '#d9d0ab',
+  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f3ebcf', '#e2e8f0': '#e6dcb8', '#cbd5e1': '#d3c89f',
   '#e9f3df': '#eef3c8', '#fefefe': '#fbf7dc', '#fdfdfd': '#fbf7dc',
   '#1e293b': '#23301a', '#334155': '#34452a', '#475569': '#47593a', '#64748b': '#66784f', '#166534': '#5f7f1f',
 };
@@ -2903,7 +2903,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     }
     retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
     retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
-    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d6bf8a', inputText: '#23301a' };
+    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d3c89f', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
