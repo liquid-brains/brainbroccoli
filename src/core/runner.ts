@@ -15,7 +15,7 @@ export function sequenceFiles(steps: SequenceStep[]): string[] {
 }
 
 export function describeStep(step: SequenceStep): string {
-  return isRestStep(step) ? `Rest for ${step.rest} second(s)` : step.file;
+  return isRestStep(step) ? `Rest for ${step.rest} second(s)` : step.file.replace(/\.(vnp[0-4]|json)$/i, '');
 }
 export type RunnerState = { folders: RunnerFolder[]; items: RunnerItem[] };
 

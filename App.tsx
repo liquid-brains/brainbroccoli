@@ -621,7 +621,7 @@ export default function App() {
       setStatus(`Connecting to ${settings.deviceAddress}…`);
       await saveControllerFiles(connectToController(), uploads, setStatus);
       markSynced(uploads.map((upload) => ({ name: upload.name, protocol: files[upload.name] ?? (upload.name === name ? (isBatch ? protocol : displayedProtocol) : upload.protocol) })));
-      setStatus(`Saved ${uploads.length === 1 ? name : `${name} and ${uploads.length - 1} stage file${uploads.length === 2 ? '' : 's'}`} to the controller.`);
+      setStatus(`Saved ${uploads.length === 1 ? displayName(name) : `${displayName(name)} and ${uploads.length - 1} stage file${uploads.length === 2 ? '' : 's'}`} to the controller.`);
     } catch (reason) {
       setError(`Unable to save to ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
     } finally {
@@ -643,12 +643,12 @@ export default function App() {
     setError('');
     setBusy(true);
     try {
-      setStatus(`Deleting ${name} from ${settings.deviceAddress}…`);
+      setStatus(`Deleting ${displayName(name)} from ${settings.deviceAddress}…`);
       await connectToController().deleteFile(name);
-      setStatus(`Deleted ${name} from the controller.`);
+      setStatus(`Deleted ${displayName(name)} from the controller.`);
       return true;
     } catch (reason) {
-      setError(`Unable to delete ${name} from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+      setError(`Unable to delete ${displayName(name)} from ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
       return false;
     } finally {
       setBusy(false);
@@ -832,10 +832,10 @@ export default function App() {
         if (/\.vnp[123]$/i.test(name)) {
           continue;
         }
-        return `${name} is not in the app.`;
+        return `${displayName(name)} is not in the app.`;
       }
       if (value.filenames !== undefined) {
-        return `${name} is a batch. Batches cannot be run directly; star the batch to create a sequence from it.`;
+        return `${displayName(name)} is a batch. Batches cannot be run directly; star the batch to create a sequence from it.`;
       }
     }
     return undefined;
@@ -937,7 +937,7 @@ export default function App() {
         outcome = 'stopped';
       } else {
         outcome = 'failed';
-        setError(`Unable to run ${current || label} on ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
+        setError(`Unable to run ${displayName(current || label)} on ${settings.deviceAddress}: ${reason instanceof Error ? reason.message : 'unknown error'}`);
       }
     } finally {
       runAbort.current = null;
@@ -961,7 +961,7 @@ export default function App() {
     return (
       <View accessibilityLiveRegion="polite" style={styles.panel}>
         <Text style={styles.panelTitle}>Running</Text>
-        <Text style={styles.runnerTitle}>{session.file}</Text>
+        <Text style={styles.runnerTitle}>{displayName(session.file)}</Text>
         <View style={styles.runnerButtons}>
           <ActivityIndicator color="#f9a01b" />
           <Text style={styles.statusText}>{session.message}</Text>
@@ -1011,7 +1011,7 @@ export default function App() {
     const item = runnerData.runner.items.find((candidate) => candidate.id === id);
     panelView.current?.measureInWindow((x, y) => {
       panelBounds.current = { x, y };
-      setTouchDragging({ id, label: item?.file ?? '', x: pageX - x, y: pageY - y });
+      setTouchDragging({ id, label: displayName(item?.file ?? ''), x: pageX - x, y: pageY - y });
     });
     void measureViews(rowViews.current, [...rowViews.current.keys()]).then((rows) => { drag.rows = rows; });
     void measureViews(zoneViews.current, [...zoneViews.current.keys()]).then((zones) => { drag.zones = zones.map(({ id: key, top, bottom }) => ({ key, top, bottom })); });
@@ -1071,7 +1071,7 @@ export default function App() {
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.file} from the runner`} onPress={() => updateRunner((state) => removeRunnerItem(state, item.id))} style={styles.cardClose}>
           <Text style={styles.cardCloseText}>✕</Text>
         </Pressable>
-        <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{item.file}</Text>
+        <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{displayName(item.file)}</Text>
         <Text style={styles.runnerMeta}>{describeRunnerItem(item)}</Text>
         <View style={styles.runnerButtons}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
@@ -1272,7 +1272,7 @@ export default function App() {
                   <Pressable accessibilityRole="button" accessibilityLabel="Delete journal record" onPress={() => setRunnerData((current) => ({ ...current, journal: current.journal.filter((other) => other.id !== entry.id) }))} style={styles.cardClose}>
                     <Text style={styles.cardCloseText}>✕</Text>
                   </Pressable>
-                  <Text style={styles.runnerTitle}>{entry.file}</Text>
+                  <Text style={styles.runnerTitle}>{displayName(entry.file)}</Text>
                   <View style={[styles.journalBadge, { backgroundColor: journalBadgeColor[entry.status] }]}>
                     <Text style={styles.journalBadgeText}>{entry.status}</Text>
                   </View>
@@ -1353,25 +1353,25 @@ export default function App() {
                     }}
                     style={[styles.fileButton, appMode === 'editor' && currentFileName === name && styles.selectedFile]}
                   >
-                    <Text accessibilityLabel={isUnsynced(name) ? `${name}, not synced to the controller` : name} numberOfLines={1} style={[styles.fileName, isUnsynced(name) && styles.unsyncedName]}>{isUnsynced(name) ? '● ' : ''}{name}</Text>
+                    <Text accessibilityLabel={isUnsynced(name) ? `${displayName(name)}, not synced to the controller` : displayName(name)} numberOfLines={1} style={[styles.fileName, isUnsynced(name) && styles.unsyncedName]}>{isUnsynced(name) ? '● ' : ''}{displayName(name)}</Text>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={isStarred(name) ? `Remove ${name} from the runner` : `Add ${name} to the runner`}
+                    accessibilityLabel={isStarred(name) ? `Remove ${displayName(name)} from the runner` : `Add ${displayName(name)} to the runner`}
                     onPress={() => toggleStar(name)}
                   >
                     <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
                   </Pressable>
                   {appMode === 'runner' ? null : isReadOnlyFile(name) ? (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name} to an editable ${userCopyExtension(name)} file`} onPress={() => copyToEditable(name)}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)} to an editable copy`} onPress={() => copyToEditable(name)}>
                       <Text style={styles.copyText}>⧉</Text>
                     </Pressable>
                   ) : (
                     <>
-                      <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${name}`} onPress={() => copyUserFile(name)}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)}`} onPress={() => copyUserFile(name)}>
                         <Text style={styles.copyText}>⧉</Text>
                       </Pressable>
-                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${name}`} onPress={() => requestDelete(name)}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${displayName(name)}`} onPress={() => requestDelete(name)}>
                         <Text style={styles.deleteText}>✕</Text>
                       </Pressable>
                     </>
@@ -1563,7 +1563,7 @@ export default function App() {
   }
 
   function renderBatchSettings(): React.JSX.Element {
-    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: name }))];
+    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: displayName(name) }))];
     return (
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Batch run settings</Text>
@@ -1619,7 +1619,6 @@ export default function App() {
                 editable={!fileReadOnly}
                 style={[styles.textInput, styles.filenameInput, fileReadOnly && styles.fieldDisabled]}
               />
-              <Text style={styles.unit}>{splitFileName(currentFileName).extension}</Text>
             </View>
           </SettingRow>
         )}
@@ -1858,7 +1857,7 @@ export default function App() {
   }
 
   function renderBatchDialog(): React.JSX.Element {
-    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: name }))];
+    const stageOptions = [{ value: '', label: 'Null' }, ...availableStageFiles.map((name) => ({ value: name, label: displayName(name) }))];
     return (
       <Modal transparent animationType="fade" visible={batchDialogOpen} onRequestClose={() => setBatchDialogOpen(false)}>
         <View style={styles.dialogRoot}>
@@ -1924,7 +1923,7 @@ export default function App() {
         <View style={styles.dialogRoot}>
           <View style={[styles.dialog, { maxWidth: 720 }]}>
             <ScrollView>
-              <Text style={styles.dialogTitle}>{entry?.file ?? ''}</Text>
+              <Text style={styles.dialogTitle}>{displayName(entry?.file ?? '')}</Text>
               <Text style={styles.runnerMeta}>{entry ? (journalView?.preview ? 'Current protocol in the runner' : `Run started ${new Date(entry.startedAt).toLocaleString()}`) : ''}</Text>
               {journalView?.kind === 'json' ? (
                 <ScrollView style={styles.jsonBox} nestedScrollEnabled>
@@ -1936,7 +1935,7 @@ export default function App() {
                     <View style={styles.runnerButtons}>
                       {stageNames.map((stage, index) => (
                         <Pressable key={`${stage}-${index}`} accessibilityRole="button" onPress={() => setJournalStage(index)} style={[styles.thumbButton, index === journalStage && styles.thumbUp]}>
-                          <Text style={styles.runnerButtonText}>{index + 1}. {stage}</Text>
+                          <Text style={styles.runnerButtonText}>{index + 1}. {displayName(stage)}</Text>
                         </Pressable>
                       ))}
                     </View>
@@ -2053,7 +2052,7 @@ export default function App() {
                 </View>
               ))}
               <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Protocol for next step</Text>
-              <Select label="Protocol for next step" value={nextProfile} options={available.map((name) => ({ value: name, label: name }))} onChange={(name) => changeSequence(() => ({ next: name }))} />
+              <Select label="Protocol for next step" value={nextProfile} options={available.map((name) => ({ value: name, label: displayName(name) }))} onChange={(name) => changeSequence(() => ({ next: name }))} />
               <View style={{ marginTop: 10 }}>
                 {stepButton('ADD STEP', () => changeSequence((current) => ({ steps: [...current.steps, { file: nextProfile }] })), { disabled: nextProfile === '' })}
               </View>
@@ -2192,7 +2191,7 @@ export default function App() {
       <Modal transparent animationType="fade" visible={deletePrompt !== null} onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.dialogRoot}>
           <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>Delete {name}?</Text>
+            <Text style={styles.dialogTitle}>Delete {displayName(name)}?</Text>
             <Text style={styles.settingsHint}>{unsynced ? 'This file has not been synced to the controller. Delete it from this app? This cannot be undone.' : `Delete it only from this app, or from both the app and the controller at ${settings.deviceAddress}? Deleting from the controller cannot be undone.`}</Text>
             <View style={styles.deleteButtons}>
               <Pressable accessibilityRole="button" onPress={() => { void deleteFile(name, false); }} style={styles.backButton}>
@@ -2315,7 +2314,7 @@ export default function App() {
                     <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
                 )}
-                <Text numberOfLines={1} style={styles.currentFile}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `Editing: ${currentFileName}` : 'No File Loaded'}</Text>
+                <Text numberOfLines={1} style={styles.currentFile}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `Editing: ${displayName(currentFileName)}` : 'No File Loaded'}</Text>
                 <View accessibilityRole="tablist" style={styles.modeToggle}>
                   {(['editor', 'runner'] as const).map((value) => (
                     <Pressable
@@ -2349,12 +2348,12 @@ export default function App() {
               <View style={styles.readOnlyBanner}>
                 <Text style={styles.readOnlyText}>
                   {isReadOnlyFile(currentFileName)
-                    ? `${currentFileName} is a read-only system file.`
-                    : `A stage file in this batch (${stageFileName}) is a read-only system file.`}
+                    ? `${displayName(currentFileName)} is a read-only system file.`
+                    : `A stage file in this batch (${displayName(stageFileName ?? '')}) is a read-only system file.`}
                 </Text>
                 {isReadOnlyFile(currentFileName) && (
                   <Pressable accessibilityRole="button" onPress={() => copyToEditable(currentFileName)} style={styles.readOnlyButton}>
-                    <Text style={styles.actionText}>Copy to editable {userCopyExtension(currentFileName)} file</Text>
+                    <Text style={styles.actionText}>Copy to editable file</Text>
                   </Pressable>
                 )}
               </View>
@@ -3107,4 +3106,8 @@ async function persistRunner(data: RunnerData): Promise<void> {
   } catch {
     // The runner list and journal are conveniences; failing to save should not interrupt running.
   }
+}
+
+function displayName(name: string): string {
+  return name.replace(/\.(vnp[0-4]|json)$/i, '');
 }
