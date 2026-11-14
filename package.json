@@ -1,6 +1,6 @@
 {
   "name": "brainbroccoli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/righteous": "0.4.1",
