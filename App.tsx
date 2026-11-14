@@ -23,7 +23,6 @@ import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
-import { BowlbyOne_400Regular } from '@expo-google-fonts/bowlby-one';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -152,7 +151,7 @@ export default function App() {
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
-  const [fontsLoaded] = useFonts({ Righteous_400Regular, BowlbyOne_400Regular });
+  const [fontsLoaded] = useFonts({ Righteous_400Regular });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
@@ -2891,8 +2890,6 @@ const retroColors: Record<string, string> = {
 };
 const retroProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor', 'borderLeftColor', 'borderTopColor', 'color']);
 
-const retroHeadings = new Set(['panelTitle', 'dialogTitle', 'menuHeaderText', 'groupTitle', 'currentFile', 'uploadTitle']);
-
 function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   if (scheme === 'brand') {
     const retro: Record<string, Record<string, unknown>> = {};
@@ -2901,7 +2898,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
       retro[name] = Object.fromEntries(Object.entries(base).map(([prop, value]) => [prop, retroProps.has(prop) && typeof value === 'string' ? retroColors[value.toLowerCase()] ?? value : value]));
       if (fontsLoaded && 'fontSize' in base && !('fontFamily' in base)) {
         delete retro[name]?.fontWeight;
-        retro[name] = { ...retro[name], fontFamily: retroHeadings.has(name) ? 'BowlbyOne_400Regular' : 'Righteous_400Regular' };
+        retro[name] = { ...retro[name], fontFamily: 'Righteous_400Regular' };
       }
     }
     retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
