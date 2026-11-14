@@ -2880,7 +2880,7 @@ const brandPaneFills: Record<string, string> = {
 // 1970s palette for the Broccoli theme: avocado and olive greens, harvest gold and cream.
 const retroColors: Record<string, string> = {
   '#2f5d1f': '#34501a', '#8dc63f': '#7d9a2a', '#6fa82c': '#566e1b', '#12301a': '#243a12',
-  '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#d9741a', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
+  '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#e0701c', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
   '#2f9e44': '#7d9a2a', '#2f8f1f': '#5f7f1f', '#d97706': '#c9561a',
   '#e3f4d0': '#e4edc4', '#eaf7dc': '#eef3d2', '#f0fdf4': '#f1f5d9', '#dcfce7': '#dfe8b0', '#cdeaa9': '#d3e08e',
   '#d8efbd': '#dde8a8', '#c8e6a0': '#cddc86', '#e6f4d7': '#dfe8b0', '#f3f7f1': '#eef0dc', '#dde6da': '#cfd6ad',
@@ -2903,7 +2903,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     }
     retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
     retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
-    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#d9741a', inputBackground: '#f7f8e6', inputBorder: '#b9c48c', inputText: '#23301a' };
+    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#f7f8e6', inputBorder: '#b9c48c', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
   const mapped: Record<string, Record<string, unknown>> = {};
