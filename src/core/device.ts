@@ -5,7 +5,11 @@ import type { ProtocolFile } from './protocol-archive';
 
 type DeviceOptions = Omit<ConstructorParameters<typeof VielightDevice>[0], 'ip'>;
 
-function isValidAddress(address: string): boolean {
+function isValidAddress(value: string): boolean {
+  const [address = '', port, ...extra] = value.split(':');
+  if (extra.length || (port !== undefined && !(/^\d{1,5}$/.test(port) && Number(port) >= 1 && Number(port) <= 65535))) {
+    return false;
+  }
   const labels = address.split('.');
   if (/^[\d.]+$/.test(address)) {
     return labels.length === 4 && labels.every((octet) => /^(0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255);
@@ -16,7 +20,7 @@ function isValidAddress(address: string): boolean {
 export function createNeuroPro2Device(ip: string, options: DeviceOptions = {}): VielightDevice {
   const address = ip.trim();
   if (!isValidAddress(address)) {
-    throw new Error('Enter a valid NeuroPro2 IPv4 address or host name.');
+    throw new Error('Enter a valid NeuroPro2 IPv4 address or host name, optionally followed by :port.');
   }
 
   return new VielightDevice({ ip: address, requestTimeout: 10_000, ...options });

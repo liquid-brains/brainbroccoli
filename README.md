@@ -55,7 +55,8 @@ const device = createNeuroPro2Device('192.168.0.58');
 const files = await device.listFiles('vnp2');
 ```
 
-Use the controller's IPv4 address or host name (Settings → IP address). The
+Use the controller's IPv4 address or host name, optionally with a `:port` such as
+`localhost:8080` (Settings → IP address). The
 factory validates it and defaults to a 10-second request timeout; brainlight
 options (including an injected `fetch`) can be supplied for testing or other
 transports. Android permits HTTP for the device; iOS declares local network
@@ -102,6 +103,13 @@ and content.
 CI checks types/tests and builds Android, unsigned iOS, Linux, Windows, and macOS
 artifacts on main pushes and pull requests. Native projects and build outputs
 are generated and ignored. Store publishing and signing are not configured.
+
+The macOS app is only ad-hoc signed (not notarized). If macOS says it is
+"damaged" after download, clear the quarantine flag:
+
+```bash
+xattr -cr BrainBroccoli.app
+```
 
 The scaffold uses current Expo/Electron/Vitest releases rather than inheriting
 known-vulnerable tool versions from the reference. Transitive overrides keep
