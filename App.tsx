@@ -2014,7 +2014,7 @@ export default function App() {
             const off = module.active === false || (power === 0 && ranges.power === undefined);
             const cells = off
               ? ['-', '-', '-', '-', '-']
-              : [ranges.power ?? String(power), ranges.frequency ?? String(module.freq ?? control.freq ?? 0), module.applyCross ? 'on' : 'off', normalizePhase(control.phase), `${String(module.delayStartTime ?? 0)}/${String(Math.round(moduleRunTime(source, module) * 10) / 10)}`];
+              : [ranges.power ?? String(power), ranges.frequency ?? String(module.freq ?? control.freq ?? 0), module.applyCross === true && source.cross?.active !== false ? `${String(source.cross?.freq ?? 0)}` : 'off', normalizePhase(control.phase), `${String(module.delayStartTime ?? 0)}/${String(Math.round(moduleRunTime(source, module) * 10) / 10)}`];
             return (
               <View key={number} style={styles.summaryRow}>
                 <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
