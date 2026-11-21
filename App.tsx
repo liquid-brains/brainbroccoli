@@ -3381,6 +3381,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#d4d6da' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
