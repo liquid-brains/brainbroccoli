@@ -22,7 +22,7 @@ try {
   }));
   const outputs = await packager({
     dir: stagingDirectory,
-    out: path.join(root, 'dist-desktop'),
+    out: path.join(root, process.env.DESKTOP_OUT ?? 'dist-desktop'),
     name: 'BrainBroccoli',
     appBundleId: 'org.brainbroccoli.app',
     electronVersion: electronManifest.version,
