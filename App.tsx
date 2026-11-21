@@ -3274,7 +3274,7 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
-      '#e2e8f0': '#2d2e32', '#f3f7f1': '#1b1c1e', '#dde6da': '#252629', '#fef2f2': '#3a1c1c', '#8dc63f': '#1b1c1e', '#6fa82c': '#2e2a1d',
+      '#e2e8f0': '#2d2e32', '#f3f7f1': '#1b1c1e', '#dde6da': '#252629', '#fef2f2': '#3a1c1c', '#fee2e2': '#3a2222', '#8dc63f': '#1b1c1e', '#6fa82c': '#2e2a1d',
     },
     text: {
       '#334155': '#f1f1f1', '#475569': '#d4d6da', '#1e293b': '#f1f1f1', '#64748b': '#94a3b8', '#94a3b8': '#7d8794',
@@ -3380,6 +3380,10 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
+  if (pioneer) {
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
+    mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
+  }
   if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
   if (pioneer && fontsLoaded) {
     for (const [name, style] of Object.entries(mapped)) {
