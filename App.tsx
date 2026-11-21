@@ -23,7 +23,6 @@ import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
-import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -181,13 +180,13 @@ export default function App() {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const systemScheme = useColorScheme();
   const scheme: Scheme = themeScheme(settings.theme, systemScheme);
-  const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, OpenSans_700Bold });
+  const [fontsLoaded] = useFonts({ OpenSans_600SemiBold, OpenSans_700Bold });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
-    const colors = scheme === 'pioneer' ? ['#5a5c62', '#1b1c1e'] : scheme === 'dark' ? ['#48484a', '#1c1c1e'] : null;
+    const colors = scheme === 'pioneer' ? ['#5a5c62', '#1b1c1e'] : scheme === 'brand' ? ['#4a5c47', '#101411'] : scheme === 'dark' ? ['#48484a', '#1c1c1e'] : null;
     if (!colors) return undefined;
     const style = document.createElement('style');
     style.textContent = `* { scrollbar-color: ${colors[0]} ${colors[1]}; }`;
@@ -1294,7 +1293,7 @@ export default function App() {
     const shownJournal = journalExpanded ? sortJournal(journal, journalSort) : journal.slice(0, 3);
     const journalCardStyle = { completed: styles.journalCompleted, stopped: styles.journalStopped, failed: styles.journalFailed, running: styles.journalRunning };
     const journalBadgeColor = scheme === 'brand'
-      ? { completed: '#5f7f1f', stopped: '#c9561a', failed: '#a8321a', running: '#1d6fc4' }
+      ? { completed: '#5c7a52', stopped: '#9a8350', failed: '#7a3a32', running: '#4f7a8a' }
       : { completed: '#636366', stopped: '#7c7c80', failed: '#3a3a3c', running: '#8e8e93' };
     const unratedCount = journal.filter(isUnrated).length;
     const sortOption = (kind: 'date' | 'rating', label: string) => {
@@ -1993,7 +1992,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
-              const onDark = tileInactive ? scheme === 'pioneer' : isDarkColor(tint);
+              const onDark = tileInactive ? scheme === 'pioneer' || scheme === 'brand' : isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -2745,7 +2744,7 @@ export default function App() {
                       onPress={() => setAppMode(value)}
                       style={[styles.modeToggleButton, appMode === value && styles.modeToggleButtonActive]}
                     >
-                      <Text style={appMode === value || scheme === 'brand' ? styles.actionText : styles.runnerButtonText}>{value === 'editor' ? (wideSidebar ? 'Protocol Editor' : 'Editor') : (wideSidebar ? 'Protocol Runner' : 'Runner')}</Text>
+                      <Text style={appMode === value ? styles.actionText : styles.runnerButtonText}>{value === 'editor' ? (wideSidebar ? 'Protocol Editor' : 'Editor') : (wideSidebar ? 'Protocol Runner' : 'Runner')}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -2847,7 +2846,7 @@ export default function App() {
           {renderJournalEntryDialog()}
           {renderJournalViewDialog()}
         </View>
-        <StatusBar style={scheme === 'brand' ? 'dark' : scheme === 'pioneer' ? 'light' : 'auto'} />
+        <StatusBar style={scheme === 'brand' || scheme === 'pioneer' ? 'light' : 'auto'} />
       </SafeAreaView>
     </SafeAreaProvider>
     </ReadOnlyContext.Provider>
@@ -3270,7 +3269,7 @@ const fixedStyles = new Set<string>([
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
-const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
+const systemPalettes: Record<'light' | 'dark' | 'pioneer' | 'brand', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
     accent: '#2f7f86',
     phaseA: '#2f7f86',
@@ -3299,6 +3298,21 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
       [ACCENT_GREEN]: '#5cc0c8', [ACCENT_ORANGE]: '#f0b45c', '#166534': '#5cc0c8', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
     },
   },
+  // Broccoli: deep green-tinted charcoal with leaf-green primaries and a marigold complement.
+  brand: {
+    accent: '#8fbf6a',
+    phaseA: '#7aa84f',
+    phaseB: '#d08a3e',
+    fill: {
+      '#2f5d1f': '#0f1410', '#fff': '#1a211b', '#cbd5e1': '#34403a', '#f1f5f9': '#212a22', '#f8fafc': '#212a22',
+      '#f0fdf4': '#252f27', [ACCENT_GREEN]: '#4d6648', [ACCENT_ORANGE]: '#3a4638', '#dcfce7': '#26331f',
+      '#e2e8f0': '#252e26', '#f3f7f1': '#161c17', '#dde6da': '#212a22', '#fef2f2': '#3a1c1c', '#fee2e2': '#3a2222', '#8dc63f': '#161c17', '#6fa82c': '#26331f',
+    },
+    text: {
+      '#334155': '#eef2ec', '#475569': '#cfd8cb', '#1e293b': '#eef2ec', '#64748b': '#9aa898', '#94a3b8': '#7f8d7d',
+      [ACCENT_GREEN]: '#8fbf6a', [ACCENT_ORANGE]: '#d9a24a', '#166534': '#8fbf6a', '#b91c1c': '#ff6b6b', '#fefefe': '#eef2ec', '#fdfdfd': '#eef2ec', '#e9f3df': '#9aa898',
+    },
+  },
   // NeuroPioneer: charcoal greys, white type, muted gold labels and slate buttons.
   pioneer: {
     accent: '#c49a52',
@@ -3316,51 +3330,10 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   },
 };
 
-// Editor and runner panes that are white in the system themes get a light green fill in the Broccoli theme.
-const brandPaneFills: Record<string, string> = {
-  panel: '#e3f4d0',
-  statusBar: '#e3f4d0',
-  readOnlyBanner: '#e3f4d0',
-  legend: '#eaf7dc',
-  summaryBox: '#eaf7dc',
-  fileGroup: '#eaf7dc',
-  modeButton: '#eaf7dc',
-  activeMode: '#cdeaa9',
-  durationBar: '#d8efbd',
-  runnerRow: '#e3f4d0',
-  thumbButton: '#c8e6a0',
-};
-
-// 1970s palette for the Broccoli theme: avocado and olive greens, harvest gold and cream.
-const retroColors: Record<string, string> = {
-  '#2f5d1f': '#34501a', '#8dc63f': '#7d9a2a', '#6fa82c': '#566e1b', '#12301a': '#243a12',
-  '#7bc043': '#8aa33a', '#5fa12f': '#6a8226', '#f9a01b': '#e0701c', '#4ade80': '#b8cc55', '#16a34a': '#5f7f1f',
-  '#2f9e44': '#7d9a2a', '#2f8f1f': '#5f7f1f', '#d97706': '#c9561a',
-  '#e3f4d0': '#faefcf', '#eaf7dc': '#faefcf', '#f0fdf4': '#fbf1d6', '#dcfce7': '#f1e8c4', '#cdeaa9': '#ebe0b4',
-  '#d8efbd': '#f1e8c4', '#c8e6a0': '#ebe0b4', '#e6f4d7': '#f1e8c4', '#f3f7f1': '#f5eed6', '#dde6da': '#d9d0ab',
-  '#fff': '#fffaf0', '#f8fafc': '#fff6e0', '#f1f5f9': '#f3ebcf', '#e2e8f0': '#e6dcb8', '#cbd5e1': '#d3c89f',
-  '#e9f3df': '#eef3c8', '#fefefe': '#fbf7dc', '#fdfdfd': '#fbf7dc',
-  '#1e293b': '#23301a', '#334155': '#34452a', '#475569': '#47593a', '#64748b': '#66784f', '#166534': '#5f7f1f',
-};
-const retroProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor', 'borderLeftColor', 'borderTopColor', 'color']);
-
 function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
-  if (scheme === 'brand') {
-    const retro: Record<string, Record<string, unknown>> = {};
-    for (const [name, style] of Object.entries(styleDefs)) {
-      const base: Record<string, unknown> = { ...style, ...(brandPaneFills[name] ? { backgroundColor: brandPaneFills[name] } : {}) };
-      retro[name] = Object.fromEntries(Object.entries(base).map(([prop, value]) => [prop, retroProps.has(prop) && typeof value === 'string' ? retroColors[value.toLowerCase()] ?? value : value]));
-      if (fontsLoaded && 'fontSize' in base && !('fontFamily' in base)) {
-        delete retro[name]?.fontWeight;
-        retro[name] = { ...retro[name], fontFamily: 'Righteous_400Regular' };
-      }
-    }
-    retro.runnerFolder = { ...retro.runnerFolder, backgroundColor: '#b9cf6a', borderColor: '#7f9a2a' };
-    retro.thumbDown = { ...retro.thumbDown, backgroundColor: '#e8806a', borderColor: '#a83a22' };
-    return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d3c89f', inputText: '#23301a' };
-  }
   const palette = systemPalettes[scheme];
-  const pioneer = scheme === 'pioneer';
+  const brand = scheme === 'brand';
+  const pioneer = scheme === 'pioneer' || brand;
   const mapped: Record<string, Record<string, unknown>> = {};
   for (const [name, style] of Object.entries(styleDefs)) {
     mapped[name] = fixedStyles.has(name)
@@ -3379,11 +3352,11 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
   const dark = scheme !== 'light';
-  const teal = pioneer ? '#c49a52' : dark ? '#3a9aa3' : '#2f7f86';
-  const tealText = pioneer ? '#d4ab62' : dark ? '#5cc0c8' : '#1f6f76';
-  const amber = pioneer ? '#b8863a' : dark ? '#d9953a' : '#d98b2b';
-  const cardFill = pioneer ? '#252629' : dark ? '#262628' : '#efeff2';
-  const cardEdge = pioneer ? '#3a3b3f' : dark ? '#48484a' : '#c7c7cc';
+  const teal = brand ? '#7fae62' : pioneer ? '#c49a52' : dark ? '#3a9aa3' : '#2f7f86';
+  const tealText = brand ? '#a3cc7e' : pioneer ? '#d4ab62' : dark ? '#5cc0c8' : '#1f6f76';
+  const amber = brand ? '#d9a24a' : pioneer ? '#b8863a' : dark ? '#d9953a' : '#d98b2b';
+  const cardFill = brand ? '#232b24' : pioneer ? '#252629' : dark ? '#262628' : '#efeff2';
+  const cardEdge = brand ? '#34403a' : pioneer ? '#3a3b3f' : dark ? '#48484a' : '#c7c7cc';
   const cards = { journalCompleted: teal, journalStopped: amber, journalFailed: dark ? '#d9645a' : '#c0524a', journalRunning: dark ? '#6a9fd0' : '#5b8fb0' };
   for (const [name, ribbon] of Object.entries(cards)) {
     mapped[name] = { ...mapped[name], backgroundColor: cardFill, borderColor: cardEdge, borderLeftColor: ribbon };
@@ -3406,37 +3379,39 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     runnerFolderTitle: { color: tealText },
     runnerFolderName: { color: tealText },
     runnerRow: { borderColor: teal },
-    runnerFolder: { backgroundColor: pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    runnerFolder: { backgroundColor: brand ? '#26331f' : pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
-    sequenceStep: { backgroundColor: pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    sequenceStep: { backgroundColor: brand ? '#26331f' : pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
   };
   for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
-    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#b9a3dc' };
-    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
-    mapped.fileFolder = { ...mapped.fileFolder, borderColor: '#d3aa62' };
-    mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: '#3b3d42' };
-    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#353639' };
-    mapped.summaryModule = { ...mapped.summaryModule, color: '#b8a2db' };
-    mapped.summaryHeading = { ...mapped.summaryHeading, color: '#b8a2db' };
+    const gold = brand ? '#d9a24a' : '#d3aa62';
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: brand ? '#d6c196' : '#b9a3dc' };
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: brand ? '#2a312b' : '#2e2f33' };
+    mapped.fileFolder = { ...mapped.fileFolder, borderColor: gold };
+    mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: brand ? '#161b17' : '#3b3d42' };
+    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: brand ? '#2b352c' : '#353639' };
+    mapped.summaryModule = { ...mapped.summaryModule, color: brand ? '#d6c196' : '#b8a2db' };
+    mapped.summaryHeading = { ...mapped.summaryHeading, color: brand ? '#d6c196' : '#b8a2db' };
+    if (brand) mapped.thumbButton = { ...mapped.thumbButton, backgroundColor: '#3f5340', borderColor: '#5d7a58' };
     mapped.cardButton = { ...mapped.cardButton, backgroundColor: mapped.thumbButton?.backgroundColor, borderColor: mapped.thumbButton?.borderColor };
     mapped.cardButtonText = { ...mapped.cardButtonText, color: mapped.runnerButtonText?.color };
-    mapped.summaryCell = { ...mapped.summaryCell, color: '#c2c4c9' };
-    mapped.currentFile = { ...mapped.currentFile, color: '#7b7b7f' };
-    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 13 };
-    mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 13 };
-    mapped.fileFolderCount = { ...mapped.fileFolderCount, color: '#c39953' };
+    mapped.summaryCell = { ...mapped.summaryCell, color: brand ? '#c4cbc2' : '#c2c4c9' };
+    mapped.currentFile = { ...mapped.currentFile, color: brand ? '#8a9788' : '#7b7b7f' };
+    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: gold, fontSize: 13 };
+    mapped.fileFolderName = { ...mapped.fileFolderName, color: gold, fontSize: 13 };
+    mapped.fileFolderCount = { ...mapped.fileFolderCount, color: brand ? '#c08f3e' : '#c39953' };
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
-      mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
+      mapped[name] = { ...mapped[name], backgroundColor: brand ? '#000' : '#323336' };
     }
-    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#5c7a52', borderColor: '#a9c79c' };
-    mapped.actionButtonBright = { ...mapped.actionButton, backgroundColor: '#7b7b7f', borderColor: '#7b7b7f' };
-    mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: brand ? '#4f7a45' : '#5c7a52', borderColor: brand ? '#a9d08a' : '#a9c79c' };
+    mapped.actionButtonBright = { ...mapped.actionButton, backgroundColor: brand ? '#6b7a69' : '#7b7b7f', borderColor: brand ? '#6b7a69' : '#7b7b7f' };
+    mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: brand ? '#3b2420' : '#3a2222', borderColor: brand ? '#c0654f' : '#a8554a' };
   }
-  if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
+  if (pioneer) mapped.actionText = { ...mapped.actionText, color: brand ? '#e3eadf' : '#dfe3ea' };
   if (pioneer && fontsLoaded) {
     for (const [name, style] of Object.entries(mapped)) {
       if ('fontSize' in style && !('fontFamily' in style)) {
@@ -3467,7 +3442,7 @@ const switchThumb = { thumbColor: '#ffffff', activeThumbColor: '#ffffff' } as Re
 type ThemeChoice = 'broccoli' | 'neuropioneer' | 'light' | 'dark' | 'system';
 const themeOptions: { value: ThemeChoice; label: string; hint: string }[] = [
   { value: 'neuropioneer', label: 'NeuroPioneer', hint: 'Charcoal panels with white type and muted gold accents.' },
-  { value: 'broccoli', label: 'Broccoli', hint: 'The retro Brain Broccoli greens and cream.' },
+  { value: 'broccoli', label: 'Broccoli', hint: 'Deep green-tinted charcoal with leaf-green and marigold accents.' },
   { value: 'light', label: 'Light', hint: 'Light grey panels with teal accents.' },
   { value: 'dark', label: 'Dark', hint: 'Dark grey panels with teal accents.' },
   { value: 'system', label: 'System', hint: 'Switch between Light and Dark with the system appearance.' },
