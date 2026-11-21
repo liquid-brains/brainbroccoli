@@ -3264,8 +3264,8 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   // NeuroPioneer: charcoal greys, white type, muted gold labels and slate buttons.
   pioneer: {
     accent: '#c49a52',
-    phaseA: '#c49a52',
-    phaseB: '#b0743a',
+    phaseA: '#d9a514',
+    phaseB: '#b5472a',
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
@@ -3376,6 +3376,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#d4d6da' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
