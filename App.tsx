@@ -132,6 +132,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [menuCollapsed, setMenuCollapsed] = useState(true);
   const [menuPopupOpen, setMenuPopupOpen] = useState(false);
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -1720,7 +1721,19 @@ export default function App() {
         </View>
       )}
       <View style={styles.sidebarActions}>
-        {!wideSidebar && renderActions()}
+        {!wideSidebar && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: !menuCollapsed }}
+              onPress={() => setMenuCollapsed((collapsed) => !collapsed)}
+              style={styles.menuHeader}
+            >
+              <Text style={styles.menuHeaderText}>{menuCollapsed ? '▶' : '▼'} Menu</Text>
+            </Pressable>
+            {!menuCollapsed && renderActions()}
+          </>
+        )}
       </View>
       {appMode === 'editor' && wrapFileDrop(
         <Pressable accessibilityRole="button" onPress={() => { void importFiles(); }} disabled={busy} style={styles.uploadButton}>
