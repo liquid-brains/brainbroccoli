@@ -22,8 +22,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { Merriweather_700Bold } from '@expo-google-fonts/merriweather';
-import { OpenSans_600SemiBold } from '@expo-google-fonts/open-sans';
+import { OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -179,7 +178,7 @@ export default function App() {
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
   const scheme: Scheme = themeScheme(settings.theme, systemScheme);
-  const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, Merriweather_700Bold });
+  const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, OpenSans_700Bold });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
@@ -3386,7 +3385,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     for (const [name, style] of Object.entries(mapped)) {
       if ('fontSize' in style && !('fontFamily' in style)) {
         const heading = typeof style.fontSize === 'number' && style.fontSize >= 17 && !fixedStyles.has(name);
-        mapped[name] = { ...style, fontWeight: undefined, fontFamily: heading ? 'Merriweather_700Bold' : 'OpenSans_600SemiBold' };
+        mapped[name] = { ...style, fontWeight: undefined, fontFamily: heading ? 'OpenSans_700Bold' : 'OpenSans_600SemiBold' };
       }
     }
   }

@@ -3,7 +3,6 @@
   "version": "0.3.0",
   "main": "index.ts",
   "dependencies": {
-    "@expo-google-fonts/merriweather": "^0.4.2",
     "@expo-google-fonts/open-sans": "^0.4.2",
     "@expo-google-fonts/righteous": "0.4.1",
     "@liquid-brains/brainlight": "1.0.11",
