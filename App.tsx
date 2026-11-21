@@ -1633,6 +1633,7 @@ export default function App() {
           <>
             <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
             <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
+            <ActionButton menu title="📂 Load Protocol Files" onPress={run(() => { void importFiles(); })} />
             <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { if (Object.keys(files).length === 0) { void downloadFromController(false); } else { setDownloadPromptOpen(true); } })} />
             <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
           </>
@@ -1692,24 +1693,6 @@ export default function App() {
     );
   }
 
-  const canDrop = Platform.OS === 'web' && wideSidebar;
-
-  function wrapFileDrop(child: React.JSX.Element): React.JSX.Element {
-    if (Platform.OS !== 'web') {
-      return child;
-    }
-    return createElement('div', {
-      onDragOver: (event: DragEvent) => { event.preventDefault(); },
-      onDrop: (event: DragEvent) => {
-        event.preventDefault();
-        const dropped = Array.from(event.dataTransfer?.files ?? []);
-        if (dropped.length > 0 && !busy) {
-          void importFiles(dropped);
-        }
-      },
-    }, child);
-  }
-
   const sidebar = (
     <View style={styles.sidebar}>
       {wideSidebar && (
@@ -1735,12 +1718,6 @@ export default function App() {
           </>
         )}
       </View>
-      {appMode === 'editor' && wrapFileDrop(
-        <Pressable accessibilityRole="button" onPress={() => { void importFiles(); }} disabled={busy} style={styles.uploadButton}>
-          <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
-          <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
-        </Pressable>,
-      )}
       <ScrollView style={[styles.fileScroll, appMode === 'runner' && { paddingTop: 14 }]}>{renderFileList()}</ScrollView>
     </View>
   );
@@ -3045,9 +3022,6 @@ const styleDefs = {
   mobileLogo: { height: 199, marginBottom: 8, width: 199 },
   logo: { width: 128, height: 128 },
   brandCaption: { color: '#e9f3df', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
-  uploadButton: { alignItems: 'center', backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
-  uploadTitle: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  uploadHint: { color: '#64748b', fontSize: 12, marginTop: 5, textAlign: 'center' },
   fileScroll: { flex: 1 },
   fileList: { gap: 8, paddingHorizontal: 12, paddingBottom: 16 },
   fileGroup: { backgroundColor: '#f0fdf4', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
@@ -3310,7 +3284,6 @@ const brandPaneFills: Record<string, string> = {
   legend: '#eaf7dc',
   summaryBox: '#eaf7dc',
   fileGroup: '#eaf7dc',
-  uploadButton: '#eaf7dc',
   modeButton: '#eaf7dc',
   activeMode: '#cdeaa9',
   durationBar: '#d8efbd',
