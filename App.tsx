@@ -1995,7 +1995,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
-              const onDark = !tileInactive && isDarkColor(tint);
+              const onDark = tileInactive ? scheme === 'pioneer' : isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -3381,7 +3381,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
     mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
-    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#8f9197' };
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#0d0e0f' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
