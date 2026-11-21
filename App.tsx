@@ -3389,13 +3389,13 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
     const gold = brand ? '#d9a24a' : '#d3aa62';
-    mapped.unsyncedName = { ...mapped.unsyncedName, color: brand ? '#c8d95a' : '#b9a3dc' };
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: brand ? '#d6c196' : '#b9a3dc' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: brand ? '#2a312b' : '#2e2f33' };
     mapped.fileFolder = { ...mapped.fileFolder, borderColor: gold };
     mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: brand ? '#161b17' : '#3b3d42' };
     mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: brand ? '#2b352c' : '#353639' };
-    mapped.summaryModule = { ...mapped.summaryModule, color: brand ? '#c8d95a' : '#b8a2db' };
-    mapped.summaryHeading = { ...mapped.summaryHeading, color: brand ? '#c8d95a' : '#b8a2db' };
+    mapped.summaryModule = { ...mapped.summaryModule, color: brand ? '#d6c196' : '#b8a2db' };
+    mapped.summaryHeading = { ...mapped.summaryHeading, color: brand ? '#d6c196' : '#b8a2db' };
     if (brand) mapped.thumbButton = { ...mapped.thumbButton, backgroundColor: '#3f5340', borderColor: '#5d7a58' };
     mapped.cardButton = { ...mapped.cardButton, backgroundColor: mapped.thumbButton?.backgroundColor, borderColor: mapped.thumbButton?.borderColor };
     mapped.cardButtonText = { ...mapped.cardButtonText, color: mapped.runnerButtonText?.color };
