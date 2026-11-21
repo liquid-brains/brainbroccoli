@@ -132,7 +132,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [menuCollapsed, setMenuCollapsed] = useState(false);
+  const [menuPopupOpen, setMenuPopupOpen] = useState(false);
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1623,6 +1623,7 @@ export default function App() {
       if (!wideSidebar) {
         setSidebarOpen(false);
       }
+      setMenuPopupOpen(false);
       action();
     };
     return (
@@ -1710,19 +1711,16 @@ export default function App() {
 
   const sidebar = (
     <View style={styles.sidebar}>
-      {wideSidebar && renderBrand()}
-      <View style={styles.sidebarActions}>
-        {wideSidebar && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: !menuCollapsed }}
-            onPress={() => setMenuCollapsed((collapsed) => !collapsed)}
-            style={styles.menuHeader}
-          >
-            <Text style={styles.menuHeaderText}>{menuCollapsed ? '▶' : '▼'} Menu</Text>
+      {wideSidebar && (
+        <View style={styles.sidebarTop}>
+          <Pressable accessibilityLabel="Menu" accessibilityRole="button" accessibilityState={{ expanded: menuPopupOpen }} onPress={() => setMenuPopupOpen((open) => !open)} style={styles.hamburger}>
+            <Text style={styles.actionText}>☰</Text>
           </Pressable>
-        )}
-        {(!wideSidebar || !menuCollapsed) && renderActions()}
+          <View style={{ flex: 1 }}>{renderBrand()}</View>
+        </View>
+      )}
+      <View style={styles.sidebarActions}>
+        {!wideSidebar && renderActions()}
       </View>
       {appMode === 'editor' && wrapFileDrop(
         <Pressable accessibilityRole="button" onPress={() => { void importFiles(); }} disabled={busy} style={styles.uploadButton}>
@@ -2729,6 +2727,12 @@ export default function App() {
                 </View>
               </View>
             </View>
+            {wideSidebar && (
+              <Modal transparent animationType="none" visible={menuPopupOpen} onRequestClose={() => setMenuPopupOpen(false)}>
+                <Pressable accessibilityLabel="Close menu" onPress={() => setMenuPopupOpen(false)} style={StyleSheet.absoluteFill} />
+                <View style={styles.menuPopup}>{renderActions()}</View>
+              </Modal>
+            )}
             {busy && (
               <View accessibilityLiveRegion="polite" style={styles.statusBar}>
                 <ActivityIndicator color="#f9a01b" />
@@ -3016,6 +3020,9 @@ const styleDefs = {
   appShell: { flex: 1, flexDirection: 'row', backgroundColor: '#2f5d1f' },
   sidebar: { width: 300, backgroundColor: '#2f5d1f', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
   sidebarActions: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1 },
+  menuPopup: { borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, left: 12, minWidth: 280, overflow: 'hidden', position: 'absolute', top: 56 },
+  sidebarTop: { alignItems: 'flex-start', flexDirection: 'row', paddingLeft: 12, paddingTop: 12 },
+  hamburger: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   menuItems: { backgroundColor: '#2f5d1f' },
   menuItem: { backgroundColor: '#8dc63f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
   menuHeader: { backgroundColor: '#2f5d1f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 10 },
