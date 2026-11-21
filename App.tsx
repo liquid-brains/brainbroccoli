@@ -410,8 +410,31 @@ export default function App() {
     const converted = toUserProtocolFile(name, JSON.parse(JSON.stringify(source)) as Protocol);
     const copyName = createUniqueImportedFileName(converted.name, Object.keys(files));
     const copy = copyName === converted.name ? converted.protocol : { ...converted.protocol, filename: splitFileName(copyName).base };
-    setFiles((current) => ({ ...current, [copyName]: copy }));
-    setExpandedGroups((current) => ({ ...current, [splitFileName(copyName).extension]: true }));
+    const additions: Record<string, Protocol> = {};
+    if (Array.isArray(copy.filenames)) {
+      const taken = Object.keys(files);
+      const keys = Object.keys(files);
+      copy.filenames = copy.filenames.map((ref) => {
+        if (typeof ref !== 'string' || !userCopyExtension(ref)) {
+          return ref;
+        }
+        const lower = ref.toLowerCase();
+        const stageKey = keys.find((key) => key.toLowerCase() === lower) ?? keys.find((key) => key.toLowerCase().endsWith(`/${lower}`));
+        const stage = stageKey === undefined ? undefined : files[stageKey];
+        if (stageKey === undefined || !stage) {
+          return ref.replace(/\.[^./]+$/, '.vnp0');
+        }
+        const stageConverted = toUserProtocolFile(stageKey, JSON.parse(JSON.stringify(stage)) as Protocol);
+        const stageName = createUniqueImportedFileName(stageConverted.name, taken);
+        taken.push(stageName);
+        additions[stageName] = stageConverted.protocol.filename === undefined
+          ? stageConverted.protocol
+          : { ...stageConverted.protocol, filename: splitFileName(stageName).base };
+        return splitFileName(stageName).base + splitFileName(stageName).extension;
+      });
+    }
+    setFiles((current) => ({ ...current, ...additions, [copyName]: copy }));
+    setExpandedGroups((current) => ({ ...current, '.vnp0': true, [splitFileName(copyName).extension]: true }));
     loadProtocol(copyName, copy, true);
   }
 
