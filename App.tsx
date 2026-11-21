@@ -2863,14 +2863,14 @@ function modulePower(protocol: Protocol, module: ProtocolModule): number {
   return Number(module.power ?? 0) || 0;
 }
 
-const MIN_TILE_SATURATION = 0.2;
+const MIN_TILE_SATURATION = 0.4;
 
 // Power delivered = power x run time, scaled against 140% for the longest run time.
 function deliveredSaturation(protocol: Protocol, module: ProtocolModule, referenceMinutes: number): number {
   if (referenceMinutes <= 0) return 0;
   const delivered = modulePower(protocol, module) * moduleRunTime(protocol, module);
   const share = Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
-  // Lift every level by 20% so short protocols keep a visible phase color.
+  // Lift every level by 40% so short protocols keep a visible phase color.
   return share > 0 ? MIN_TILE_SATURATION + (1 - MIN_TILE_SATURATION) * share : 0;
 }
 
