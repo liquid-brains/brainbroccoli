@@ -1330,8 +1330,8 @@ export default function App() {
             >
               <Text style={styles.panelTitle}>Protocols</Text>
               <View style={styles.runnerButtons}>
-                <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
-                <ActionButton title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
+                <ActionButton bright title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
+                <ActionButton bright title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
               </View>
               {runner.items.length === 0 && (
                 <Text style={styles.runnerEmpty}>No protocols yet. Press ☆ next to a file in the file list to add it here, or create a sequence to run several protocols in order.</Text>
@@ -2855,10 +2855,10 @@ export default function App() {
   );
 }
 
-function ActionButton(props: { title: string; onPress: () => void; menu?: boolean }): React.JSX.Element {
+function ActionButton(props: { title: string; onPress: () => void; menu?: boolean; bright?: boolean }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
   return (
-    <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : styles.actionButton}>
+    <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : props.bright ? styles.actionButtonBright : styles.actionButton}>
       <Text style={props.menu ? styles.menuItemText : styles.actionText}>{props.title}</Text>
     </Pressable>
   );
@@ -3125,6 +3125,7 @@ const styleDefs = {
   currentFile: { color: '#fdfdfd', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
+  actionButtonBright: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   workspace: { padding: 14 },
@@ -3423,8 +3424,8 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
       mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
     }
-    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#86a07c', borderColor: '#86a07c' };
-    mapped.actionButton = { ...mapped.actionButton, backgroundColor: '#7b7b7f', borderColor: '#7b7b7f' };
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#5c7a52', borderColor: '#a9c79c' };
+    mapped.actionButtonBright = { ...mapped.actionButton, backgroundColor: '#7b7b7f', borderColor: '#7b7b7f' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
   if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
