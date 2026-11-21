@@ -3264,8 +3264,8 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   // NeuroPioneer: charcoal greys, white type, muted gold labels and slate buttons.
   pioneer: {
     accent: '#c49a52',
-    phaseA: '#d9a514',
-    phaseB: '#b5472a',
+    phaseA: '#c39953',
+    phaseB: '#9a86ab',
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
