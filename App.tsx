@@ -2698,7 +2698,7 @@ export default function App() {
             </ScrollView>
             <View style={styles.dialogButtons}>
               <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>BACK</Text>
+                <Text style={styles.backButtonText}>DONE</Text>
               </Pressable>
             </View>
           </View>
