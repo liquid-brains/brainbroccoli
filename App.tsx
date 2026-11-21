@@ -31,6 +31,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   calculateSweepDuration,
+  describeSweepRanges,
   calculateTotalDuration,
   createUniqueImportedFileName,
   createUniqueProtocolFileName,
@@ -2009,10 +2010,11 @@ export default function App() {
             const module = getProtocolModule(source, number);
             const control = module.moduleControl ?? {};
             const power = module.power ?? control.power ?? 0;
-            const off = module.active === false || power === 0;
+            const ranges = describeSweepRanges(source);
+            const off = module.active === false || (power === 0 && ranges.power === undefined);
             const cells = off
               ? ['-', '-', '-', '-', '-']
-              : [String(power), String(module.freq ?? control.freq ?? 0), module.applyCross ? 'on' : 'off', normalizePhase(control.phase), `${String(module.delayStartTime ?? 0)}/${String(Math.round(moduleRunTime(source, module) * 10) / 10)}`];
+              : [ranges.power ?? String(power), ranges.frequency ?? String(module.freq ?? control.freq ?? 0), module.applyCross === true && source.cross?.active !== false ? `${String(source.cross?.freq ?? 0)}` : 'off', normalizePhase(control.phase), `${String(module.delayStartTime ?? 0)}/${String(Math.round(moduleRunTime(source, module) * 10) / 10)}`];
             return (
               <View key={number} style={styles.summaryRow}>
                 <Text style={[styles.summaryCell, styles.summaryModule]}>{name}</Text>
@@ -2846,12 +2848,9 @@ function isDarkColor(color: string): boolean {
 }
 
 function describeModule(protocol: Protocol, module: ProtocolModule): string {
-  const frequency = protocol.frequency ?? {};
-  const power = protocol.power ?? {};
-  const sweepFrequency = frequency.active !== false && Number(frequency.startFreq) > 0 && Number(frequency.endFreq) > 0;
-  const sweepPower = power.active !== false && Number(power.startPower) > 0 && Number(power.endPower) > 0;
-  const freq = sweepFrequency ? `${String(frequency.startFreq)}-${String(frequency.endFreq)}` : String(module.freq ?? 0);
-  const level = sweepPower ? `${String(power.startPower)}-${String(power.endPower)}` : String(module.power ?? 0);
+  const ranges = describeSweepRanges(protocol);
+  const freq = ranges.frequency ?? String(module.freq ?? 0);
+  const level = ranges.power ?? String(module.power ?? 0);
   return `${freq}hz · ${level}%\n${String(Math.round(moduleRunTime(protocol, module) * 10) / 10)}m`;
 }
 
