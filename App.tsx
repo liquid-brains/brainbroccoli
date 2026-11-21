@@ -3423,7 +3423,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
       mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
     }
-    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#41543d', borderColor: '#9bb58f' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
   if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
