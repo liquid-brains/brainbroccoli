@@ -3414,6 +3414,11 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   if (pioneer) {
     mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
+    mapped.fileFolder = { ...mapped.fileFolder, borderColor: '#d3aa62' };
+    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#322e23' };
+    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 14 };
+    mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 15 };
+    mapped.fileFolderCount = { ...mapped.fileFolderCount, color: '#c39953' };
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
       mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
     }
