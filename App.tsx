@@ -3065,7 +3065,7 @@ const styleDefs = {
   groupAction: { color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 10 },
   fileFolder: { borderColor: '#cbd5e1', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
   fileFolderHeader: { alignItems: 'center', backgroundColor: '#f1f5f9', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  fileFolderTitle: { color: '#334155', fontSize: 12, fontWeight: '800' },
+  fileFolderTitle: { color: '#334155', fontSize: 13, fontWeight: '800' },
   fileFolderName: { color: '#334155', flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', letterSpacing: 0.4, paddingVertical: 2, textTransform: 'uppercase' },
   fileFolderCount: { color: '#64748b', fontSize: 11 },
   fileRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 8 },
@@ -3103,7 +3103,7 @@ const styleDefs = {
   runnerPanel: { backgroundColor: '#12301a', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
   runnerFolderHeader: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   runnerFolderTitle: { color: '#1e293b', fontSize: 16, fontWeight: '800' },
-  runnerFolderName: { color: '#1e293b', flex: 1, minWidth: 0, fontSize: 17, fontWeight: '700', letterSpacing: 0.4, paddingVertical: 2, textTransform: 'uppercase' },
+  runnerFolderName: { color: '#1e293b', flex: 1, minWidth: 0, fontSize: 16, fontWeight: '700', letterSpacing: 0.4, paddingVertical: 2, textTransform: 'uppercase' },
   runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700', paddingRight: 28 },
   cardClose: { alignItems: 'center', height: 24, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 24, zIndex: 1 },
@@ -3419,8 +3419,8 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: '#3b3d42' };
     mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#353639' };
     mapped.currentFile = { ...mapped.currentFile, color: '#7b7b7f' };
-    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 14 };
-    mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 15 };
+    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 13 };
+    mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 13 };
     mapped.fileFolderCount = { ...mapped.fileFolderCount, color: '#c39953' };
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
       mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
