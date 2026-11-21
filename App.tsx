@@ -3381,7 +3381,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
     mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
-    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#0d0e0f' };
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
