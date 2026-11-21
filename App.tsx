@@ -176,6 +176,7 @@ export default function App() {
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const systemScheme = useColorScheme();
   const scheme: Scheme = themeScheme(settings.theme, systemScheme);
   const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, OpenSans_700Bold });
@@ -2614,20 +2615,19 @@ export default function App() {
             <ScrollView ref={settingsScroll}>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Appearance</Text>
-                {themeOptions.map((option) => {
-                  const selected = settings.theme === option.value;
-                  return (
-                    <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => updateSettings({ theme: option.value })} style={styles.settingsToggleRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.moduleName}>{option.label}</Text>
-                        <Text style={styles.settingsHint}>{option.hint}</Text>
-                      </View>
-                      <View style={{ alignItems: 'center', borderColor: theme.accent, borderRadius: 11, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 }}>
-                        {selected && <View style={{ backgroundColor: theme.accent, borderRadius: 6, height: 12, width: 12 }} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                <Text style={styles.moduleName}>Theme</Text>
+                <Pressable accessibilityRole="combobox" accessibilityLabel="Theme" accessibilityState={{ expanded: themeMenuOpen }} onPress={() => setThemeMenuOpen((open) => !open)} style={styles.selectButton}>
+                  <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.moduleName}>{themeOptions.find((option) => option.value === settings.theme)?.label}</Text>
+                    <Text style={styles.moduleName}>{themeMenuOpen ? '▴' : '▾'}</Text>
+                  </View>
+                </Pressable>
+                {themeMenuOpen && themeOptions.map((option) => (
+                  <Pressable key={option.value} accessibilityRole="menuitem" accessibilityState={{ selected: settings.theme === option.value }} onPress={() => { updateSettings({ theme: option.value }); setThemeMenuOpen(false); }} style={[styles.selectButton, settings.theme === option.value && styles.activeMode]}>
+                    <Text style={styles.moduleName}>{option.label}</Text>
+                    <Text style={styles.settingsHint}>{option.hint}</Text>
+                  </Pressable>
+                ))}
                 <View style={styles.settingsToggleRow}>
                   <Text style={styles.moduleName}>Show JSON code</Text>
                   <Switch
@@ -2863,14 +2863,14 @@ function modulePower(protocol: Protocol, module: ProtocolModule): number {
   return Number(module.power ?? 0) || 0;
 }
 
-const MIN_TILE_SATURATION = 0.4;
+const MIN_TILE_SATURATION = 0.6;
 
 // Power delivered = power x run time, scaled against 140% for the longest run time.
 function deliveredSaturation(protocol: Protocol, module: ProtocolModule, referenceMinutes: number): number {
   if (referenceMinutes <= 0) return 0;
   const delivered = modulePower(protocol, module) * moduleRunTime(protocol, module);
   const share = Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
-  // Lift every level by 40% so short protocols keep a visible phase color.
+  // Lift every level by 60% so short protocols keep a visible phase color.
   return share > 0 ? MIN_TILE_SATURATION + (1 - MIN_TILE_SATURATION) * share : 0;
 }
 
@@ -3268,8 +3268,8 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   // NeuroPioneer: charcoal greys, white type, muted gold labels and slate buttons.
   pioneer: {
     accent: '#c49a52',
-    phaseA: '#c39953',
-    phaseB: '#9a86ab',
+    phaseA: '#b88a3a',
+    phaseB: '#8d77a3',
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
@@ -3381,7 +3381,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
     mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
-    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#d4d6da' };
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#8f9197' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
