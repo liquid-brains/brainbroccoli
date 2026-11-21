@@ -3396,6 +3396,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: brand ? '#2b352c' : '#353639' };
     mapped.summaryModule = { ...mapped.summaryModule, color: brand ? '#c8d95a' : '#b8a2db' };
     mapped.summaryHeading = { ...mapped.summaryHeading, color: brand ? '#c8d95a' : '#b8a2db' };
+    if (brand) mapped.thumbButton = { ...mapped.thumbButton, backgroundColor: '#3f5340', borderColor: '#5d7a58' };
     mapped.cardButton = { ...mapped.cardButton, backgroundColor: mapped.thumbButton?.backgroundColor, borderColor: mapped.thumbButton?.borderColor };
     mapped.cardButtonText = { ...mapped.cardButtonText, color: mapped.runnerButtonText?.color };
     mapped.summaryCell = { ...mapped.summaryCell, color: brand ? '#c4cbc2' : '#c2c4c9' };
@@ -3404,7 +3405,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     mapped.fileFolderName = { ...mapped.fileFolderName, color: gold, fontSize: 13 };
     mapped.fileFolderCount = { ...mapped.fileFolderCount, color: brand ? '#c08f3e' : '#c39953' };
     for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
-      mapped[name] = { ...mapped[name], backgroundColor: brand ? '#2a332c' : '#323336' };
+      mapped[name] = { ...mapped[name], backgroundColor: brand ? '#161b17' : '#323336' };
     }
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: brand ? '#4f7a45' : '#5c7a52', borderColor: brand ? '#a9d08a' : '#a9c79c' };
     mapped.actionButtonBright = { ...mapped.actionButton, backgroundColor: brand ? '#6b7a69' : '#7b7b7f', borderColor: brand ? '#6b7a69' : '#7b7b7f' };
