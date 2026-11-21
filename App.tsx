@@ -178,7 +178,7 @@ export default function App() {
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
-  const scheme: Scheme = settings.neuroPioneer ? 'pioneer' : settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
+  const scheme: Scheme = themeScheme(settings.theme, systemScheme);
   const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, Merriweather_700Bold });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
@@ -2615,26 +2615,20 @@ export default function App() {
             <ScrollView ref={settingsScroll}>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Appearance</Text>
-                <View style={styles.settingsToggleRow}>
-                  <Text style={styles.moduleName}>Use system colors</Text>
-                  <Switch
-                    accessibilityLabel="Use system colors"
-                    value={settings.useSystemColors}
-                    onValueChange={(value) => updateSettings({ useSystemColors: value, ...(value ? { neuroPioneer: false } : {}) })}
-                    trackColor={{ true: theme.accent }}
-                  />
-                </View>
-                <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
-                <View style={styles.settingsToggleRow}>
-                  <Text style={styles.moduleName}>NeuroPioneer theme</Text>
-                  <Switch
-                    accessibilityLabel="NeuroPioneer theme"
-                    value={settings.neuroPioneer}
-                    onValueChange={(value) => updateSettings({ neuroPioneer: value, ...(value ? { useSystemColors: false } : {}) })}
-                    trackColor={{ true: theme.accent }}
-                  />
-                </View>
-                <Text style={styles.settingsHint}>Dark charcoal panels with white type and mountain-gold accents.</Text>
+                {themeOptions.map((option) => {
+                  const selected = settings.theme === option.value;
+                  return (
+                    <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => updateSettings({ theme: option.value })} style={styles.settingsToggleRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.moduleName}>{option.label}</Text>
+                        <Text style={styles.settingsHint}>{option.hint}</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', borderColor: theme.accent, borderRadius: 11, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 }}>
+                        {selected && <View style={{ backgroundColor: theme.accent, borderRadius: 6, height: 12, width: 12 }} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
                 <View style={styles.settingsToggleRow}>
                   <Text style={styles.moduleName}>Show JSON code</Text>
                   <Switch
@@ -2642,6 +2636,7 @@ export default function App() {
                     value={settings.showJson}
                     onValueChange={(value) => updateSettings({ showJson: value })}
                     trackColor={{ true: theme.accent }}
+                    {...switchThumb}
                   />
                 </View>
                 <Text style={styles.settingsHint}>Show the View Raw JSON Code section below the editor.</Text>
@@ -2654,6 +2649,7 @@ export default function App() {
                         value={settings.showExtended}
                         onValueChange={(value) => updateSettings({ showExtended: value })}
                         trackColor={{ true: theme.accent }}
+                    {...switchThumb}
                       />
                     </View>
                     <Text style={styles.settingsHint}>Show the Extended Gracefire Protocols and include them when downloading files from the controller.</Text>
@@ -3270,7 +3266,7 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   pioneer: {
     accent: '#c49a52',
     phaseA: '#c49a52',
-    phaseB: '#8a8d94',
+    phaseB: '#b0743a',
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
@@ -3411,10 +3407,30 @@ const ReadOnlyContext = createContext(false);
 type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
 
 type AppMode = 'editor' | 'runner';
-type Settings = { useSystemColors: boolean; neuroPioneer: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
-const defaultSettings: Settings = { useSystemColors: false, neuroPioneer: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
+// react-native-web uses activeThumbColor for the on state; the native typings omit it.
+const switchThumb = { thumbColor: '#ffffff', activeThumbColor: '#ffffff' } as Record<string, string>;
+type ThemeChoice = 'broccoli' | 'neuropioneer' | 'light' | 'dark' | 'system';
+const themeOptions: { value: ThemeChoice; label: string; hint: string }[] = [
+  { value: 'neuropioneer', label: 'NeuroPioneer', hint: 'Charcoal panels with white type and muted gold accents.' },
+  { value: 'broccoli', label: 'Broccoli', hint: 'The retro Brain Broccoli greens and cream.' },
+  { value: 'light', label: 'Light', hint: 'Light grey panels with teal accents.' },
+  { value: 'dark', label: 'Dark', hint: 'Dark grey panels with teal accents.' },
+  { value: 'system', label: 'System', hint: 'Switch between Light and Dark with the system appearance.' },
+];
+const themeSchemes: Record<Exclude<ThemeChoice, 'system'>, Scheme> = { neuropioneer: 'pioneer', broccoli: 'brand', light: 'light', dark: 'dark' };
+function themeScheme(choice: ThemeChoice, systemScheme: string | null | undefined): Scheme {
+  return choice === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themeSchemes[choice];
+}
+type Settings = { theme: ThemeChoice; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
+const defaultSettings: Settings = { theme: 'neuropioneer', showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
+
+function savedTheme(saved: Record<string, unknown>): ThemeChoice {
+  if (typeof saved.theme === 'string' && themeOptions.some((option) => option.value === saved.theme)) return saved.theme as ThemeChoice;
+  if (saved.neuroPioneer === true) return 'neuropioneer';
+  return saved.useSystemColors === true ? 'system' : defaultSettings.theme;
+}
 
 async function loadSettings(): Promise<Settings> {
   try {
@@ -3426,8 +3442,7 @@ async function loadSettings(): Promise<Settings> {
     }
     const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
     return {
-      useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
-      neuroPioneer: saved.neuroPioneer === true,
+      theme: savedTheme(saved as Record<string, unknown>),
       showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
       appMode: saved.appMode === 'runner' ? 'runner' : 'editor',
