@@ -3412,7 +3412,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
-    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#8d77a3' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
     mapped.fileFolder = { ...mapped.fileFolder, borderColor: '#d3aa62' };
     mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#322e23' };
