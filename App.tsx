@@ -3412,10 +3412,10 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
-    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#8d77a3' };
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#b9a3dc' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
     mapped.fileFolder = { ...mapped.fileFolder, borderColor: '#d3aa62' };
-    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#322e23' };
+    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#353639' };
     mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 14 };
     mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 15 };
     mapped.fileFolderCount = { ...mapped.fileFolderCount, color: '#c39953' };
