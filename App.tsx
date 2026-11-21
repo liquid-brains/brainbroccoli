@@ -1203,26 +1203,26 @@ export default function App() {
         <Text style={styles.runnerMeta}>{describeRunnerItem(item)}</Text>
         <View style={styles.runnerButtons}>
           {runnerData.runner.folders.length > 0 && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(item.file)} to a folder`} onPress={() => setMoveRunnerPrompt(item.id)} style={styles.actionButton}>
-              <Text style={styles.actionText}>📁</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(item.file)} to a folder`} onPress={() => setMoveRunnerPrompt(item.id)} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>📁</Text>
             </Pressable>
           )}
-          <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
-            <Text style={styles.actionText}>▶ RUN</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.cardButton, !canRun && styles.fieldDisabled]}>
+            <Text style={styles.cardButtonText}>▶ RUN</Text>
           </Pressable>
           {viewable && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`View protocol ${item.file}`} onPress={() => { setJournalStage(0); setJournalView({ id: 'preview', kind: 'diagram', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } }); }} style={styles.actionButton}>
-              <Text style={styles.actionText}>VIEW PROTOCOL</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View protocol ${item.file}`} onPress={() => { setJournalStage(0); setJournalView({ id: 'preview', kind: 'diagram', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } }); }} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>VIEW PROTOCOL</Text>
             </Pressable>
           )}
           {viewable && settings.showJson && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`View the JSON code of ${item.file}`} onPress={() => setJournalView({ id: 'preview', kind: 'json', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } })} style={styles.actionButton}>
-              <Text style={styles.actionText}>VIEW JSON</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View the JSON code of ${item.file}`} onPress={() => setJournalView({ id: 'preview', kind: 'json', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } })} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>VIEW JSON</Text>
             </Pressable>
           )}
           {item.sequence !== undefined && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: displayName(item.file), description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
-              <Text style={styles.actionText}>EDIT</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: displayName(item.file), description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.cardButton, !!session && styles.fieldDisabled]}>
+              <Text style={styles.cardButtonText}>EDIT</Text>
             </Pressable>
           )}
         </View>
@@ -1328,10 +1328,10 @@ export default function App() {
               onTouchEnd={() => endTouchDrag(true)}
               onTouchCancel={() => endTouchDrag(false)}
             >
-              <Text style={styles.panelTitle}>Protocols</Text>
+              <Text style={styles.panelTitle}>Run Protocols</Text>
               <View style={styles.runnerButtons}>
-                <ActionButton title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
-                <ActionButton title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
+                <ActionButton bright title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
+                <ActionButton bright title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
               </View>
               {runner.items.length === 0 && (
                 <Text style={styles.runnerEmpty}>No protocols yet. Press ☆ next to a file in the file list to add it here, or create a sequence to run several protocols in order.</Text>
@@ -2698,7 +2698,7 @@ export default function App() {
             </ScrollView>
             <View style={styles.dialogButtons}>
               <Pressable accessibilityRole="button" onPress={() => setSettingsOpen(false)} style={styles.backButton}>
-                <Text style={styles.backButtonText}>BACK</Text>
+                <Text style={styles.backButtonText}>DONE</Text>
               </Pressable>
             </View>
           </View>
@@ -2855,10 +2855,10 @@ export default function App() {
   );
 }
 
-function ActionButton(props: { title: string; onPress: () => void; menu?: boolean }): React.JSX.Element {
+function ActionButton(props: { title: string; onPress: () => void; menu?: boolean; bright?: boolean }): React.JSX.Element {
   const { styles } = useContext(ThemeContext);
   return (
-    <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : styles.actionButton}>
+    <Pressable accessibilityRole={props.menu ? 'menuitem' : 'button'} onPress={props.onPress} style={props.menu ? styles.menuItem : props.bright ? styles.actionButtonBright : styles.actionButton}>
       <Text style={props.menu ? styles.menuItemText : styles.actionText}>{props.title}</Text>
     </Pressable>
   );
@@ -3065,8 +3065,8 @@ const styleDefs = {
   groupAction: { color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 10 },
   fileFolder: { borderColor: '#cbd5e1', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
   fileFolderHeader: { alignItems: 'center', backgroundColor: '#f1f5f9', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  fileFolderTitle: { color: '#334155', fontSize: 12, fontWeight: '800' },
-  fileFolderName: { color: '#334155', flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', paddingVertical: 2 },
+  fileFolderTitle: { color: '#334155', fontSize: 13, fontWeight: '800' },
+  fileFolderName: { color: '#334155', flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', letterSpacing: 0.4, paddingVertical: 2, textTransform: 'uppercase' },
   fileFolderCount: { color: '#64748b', fontSize: 11 },
   fileRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 8 },
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
@@ -3103,7 +3103,7 @@ const styleDefs = {
   runnerPanel: { backgroundColor: '#12301a', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
   runnerFolderHeader: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   runnerFolderTitle: { color: '#1e293b', fontSize: 16, fontWeight: '800' },
-  runnerFolderName: { color: '#1e293b', flex: 1, minWidth: 0, fontSize: 17, fontWeight: '700', paddingVertical: 2 },
+  runnerFolderName: { color: '#1e293b', flex: 1, minWidth: 0, fontSize: 16, fontWeight: '700', letterSpacing: 0.4, paddingVertical: 2, textTransform: 'uppercase' },
   runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700', paddingRight: 28 },
   cardClose: { alignItems: 'center', height: 24, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 24, zIndex: 1 },
@@ -3125,6 +3125,9 @@ const styleDefs = {
   currentFile: { color: '#fdfdfd', flex: 1, fontSize: 18, fontWeight: '600' },
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
+  actionButtonBright: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
+  cardButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
+  cardButtonText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   workspace: { padding: 14 },
@@ -3412,9 +3415,25 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
   if (pioneer) {
-    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#b9a3dc' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
-    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
+    mapped.fileFolder = { ...mapped.fileFolder, borderColor: '#d3aa62' };
+    mapped.runnerFolder = { ...mapped.runnerFolder, backgroundColor: '#3b3d42' };
+    mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#353639' };
+    mapped.summaryModule = { ...mapped.summaryModule, color: '#b8a2db' };
+    mapped.summaryHeading = { ...mapped.summaryHeading, color: '#b8a2db' };
+    mapped.cardButton = { ...mapped.cardButton, backgroundColor: mapped.thumbButton?.backgroundColor, borderColor: mapped.thumbButton?.borderColor };
+    mapped.cardButtonText = { ...mapped.cardButtonText, color: mapped.runnerButtonText?.color };
+    mapped.summaryCell = { ...mapped.summaryCell, color: '#c2c4c9' };
+    mapped.currentFile = { ...mapped.currentFile, color: '#7b7b7f' };
+    mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 13 };
+    mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 13 };
+    mapped.fileFolderCount = { ...mapped.fileFolderCount, color: '#c39953' };
+    for (const name of ['runnerRow', 'journalCompleted', 'journalStopped', 'journalFailed', 'journalRunning']) {
+      mapped[name] = { ...mapped[name], backgroundColor: '#323336' };
+    }
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#5c7a52', borderColor: '#a9c79c' };
+    mapped.actionButtonBright = { ...mapped.actionButton, backgroundColor: '#7b7b7f', borderColor: '#7b7b7f' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
   if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
