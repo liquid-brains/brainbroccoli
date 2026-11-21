@@ -22,6 +22,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import { BarlowCondensed_600SemiBold } from '@expo-google-fonts/barlow-condensed';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -176,8 +177,8 @@ export default function App() {
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
   const systemScheme = useColorScheme();
-  const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
-  const [fontsLoaded] = useFonts({ Righteous_400Regular });
+  const scheme: Scheme = settings.neuroPioneer ? 'pioneer' : settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
+  const [fontsLoaded] = useFonts({ Righteous_400Regular, BarlowCondensed_600SemiBold });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
@@ -2608,11 +2609,21 @@ export default function App() {
                   <Switch
                     accessibilityLabel="Use system colors"
                     value={settings.useSystemColors}
-                    onValueChange={(value) => updateSettings({ useSystemColors: value })}
+                    onValueChange={(value) => updateSettings({ useSystemColors: value, ...(value ? { neuroPioneer: false } : {}) })}
                     trackColor={{ true: theme.accent }}
                   />
                 </View>
                 <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
+                <View style={styles.settingsToggleRow}>
+                  <Text style={styles.moduleName}>NeuroPioneer theme</Text>
+                  <Switch
+                    accessibilityLabel="NeuroPioneer theme"
+                    value={settings.neuroPioneer}
+                    onValueChange={(value) => updateSettings({ neuroPioneer: value, ...(value ? { useSystemColors: false } : {}) })}
+                    trackColor={{ true: theme.accent }}
+                  />
+                </View>
+                <Text style={styles.settingsHint}>Dark charcoal panels with white type and mountain-gold accents.</Text>
                 <View style={styles.settingsToggleRow}>
                   <Text style={styles.moduleName}>Show JSON code</Text>
                   <Switch
@@ -2802,7 +2813,7 @@ export default function App() {
           {renderJournalEntryDialog()}
           {renderJournalViewDialog()}
         </View>
-        <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
+        <StatusBar style={scheme === 'brand' ? 'dark' : scheme === 'pioneer' ? 'light' : 'auto'} />
       </SafeAreaView>
     </SafeAreaProvider>
     </ReadOnlyContext.Provider>
@@ -3200,7 +3211,7 @@ const styleDefs = {
 } satisfies Record<string, ViewStyle & TextStyle>;
 
 type Styles = Record<keyof typeof styleDefs, ViewStyle & TextStyle>;
-type Scheme = 'brand' | 'light' | 'dark';
+type Scheme = 'brand' | 'light' | 'dark' | 'pioneer';
 type Theme = { styles: Styles; accent: string; phaseA: string; phaseB: string; inputBackground: string; inputBorder: string; inputText: string };
 type ColorMap = Record<string, string>;
 
@@ -3215,7 +3226,7 @@ const fixedStyles = new Set<string>([
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
-const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
+const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
     accent: '#2f7f86',
     phaseA: '#2f7f86',
@@ -3242,6 +3253,21 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string;
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
       [ACCENT_GREEN]: '#5cc0c8', [ACCENT_ORANGE]: '#f0b45c', '#166534': '#5cc0c8', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
+    },
+  },
+  // NeuroPioneer: near-black panels, white type and mountain-gold accents.
+  pioneer: {
+    accent: '#e8a317',
+    phaseA: '#e8a317',
+    phaseB: '#4f9fd8',
+    fill: {
+      '#2f5d1f': '#050506', '#fff': '#121214', '#cbd5e1': '#4a3d22', '#f1f5f9': '#1a1a1d', '#f8fafc': '#17171a',
+      '#f0fdf4': '#222024', [ACCENT_GREEN]: '#e8a317', [ACCENT_ORANGE]: '#d98a1c', '#dcfce7': '#2b2616',
+      '#e2e8f0': '#26262a', '#f3f7f1': '#0b0b0d', '#dde6da': '#1a1a1d', '#fef2f2': '#3a1c1c', '#8dc63f': '#0b0b0d', '#6fa82c': '#2b2616',
+    },
+    text: {
+      '#334155': '#ffffff', '#475569': '#e6e0d4', '#1e293b': '#ffffff', '#64748b': '#b8ae9c', '#94a3b8': '#8f8678',
+      [ACCENT_GREEN]: '#f5c14b', [ACCENT_ORANGE]: '#f5b347', '#166534': '#f5c14b', '#b91c1c': '#ff6b6b', '#fefefe': '#ffffff', '#fdfdfd': '#ffffff', '#e9f3df': '#b8ae9c',
     },
   },
 };
@@ -3291,6 +3317,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d3c89f', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
+  const pioneer = scheme === 'pioneer';
   const mapped: Record<string, Record<string, unknown>> = {};
   for (const [name, style] of Object.entries(styleDefs)) {
     mapped[name] = fixedStyles.has(name)
@@ -3308,12 +3335,12 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
-  const dark = scheme === 'dark';
-  const teal = dark ? '#3a9aa3' : '#2f7f86';
-  const tealText = dark ? '#5cc0c8' : '#1f6f76';
-  const amber = dark ? '#d9953a' : '#d98b2b';
-  const cardFill = dark ? '#262628' : '#efeff2';
-  const cardEdge = dark ? '#48484a' : '#c7c7cc';
+  const dark = scheme !== 'light';
+  const teal = pioneer ? '#e8a317' : dark ? '#3a9aa3' : '#2f7f86';
+  const tealText = pioneer ? '#f5c14b' : dark ? '#5cc0c8' : '#1f6f76';
+  const amber = pioneer ? '#d98a1c' : dark ? '#d9953a' : '#d98b2b';
+  const cardFill = pioneer ? '#1a1a1d' : dark ? '#262628' : '#efeff2';
+  const cardEdge = pioneer ? '#4a3d22' : dark ? '#48484a' : '#c7c7cc';
   const cards = { journalCompleted: teal, journalStopped: amber, journalFailed: dark ? '#d9645a' : '#c0524a', journalRunning: dark ? '#6a9fd0' : '#5b8fb0' };
   for (const [name, ribbon] of Object.entries(cards)) {
     mapped[name] = { ...mapped[name], backgroundColor: cardFill, borderColor: cardEdge, borderLeftColor: ribbon };
@@ -3334,14 +3361,20 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     runnerButtonText: { color: tealText },
     runnerTitle: { color: tealText },
     runnerRow: { borderColor: teal },
-    runnerFolder: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    runnerFolder: { backgroundColor: pioneer ? '#2b2616' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
-    sequenceStep: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    sequenceStep: { backgroundColor: pioneer ? '#2b2616' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
   };
   for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
+  if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#111111' };
+  if (pioneer && fontsLoaded) {
+    for (const [name, style] of Object.entries(mapped)) {
+      if ('fontSize' in style && !('fontFamily' in style)) mapped[name] = { ...style, fontWeight: undefined, fontFamily: 'BarlowCondensed_600SemiBold' };
+    }
+  }
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
@@ -3359,8 +3392,8 @@ const ReadOnlyContext = createContext(false);
 type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
 
 type AppMode = 'editor' | 'runner';
-type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
-const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
+type Settings = { useSystemColors: boolean; neuroPioneer: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
+const defaultSettings: Settings = { useSystemColors: false, neuroPioneer: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
 
@@ -3375,6 +3408,7 @@ async function loadSettings(): Promise<Settings> {
     const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
     return {
       useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
+      neuroPioneer: saved.neuroPioneer === true,
       showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
       appMode: saved.appMode === 'runner' ? 'runner' : 'editor',
