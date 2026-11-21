@@ -1203,26 +1203,26 @@ export default function App() {
         <Text style={styles.runnerMeta}>{describeRunnerItem(item)}</Text>
         <View style={styles.runnerButtons}>
           {runnerData.runner.folders.length > 0 && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(item.file)} to a folder`} onPress={() => setMoveRunnerPrompt(item.id)} style={styles.actionButton}>
-              <Text style={styles.actionText}>📁</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(item.file)} to a folder`} onPress={() => setMoveRunnerPrompt(item.id)} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>📁</Text>
             </Pressable>
           )}
-          <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
-            <Text style={styles.actionText}>▶ RUN</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.cardButton, !canRun && styles.fieldDisabled]}>
+            <Text style={styles.cardButtonText}>▶ RUN</Text>
           </Pressable>
           {viewable && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`View protocol ${item.file}`} onPress={() => { setJournalStage(0); setJournalView({ id: 'preview', kind: 'diagram', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } }); }} style={styles.actionButton}>
-              <Text style={styles.actionText}>VIEW PROTOCOL</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View protocol ${item.file}`} onPress={() => { setJournalStage(0); setJournalView({ id: 'preview', kind: 'diagram', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } }); }} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>VIEW PROTOCOL</Text>
             </Pressable>
           )}
           {viewable && settings.showJson && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`View the JSON code of ${item.file}`} onPress={() => setJournalView({ id: 'preview', kind: 'json', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } })} style={styles.actionButton}>
-              <Text style={styles.actionText}>VIEW JSON</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View the JSON code of ${item.file}`} onPress={() => setJournalView({ id: 'preview', kind: 'json', preview: { id: 'preview', file: item.file, startedAt: new Date().toISOString(), status: 'completed', note: '', ...runnerSnapshot(item) } })} style={styles.cardButton}>
+              <Text style={styles.cardButtonText}>VIEW JSON</Text>
             </Pressable>
           )}
           {item.sequence !== undefined && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: displayName(item.file), description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.actionButton, !!session && styles.fieldDisabled]}>
-              <Text style={styles.actionText}>EDIT</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit sequence ${item.file}`} disabled={!!session} onPress={() => setSequenceDraft({ id: item.id, name: displayName(item.file), description: item.description ?? '', steps: [...(item.sequence ?? [])], next: '', rest: '60' })} style={[styles.cardButton, !!session && styles.fieldDisabled]}>
+              <Text style={styles.cardButtonText}>EDIT</Text>
             </Pressable>
           )}
         </View>
@@ -3126,6 +3126,8 @@ const styleDefs = {
   durationText: { color: '#64748b', fontSize: 12, marginTop: 3 },
   menuButton: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   actionButtonBright: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
+  cardButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
+  cardButtonText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   actionButton: { backgroundColor: '#f9a01b', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '100%' },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   workspace: { padding: 14 },
@@ -3420,6 +3422,9 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     mapped.fileFolderHeader = { ...mapped.fileFolderHeader, backgroundColor: '#353639' };
     mapped.summaryModule = { ...mapped.summaryModule, color: '#b8a2db' };
     mapped.summaryHeading = { ...mapped.summaryHeading, color: '#b8a2db' };
+    mapped.cardButton = { ...mapped.cardButton, backgroundColor: mapped.thumbButton?.backgroundColor, borderColor: mapped.thumbButton?.borderColor };
+    mapped.cardButtonText = { ...mapped.cardButtonText, color: mapped.runnerButtonText?.color };
+    mapped.summaryCell = { ...mapped.summaryCell, color: '#c2c4c9' };
     mapped.currentFile = { ...mapped.currentFile, color: '#7b7b7f' };
     mapped.fileFolderTitle = { ...mapped.fileFolderTitle, color: '#d3aa62', fontSize: 13 };
     mapped.fileFolderName = { ...mapped.fileFolderName, color: '#d3aa62', fontSize: 13 };
