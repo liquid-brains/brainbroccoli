@@ -132,7 +132,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [menuCollapsed, setMenuCollapsed] = useState(false);
+  const [menuCollapsed, setMenuCollapsed] = useState(true);
+  const [menuPopupOpen, setMenuPopupOpen] = useState(false);
   const [filenameDraft, setFilenameDraft] = useState('');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1623,6 +1624,7 @@ export default function App() {
       if (!wideSidebar) {
         setSidebarOpen(false);
       }
+      setMenuPopupOpen(false);
       action();
     };
     return (
@@ -1631,6 +1633,7 @@ export default function App() {
           <>
             <ActionButton menu title="📋 Create Batch" onPress={run(openBatchDialog)} />
             <ActionButton menu title="📄 New File" onPress={run(createNewProtocol)} />
+            <ActionButton menu title="📂 Load Protocol Files" onPress={run(() => { void importFiles(); })} />
             <ActionButton menu title="⬇️ Download Controller Files" onPress={run(() => { if (Object.keys(files).length === 0) { void downloadFromController(false); } else { setDownloadPromptOpen(true); } })} />
             <ActionButton menu title="🗜️ Export All as ZIP" onPress={run(() => { void exportZip(); })} />
           </>
@@ -1690,46 +1693,31 @@ export default function App() {
     );
   }
 
-  const canDrop = Platform.OS === 'web' && wideSidebar;
-
-  function wrapFileDrop(child: React.JSX.Element): React.JSX.Element {
-    if (Platform.OS !== 'web') {
-      return child;
-    }
-    return createElement('div', {
-      onDragOver: (event: DragEvent) => { event.preventDefault(); },
-      onDrop: (event: DragEvent) => {
-        event.preventDefault();
-        const dropped = Array.from(event.dataTransfer?.files ?? []);
-        if (dropped.length > 0 && !busy) {
-          void importFiles(dropped);
-        }
-      },
-    }, child);
-  }
-
   const sidebar = (
     <View style={styles.sidebar}>
-      {wideSidebar && renderBrand()}
-      <View style={styles.sidebarActions}>
-        {wideSidebar && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: !menuCollapsed }}
-            onPress={() => setMenuCollapsed((collapsed) => !collapsed)}
-            style={styles.menuHeader}
-          >
-            <Text style={styles.menuHeaderText}>{menuCollapsed ? '▶' : '▼'} Menu</Text>
+      {wideSidebar && (
+        <View style={styles.sidebarTop}>
+          <Pressable accessibilityLabel="Menu" accessibilityRole="button" accessibilityState={{ expanded: menuPopupOpen }} onPress={() => setMenuPopupOpen((open) => !open)} style={styles.hamburger}>
+            <Text style={styles.actionText}>☰</Text>
           </Pressable>
-        )}
-        {(!wideSidebar || !menuCollapsed) && renderActions()}
-      </View>
-      {appMode === 'editor' && wrapFileDrop(
-        <Pressable accessibilityRole="button" onPress={() => { void importFiles(); }} disabled={busy} style={styles.uploadButton}>
-          <Text style={styles.uploadTitle}>{busy ? 'Importing…' : canDrop ? 'Drop Vielight JSON files or zipped JSON files' : 'Import protocol files'}</Text>
-          <Text style={styles.uploadHint}>{canDrop ? 'Click to browse files' : 'Tap to choose .vnp or .zip files'}</Text>
-        </Pressable>,
+          <View style={{ flex: 1 }}>{renderBrand()}</View>
+        </View>
       )}
+      <View style={styles.sidebarActions}>
+        {!wideSidebar && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: !menuCollapsed }}
+              onPress={() => setMenuCollapsed((collapsed) => !collapsed)}
+              style={styles.menuHeader}
+            >
+              <Text style={styles.menuHeaderText}>{menuCollapsed ? '▶' : '▼'} Menu</Text>
+            </Pressable>
+            {!menuCollapsed && renderActions()}
+          </>
+        )}
+      </View>
       <ScrollView style={[styles.fileScroll, appMode === 'runner' && { paddingTop: 14 }]}>{renderFileList()}</ScrollView>
     </View>
   );
@@ -2729,6 +2717,12 @@ export default function App() {
                 </View>
               </View>
             </View>
+            {wideSidebar && (
+              <Modal transparent animationType="none" visible={menuPopupOpen} onRequestClose={() => setMenuPopupOpen(false)}>
+                <Pressable accessibilityLabel="Close menu" onPress={() => setMenuPopupOpen(false)} style={StyleSheet.absoluteFill} />
+                <View style={styles.menuPopup}>{renderActions()}</View>
+              </Modal>
+            )}
             {busy && (
               <View accessibilityLiveRegion="polite" style={styles.statusBar}>
                 <ActivityIndicator color="#f9a01b" />
@@ -3016,6 +3010,9 @@ const styleDefs = {
   appShell: { flex: 1, flexDirection: 'row', backgroundColor: '#2f5d1f' },
   sidebar: { width: 300, backgroundColor: '#2f5d1f', borderRightColor: '#cbd5e1', borderRightWidth: 1, paddingBottom: 8 },
   sidebarActions: { borderBottomColor: '#cbd5e1', borderBottomWidth: 1 },
+  menuPopup: { borderColor: '#cbd5e1', borderRadius: 8, borderWidth: 1, left: 12, minWidth: 280, overflow: 'hidden', position: 'absolute', top: 56 },
+  sidebarTop: { alignItems: 'flex-start', flexDirection: 'row', paddingLeft: 12, paddingTop: 12 },
+  hamburger: { backgroundColor: '#f9a01b', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 9 },
   menuItems: { backgroundColor: '#2f5d1f' },
   menuItem: { backgroundColor: '#8dc63f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 14 },
   menuHeader: { backgroundColor: '#2f5d1f', borderBottomColor: '#6fa82c', borderBottomWidth: 1, paddingHorizontal: 18, paddingVertical: 10 },
@@ -3025,9 +3022,6 @@ const styleDefs = {
   mobileLogo: { height: 199, marginBottom: 8, width: 199 },
   logo: { width: 128, height: 128 },
   brandCaption: { color: '#e9f3df', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
-  uploadButton: { alignItems: 'center', backgroundColor: '#f0fdf4', borderColor: '#7bc043', borderRadius: 8, borderStyle: 'dashed', borderWidth: 2, margin: 14, padding: 16 },
-  uploadTitle: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  uploadHint: { color: '#64748b', fontSize: 12, marginTop: 5, textAlign: 'center' },
   fileScroll: { flex: 1 },
   fileList: { gap: 8, paddingHorizontal: 12, paddingBottom: 16 },
   fileGroup: { backgroundColor: '#f0fdf4', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
@@ -3290,7 +3284,6 @@ const brandPaneFills: Record<string, string> = {
   legend: '#eaf7dc',
   summaryBox: '#eaf7dc',
   fileGroup: '#eaf7dc',
-  uploadButton: '#eaf7dc',
   modeButton: '#eaf7dc',
   activeMode: '#cdeaa9',
   durationBar: '#d8efbd',
