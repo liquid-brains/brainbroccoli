@@ -239,6 +239,20 @@ export function calculateSweepDuration(protocol: Protocol): number | undefined {
   return durations.length > 0 ? Math.max(...durations) : undefined;
 }
 
+// Text for each active, valid sweep's range, e.g. { frequency: '40-60' }; absent when that sweep isn't running.
+export function describeSweepRanges(protocol: Protocol): { frequency?: string; power?: string } {
+  const frequency = protocol.frequency ?? {};
+  const power = protocol.power ?? {};
+  const ranges: { frequency?: string; power?: string } = {};
+  if (frequency.active !== false && sweepMinutes(Number(frequency.startFreq), Number(frequency.endFreq), Number(frequency.freqStepSize), Number(frequency.stepDuration)) !== undefined) {
+    ranges.frequency = `${String(frequency.startFreq)}-${String(frequency.endFreq)}`;
+  }
+  if (power.active !== false && sweepMinutes(Number(power.startPower), Number(power.endPower), Number(power.powerStepSize), Number(power.stepDuration || frequency.stepDuration)) !== undefined) {
+    ranges.power = `${String(power.startPower)}-${String(power.endPower)}`;
+  }
+  return ranges;
+}
+
 export function calculateTotalDuration(protocol: Protocol): number | undefined {
   const sweep = calculateSweepDuration(protocol);
   if (sweep !== undefined) {

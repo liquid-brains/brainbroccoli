@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  describeSweepRanges,
   calculateSweepDuration,
   calculateTotalDuration,
   createUniqueImportedFileName,
@@ -204,5 +205,14 @@ describe('prepareProtocolForSave batch references', () => {
   it('points converted stage references at the new vnp0 files', () => {
     const batch = { ...createEmptyProtocol('b'), filenames: ['a.vnp2', 'c.vnp0', 'd.vnp1'] };
     expect(prepareProtocolForSave('b.vnp3', batch, []).protocol.filenames).toEqual(['a.vnp0', 'c.vnp0', 'd.vnp0']);
+  });
+});
+
+describe('describeSweepRanges', () => {
+  it('reports only valid, active sweeps', () => {
+    const base = createEmptyProtocol('x');
+    const sweeping = { ...base, frequency: { active: true, startFreq: 40, endFreq: 60, freqStepSize: 5, stepDuration: 30 }, power: { active: false, startPower: 10, endPower: 50, powerStepSize: 10, stepDuration: 30 } };
+    expect(describeSweepRanges(sweeping)).toEqual({ frequency: '40-60' });
+    expect(describeSweepRanges({ ...sweeping, frequency: { ...sweeping.frequency, endFreq: 30 } })).toEqual({});
   });
 });
