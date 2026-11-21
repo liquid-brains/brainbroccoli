@@ -22,6 +22,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { runWithSessionBackground } from './src/core/session-background';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import { OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -175,11 +176,22 @@ export default function App() {
   const [session, setSession] = useState<RunSession | null>(null);
   const [clock, setClock] = useState(Date.now());
   const runAbort = useRef<AbortController | null>(null);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const systemScheme = useColorScheme();
-  const scheme: Scheme = settings.useSystemColors ? (systemScheme === 'dark' ? 'dark' : 'light') : 'brand';
-  const [fontsLoaded] = useFonts({ Righteous_400Regular });
+  const scheme: Scheme = themeScheme(settings.theme, systemScheme);
+  const [fontsLoaded] = useFonts({ Righteous_400Regular, OpenSans_600SemiBold, OpenSans_700Bold });
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+    const colors = scheme === 'pioneer' ? ['#5a5c62', '#1b1c1e'] : scheme === 'dark' ? ['#48484a', '#1c1c1e'] : null;
+    if (!colors) return undefined;
+    const style = document.createElement('style');
+    style.textContent = `* { scrollbar-color: ${colors[0]} ${colors[1]}; }`;
+    document.head.appendChild(style);
+    return () => { style.remove(); };
+  }, [scheme]);
 
   const running = session !== null;
   useEffect(() => {
@@ -1983,7 +1995,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
-              const onDark = !tileInactive && isDarkColor(tint);
+              const onDark = tileInactive ? scheme === 'pioneer' : isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -2603,16 +2615,19 @@ export default function App() {
             <ScrollView ref={settingsScroll}>
               <View style={styles.settingsSection}>
                 <Text style={styles.sectionTitle}>Appearance</Text>
-                <View style={styles.settingsToggleRow}>
-                  <Text style={styles.moduleName}>Use system colors</Text>
-                  <Switch
-                    accessibilityLabel="Use system colors"
-                    value={settings.useSystemColors}
-                    onValueChange={(value) => updateSettings({ useSystemColors: value })}
-                    trackColor={{ true: theme.accent }}
-                  />
-                </View>
-                <Text style={styles.settingsHint}>Follow the system light or dark appearance instead of Brain Broccoli colors.</Text>
+                <Text style={styles.moduleName}>Theme</Text>
+                <Pressable accessibilityRole="combobox" accessibilityLabel="Theme" accessibilityState={{ expanded: themeMenuOpen }} onPress={() => setThemeMenuOpen((open) => !open)} style={styles.selectButton}>
+                  <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.moduleName}>{themeOptions.find((option) => option.value === settings.theme)?.label}</Text>
+                    <Text style={styles.moduleName}>{themeMenuOpen ? '▴' : '▾'}</Text>
+                  </View>
+                </Pressable>
+                {themeMenuOpen && themeOptions.map((option) => (
+                  <Pressable key={option.value} accessibilityRole="menuitem" accessibilityState={{ selected: settings.theme === option.value }} onPress={() => { updateSettings({ theme: option.value }); setThemeMenuOpen(false); }} style={[styles.selectButton, settings.theme === option.value && styles.activeMode]}>
+                    <Text style={styles.moduleName}>{option.label}</Text>
+                    <Text style={styles.settingsHint}>{option.hint}</Text>
+                  </Pressable>
+                ))}
                 <View style={styles.settingsToggleRow}>
                   <Text style={styles.moduleName}>Show JSON code</Text>
                   <Switch
@@ -2620,6 +2635,7 @@ export default function App() {
                     value={settings.showJson}
                     onValueChange={(value) => updateSettings({ showJson: value })}
                     trackColor={{ true: theme.accent }}
+                    {...switchThumb}
                   />
                 </View>
                 <Text style={styles.settingsHint}>Show the View Raw JSON Code section below the editor.</Text>
@@ -2632,6 +2648,7 @@ export default function App() {
                         value={settings.showExtended}
                         onValueChange={(value) => updateSettings({ showExtended: value })}
                         trackColor={{ true: theme.accent }}
+                    {...switchThumb}
                       />
                     </View>
                     <Text style={styles.settingsHint}>Show the Extended Gracefire Protocols and include them when downloading files from the controller.</Text>
@@ -2802,7 +2819,7 @@ export default function App() {
           {renderJournalEntryDialog()}
           {renderJournalViewDialog()}
         </View>
-        <StatusBar style={scheme === 'brand' ? 'dark' : 'auto'} />
+        <StatusBar style={scheme === 'brand' ? 'dark' : scheme === 'pioneer' ? 'light' : 'auto'} />
       </SafeAreaView>
     </SafeAreaProvider>
     </ReadOnlyContext.Provider>
@@ -2846,11 +2863,15 @@ function modulePower(protocol: Protocol, module: ProtocolModule): number {
   return Number(module.power ?? 0) || 0;
 }
 
+const MIN_TILE_SATURATION = 0.6;
+
 // Power delivered = power x run time, scaled against 140% for the longest run time.
 function deliveredSaturation(protocol: Protocol, module: ProtocolModule, referenceMinutes: number): number {
   if (referenceMinutes <= 0) return 0;
   const delivered = modulePower(protocol, module) * moduleRunTime(protocol, module);
-  return Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
+  const share = Math.min(1, Math.max(0, delivered / (MAX_POWER_PERCENT * referenceMinutes)));
+  // Lift every level by 60% so short protocols keep a visible phase color.
+  return share > 0 ? MIN_TILE_SATURATION + (1 - MIN_TILE_SATURATION) * share : 0;
 }
 
 function tintColor(hex: string, saturation: number): string {
@@ -3200,7 +3221,7 @@ const styleDefs = {
 } satisfies Record<string, ViewStyle & TextStyle>;
 
 type Styles = Record<keyof typeof styleDefs, ViewStyle & TextStyle>;
-type Scheme = 'brand' | 'light' | 'dark';
+type Scheme = 'brand' | 'light' | 'dark' | 'pioneer';
 type Theme = { styles: Styles; accent: string; phaseA: string; phaseB: string; inputBackground: string; inputBorder: string; inputText: string };
 type ColorMap = Record<string, string>;
 
@@ -3215,7 +3236,7 @@ const fixedStyles = new Set<string>([
 ]);
 const fillProps = new Set(['backgroundColor', 'borderColor', 'borderBottomColor', 'borderRightColor']);
 
-const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
+const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; phaseA: string; phaseB: string; fill: ColorMap; text: ColorMap }> = {
   light: {
     accent: '#2f7f86',
     phaseA: '#2f7f86',
@@ -3242,6 +3263,21 @@ const systemPalettes: Record<'light' | 'dark', { accent: string; phaseA: string;
     text: {
       '#334155': '#f2f2f7', '#475569': '#d1d1d6', '#1e293b': '#f2f2f7', '#64748b': '#aeaeb2', '#94a3b8': '#8e8e93',
       [ACCENT_GREEN]: '#5cc0c8', [ACCENT_ORANGE]: '#f0b45c', '#166534': '#5cc0c8', '#b91c1c': '#ff6b6b', '#fefefe': '#f2f2f7', '#fdfdfd': '#f2f2f7', '#e9f3df': '#aeaeb2',
+    },
+  },
+  // NeuroPioneer: charcoal greys, white type, muted gold labels and slate buttons.
+  pioneer: {
+    accent: '#c49a52',
+    phaseA: '#b88a3a',
+    phaseB: '#8d77a3',
+    fill: {
+      '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
+      '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
+      '#e2e8f0': '#2d2e32', '#f3f7f1': '#1b1c1e', '#dde6da': '#252629', '#fef2f2': '#3a1c1c', '#fee2e2': '#3a2222', '#8dc63f': '#1b1c1e', '#6fa82c': '#2e2a1d',
+    },
+    text: {
+      '#334155': '#f1f1f1', '#475569': '#d4d6da', '#1e293b': '#f1f1f1', '#64748b': '#94a3b8', '#94a3b8': '#7d8794',
+      [ACCENT_GREEN]: '#c49a52', [ACCENT_ORANGE]: '#d4ab62', '#166534': '#c49a52', '#b91c1c': '#ff6b6b', '#fefefe': '#f1f1f1', '#fdfdfd': '#f1f1f1', '#e9f3df': '#94a3b8',
     },
   },
 };
@@ -3291,6 +3327,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     return { styles: StyleSheet.create(retro) as unknown as Styles, accent: retroColors[ACCENT_GREEN] as string, phaseA: retroColors[ACCENT_GREEN] as string, phaseB: '#e0701c', inputBackground: '#fff6e0', inputBorder: '#d3c89f', inputText: '#23301a' };
   }
   const palette = systemPalettes[scheme];
+  const pioneer = scheme === 'pioneer';
   const mapped: Record<string, Record<string, unknown>> = {};
   for (const [name, style] of Object.entries(styleDefs)) {
     mapped[name] = fixedStyles.has(name)
@@ -3308,12 +3345,12 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   };
   for (const [name, color] of Object.entries(phaseFills)) mapped[name] = { ...mapped[name], backgroundColor: color };
   mapped.runnerPanel = { ...mapped.runnerPanel, backgroundColor: palette.fill['#fff'] ?? '#fff', borderColor: palette.fill['#cbd5e1'] ?? '#cbd5e1' };
-  const dark = scheme === 'dark';
-  const teal = dark ? '#3a9aa3' : '#2f7f86';
-  const tealText = dark ? '#5cc0c8' : '#1f6f76';
-  const amber = dark ? '#d9953a' : '#d98b2b';
-  const cardFill = dark ? '#262628' : '#efeff2';
-  const cardEdge = dark ? '#48484a' : '#c7c7cc';
+  const dark = scheme !== 'light';
+  const teal = pioneer ? '#c49a52' : dark ? '#3a9aa3' : '#2f7f86';
+  const tealText = pioneer ? '#d4ab62' : dark ? '#5cc0c8' : '#1f6f76';
+  const amber = pioneer ? '#b8863a' : dark ? '#d9953a' : '#d98b2b';
+  const cardFill = pioneer ? '#252629' : dark ? '#262628' : '#efeff2';
+  const cardEdge = pioneer ? '#3a3b3f' : dark ? '#48484a' : '#c7c7cc';
   const cards = { journalCompleted: teal, journalStopped: amber, journalFailed: dark ? '#d9645a' : '#c0524a', journalRunning: dark ? '#6a9fd0' : '#5b8fb0' };
   for (const [name, ribbon] of Object.entries(cards)) {
     mapped[name] = { ...mapped[name], backgroundColor: cardFill, borderColor: cardEdge, borderLeftColor: ribbon };
@@ -3334,14 +3371,29 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     runnerButtonText: { color: tealText },
     runnerTitle: { color: tealText },
     runnerRow: { borderColor: teal },
-    runnerFolder: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    runnerFolder: { backgroundColor: pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
-    sequenceStep: { backgroundColor: dark ? '#1d3438' : '#d4ebec', borderColor: teal },
+    sequenceStep: { backgroundColor: pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
   };
   for (const [name, extra] of Object.entries(accents)) mapped[name] = { ...mapped[name], ...extra };
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
+  if (pioneer) {
+    mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
+    mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
+    mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
+    mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
+  }
+  if (pioneer) mapped.actionText = { ...mapped.actionText, color: '#dfe3ea' };
+  if (pioneer && fontsLoaded) {
+    for (const [name, style] of Object.entries(mapped)) {
+      if ('fontSize' in style && !('fontFamily' in style)) {
+        const heading = typeof style.fontSize === 'number' && style.fontSize >= 17 && !fixedStyles.has(name);
+        mapped[name] = { ...style, fontWeight: undefined, fontFamily: heading ? 'OpenSans_700Bold' : 'OpenSans_600SemiBold' };
+      }
+    }
+  }
   return {
     styles: StyleSheet.create(mapped) as unknown as Styles,
     accent: palette.accent,
@@ -3359,10 +3411,30 @@ const ReadOnlyContext = createContext(false);
 type RunSession = { file: string; entryId: string; message: string; startedAt?: number; totalSeconds?: number | undefined };
 
 type AppMode = 'editor' | 'runner';
-type Settings = { useSystemColors: boolean; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
-const defaultSettings: Settings = { useSystemColors: false, showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
+// react-native-web uses activeThumbColor for the on state; the native typings omit it.
+const switchThumb = { thumbColor: '#ffffff', activeThumbColor: '#ffffff' } as Record<string, string>;
+type ThemeChoice = 'broccoli' | 'neuropioneer' | 'light' | 'dark' | 'system';
+const themeOptions: { value: ThemeChoice; label: string; hint: string }[] = [
+  { value: 'neuropioneer', label: 'NeuroPioneer', hint: 'Charcoal panels with white type and muted gold accents.' },
+  { value: 'broccoli', label: 'Broccoli', hint: 'The retro Brain Broccoli greens and cream.' },
+  { value: 'light', label: 'Light', hint: 'Light grey panels with teal accents.' },
+  { value: 'dark', label: 'Dark', hint: 'Dark grey panels with teal accents.' },
+  { value: 'system', label: 'System', hint: 'Switch between Light and Dark with the system appearance.' },
+];
+const themeSchemes: Record<Exclude<ThemeChoice, 'system'>, Scheme> = { neuropioneer: 'pioneer', broccoli: 'brand', light: 'light', dark: 'dark' };
+function themeScheme(choice: ThemeChoice, systemScheme: string | null | undefined): Scheme {
+  return choice === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themeSchemes[choice];
+}
+type Settings = { theme: ThemeChoice; showJson: boolean; deviceAddress: string; appMode: AppMode; extendedUnlocked: boolean; showExtended: boolean };
+const defaultSettings: Settings = { theme: 'neuropioneer', showJson: false, deviceAddress: 'np1.local', appMode: 'editor', extendedUnlocked: false, showExtended: false };
 const settingsKey = 'brainbroccoli.settings';
 const settingsPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}settings.json` : '';
+
+function savedTheme(saved: Record<string, unknown>): ThemeChoice {
+  if (typeof saved.theme === 'string' && themeOptions.some((option) => option.value === saved.theme)) return saved.theme as ThemeChoice;
+  if (saved.neuroPioneer === true) return 'neuropioneer';
+  return saved.useSystemColors === true ? 'system' : defaultSettings.theme;
+}
 
 async function loadSettings(): Promise<Settings> {
   try {
@@ -3374,7 +3446,7 @@ async function loadSettings(): Promise<Settings> {
     }
     const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
     return {
-      useSystemColors: typeof saved.useSystemColors === 'boolean' ? saved.useSystemColors : defaultSettings.useSystemColors,
+      theme: savedTheme(saved as Record<string, unknown>),
       showJson: typeof saved.showJson === 'boolean' ? saved.showJson : defaultSettings.showJson,
       deviceAddress: typeof saved.deviceAddress === 'string' ? saved.deviceAddress : defaultSettings.deviceAddress,
       appMode: saved.appMode === 'runner' ? 'runner' : 'editor',
