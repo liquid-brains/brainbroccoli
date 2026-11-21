@@ -1328,7 +1328,7 @@ export default function App() {
               onTouchEnd={() => endTouchDrag(true)}
               onTouchCancel={() => endTouchDrag(false)}
             >
-              <Text style={styles.panelTitle}>Protocols</Text>
+              <Text style={styles.panelTitle}>Run Protocols</Text>
               <View style={styles.runnerButtons}>
                 <ActionButton bright title="NEW FOLDER" onPress={() => { setNewFolderName(''); setFolderPromptOpen(true); }} />
                 <ActionButton bright title="NEW SEQUENCE" onPress={() => setSequenceDraft({ name: '', description: '', steps: [], next: '', rest: '60' })} />
