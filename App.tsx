@@ -122,7 +122,7 @@ export default function App() {
   const [activeBatchStage, setActiveBatchStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ '.vnp0': true });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchDraftName, setBatchDraftName] = useState('My_Batch');
   const [batchDraftStages, setBatchDraftStages] = useState<string[]>(Array(batchStageCount).fill(''));
@@ -245,7 +245,7 @@ export default function App() {
 
   useEffect(() => {
     void loadStoredFileFolders().then((saved) => {
-      setFileFolders((current) => (current.folders.length > 0 ? current : saved));
+      setFileFolders((current) => (current.folders.length > 0 ? current : { ...saved, folders: saved.folders.map((folder) => ({ ...folder, collapsed: true })) }));
       setFileFoldersLoaded(true);
     });
   }, []);
