@@ -1338,23 +1338,23 @@ export default function App() {
               )}
               {runner.folders.map((folder) => (
                 <DropZone key={folder.id} zoneKey={folder.id} zones={zoneViews.current} active={zoneHint === folder.id} props={folderDropProps(folder.id)}>
-                <View style={styles.fileFolder}>
-                  <View style={styles.fileFolderHeader}>
+                <View style={styles.runnerFolder}>
+                  <View style={styles.runnerFolderHeader}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${folder.collapsed === true ? 'Expand' : 'Collapse'} folder ${folder.name}`}
                       accessibilityState={{ expanded: folder.collapsed !== true }}
                       onPress={() => updateRunner((state) => toggleRunnerFolder(state, folder.id))}
                     >
-                      <Text style={styles.fileFolderTitle}>{folder.collapsed === true ? '▶' : '▼'} 📁</Text>
+                      <Text style={styles.runnerFolderTitle}>{folder.collapsed === true ? '▶' : '▼'} 📁</Text>
                     </Pressable>
                     <TextInput
                       accessibilityLabel={`Folder name, ${folder.name}`}
                       value={folder.name}
                       onChangeText={(text) => updateRunner((state) => renameRunnerFolder(state, folder.id, text))}
-                      style={styles.fileFolderName}
+                      style={styles.runnerFolderName}
                     />
-                    <Text style={styles.fileFolderCount}>{runner.items.filter((item) => item.folderId === folder.id).length}</Text>
+                    <Text style={styles.runnerMeta}>{runner.items.filter((item) => item.folderId === folder.id).length}</Text>
                     <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))}>
                       <Text style={styles.deleteText}>✕</Text>
                     </Pressable>
@@ -3101,6 +3101,9 @@ const styleDefs = {
   dropBefore: { borderTopColor: '#2f9e44', borderTopWidth: 3 },
   dropAfter: { borderBottomColor: '#2f9e44', borderBottomWidth: 3 },
   runnerPanel: { backgroundColor: '#12301a', borderColor: '#7bc043', borderRadius: 12, borderWidth: 1, gap: 10, padding: 18 },
+  runnerFolderHeader: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  runnerFolderTitle: { color: '#1e293b', fontSize: 16, fontWeight: '800' },
+  runnerFolderName: { color: '#1e293b', flex: 1, minWidth: 0, fontSize: 17, fontWeight: '700', paddingVertical: 2 },
   runnerFolder: { backgroundColor: '#7bc043', borderColor: '#5fa12f', borderRadius: 10, borderWidth: 1, gap: 8, padding: 10 },
   runnerTitle: { color: '#1e293b', fontSize: 15, fontWeight: '700', paddingRight: 28 },
   cardClose: { alignItems: 'center', height: 24, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 24, zIndex: 1 },
@@ -3397,6 +3400,8 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
     backButton: { borderColor: teal },
     runnerButtonText: { color: tealText },
     runnerTitle: { color: tealText },
+    runnerFolderTitle: { color: tealText },
+    runnerFolderName: { color: tealText },
     runnerRow: { borderColor: teal },
     runnerFolder: { backgroundColor: pioneer ? '#2e2a1d' : dark ? '#1d3438' : '#d4ebec', borderColor: teal },
     dialogSubtitle: { color: tealText },
