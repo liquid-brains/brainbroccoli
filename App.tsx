@@ -759,7 +759,9 @@ export default function App() {
     try {
       const device = connectToController();
       setStatus(`Connecting to ${settings.deviceAddress}…`);
-      const downloaded = await downloadControllerFiles(device, setStatus, [], settings.extendedUnlocked && settings.showExtended || extendedOnly, extendedOnly);
+      // Read-only files never change on the controller, so don't fetch ones the app already has.
+      const have = wipe ? [] : Object.keys(files).filter(isReadOnlyFile);
+      const downloaded = await downloadControllerFiles(device, setStatus, have, settings.extendedUnlocked && settings.showExtended || extendedOnly, extendedOnly);
       if (downloaded.length === 0) {
         setError(wipe ? 'No protocol files were found on the controller; your files were kept.' : 'No new protocol files were found on the controller.');
         return;
