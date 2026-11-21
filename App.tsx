@@ -2394,7 +2394,7 @@ export default function App() {
               <TextInput
                 accessibilityLabel="Folder name"
                 autoFocus
-                placeholder="Folder name, e.g. a client"
+                placeholder="Folder name"
                 placeholderTextColor="#94a3b8"
                 value={newFileFolderName}
                 onChangeText={setNewFileFolderName}
