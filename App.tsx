@@ -668,6 +668,36 @@ export default function App() {
     }
   }
 
+  // Zips a folder's protocols plus any stage files its batches reference.
+  async function downloadFolder(folderName: string, names: string[]): Promise<void> {
+    setError('');
+    try {
+      const archive = new JSZip();
+      const included = new Set<string>();
+      const add = (name: string) => {
+        const value = files[name];
+        if (value === undefined || included.has(name)) {
+          return;
+        }
+        included.add(name);
+        const prepared = preparedForSave(name, value);
+        archive.file(prepared.name, JSON.stringify(prepared.protocol, null, 2));
+      };
+      names.forEach((name) => {
+        add(name);
+        (files[name]?.filenames ?? []).forEach((stage) => add(stage));
+      });
+      const baseName = stripFileNameChars(folderName) || 'folder';
+      if (Platform.OS === 'android') {
+        await saveToAndroidStorage(`${baseName}.zip`, await archive.generateAsync({ type: 'base64' }), 'application/zip', FileSystem.EncodingType.Base64);
+        return;
+      }
+      await shareArchive(archive, `${baseName}.zip`, 'Save folder');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to download this folder.');
+    }
+  }
+
   async function saveToController(): Promise<void> {
     const name = currentFileName;
     if (!/\.vnp[04]$/i.test(name)) {
@@ -1512,6 +1542,11 @@ export default function App() {
                         style={styles.fileFolderName}
                       />
                       <Text style={styles.fileFolderCount}>{inside.length}</Text>
+                      {inside.length > 0 && (
+                        <Pressable accessibilityRole="button" accessibilityLabel={`Download folder ${folder.name} as a zip`} onPress={() => void downloadFolder(folder.name, inside)}>
+                          <Text style={styles.copyText}>⬇</Text>
+                        </Pressable>
+                      )}
                       <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => setFileFolders((current) => removeFileFolder(current, folder.id))}>
                         <Text style={styles.deleteText}>✕</Text>
                       </Pressable>
@@ -2963,8 +2998,8 @@ const styleDefs = {
   groupHeader: { alignItems: 'center', backgroundColor: '#7bc043', flexDirection: 'row' },
   groupHeaderTitle: { flex: 1 },
   groupAction: { color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 10 },
-  fileFolder: { borderColor: '#f9a01b', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
-  fileFolderHeader: { alignItems: 'center', backgroundColor: '#e3f4d0', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  fileFolder: { borderColor: '#cbd5e1', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
+  fileFolderHeader: { alignItems: 'center', backgroundColor: '#f1f5f9', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
   fileFolderTitle: { color: '#334155', fontSize: 12, fontWeight: '800' },
   fileFolderName: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', paddingVertical: 2 },
   fileFolderCount: { color: '#64748b', fontSize: 11 },
