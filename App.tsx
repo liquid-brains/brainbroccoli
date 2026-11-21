@@ -3001,7 +3001,7 @@ const styleDefs = {
   fileFolder: { borderColor: '#cbd5e1', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
   fileFolderHeader: { alignItems: 'center', backgroundColor: '#f1f5f9', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
   fileFolderTitle: { color: '#334155', fontSize: 12, fontWeight: '800' },
-  fileFolderName: { color: '#334155', flex: 1, fontSize: 13, fontWeight: '700', paddingVertical: 2 },
+  fileFolderName: { color: '#334155', flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', paddingVertical: 2 },
   fileFolderCount: { color: '#64748b', fontSize: 11 },
   fileRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 8 },
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
