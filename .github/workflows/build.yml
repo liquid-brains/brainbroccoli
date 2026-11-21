@@ -16,9 +16,8 @@ jobs:
         include:
           - platform: android
             os: ubuntu-latest
-          # iOS build disabled for now (slow):
-          # - platform: ios
-          #   os: macos-latest
+          - platform: ios
+            os: macos-latest
           - platform: linux
             os: ubuntu-latest
           - platform: windows
