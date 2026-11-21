@@ -715,7 +715,22 @@ export default function App() {
     setBusy(true);
     try {
       setStatus(`Connecting to ${settings.deviceAddress}…`);
-      await saveControllerFiles(connectToController(), uploads, setStatus);
+      const device = connectToController();
+      await saveControllerFiles(device, uploads, setStatus);
+      // Renamed files leave their old synced entry behind; remove those old names from the controller.
+      const present = new Set(Object.keys(files).map((key) => key.toLowerCase()));
+      const renamedAway = Object.keys(syncedFiles).filter((key) => isControllerFile(key) && !present.has(key.toLowerCase()));
+      for (const oldName of renamedAway) {
+        setStatus(`Removing old file ${displayName(oldName)} from the controller…`);
+        try {
+          await device.deleteFile(oldName);
+        } catch {
+          // Already gone from the controller.
+        }
+      }
+      if (renamedAway.length > 0) {
+        setSyncedFiles((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !renamedAway.includes(key))));
+      }
       markSynced(uploads.map((upload) => ({ name: upload.name, protocol: files[upload.name] ?? (upload.name === name ? (isBatch ? protocol : displayedProtocol) : upload.protocol) })));
       setStatus(`Saved ${uploads.length === 1 ? displayName(name) : `${displayName(name)} and ${uploads.length - 1} stage file${uploads.length === 2 ? '' : 's'}`} to the controller.`);
     } catch (reason) {
