@@ -183,6 +183,16 @@ export default function App() {
   const theme = useMemo(() => buildTheme(scheme, fontsLoaded), [scheme, fontsLoaded]);
   const { styles } = theme;
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+    const colors = scheme === 'pioneer' ? ['#5a5c62', '#1b1c1e'] : scheme === 'dark' ? ['#48484a', '#1c1c1e'] : null;
+    if (!colors) return undefined;
+    const style = document.createElement('style');
+    style.textContent = `* { scrollbar-color: ${colors[0]} ${colors[1]}; }`;
+    document.head.appendChild(style);
+    return () => { style.remove(); };
+  }, [scheme]);
+
   const running = session !== null;
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -3260,7 +3270,7 @@ const systemPalettes: Record<'light' | 'dark' | 'pioneer', { accent: string; pha
   pioneer: {
     accent: '#c49a52',
     phaseA: '#c49a52',
-    phaseB: '#5b87b5',
+    phaseB: '#b0743a',
     fill: {
       '#2f5d1f': '#141516', '#fff': '#1f2023', '#cbd5e1': '#3a3b3f', '#f1f5f9': '#252629', '#f8fafc': '#252629',
       '#f0fdf4': '#2a2b2f', [ACCENT_GREEN]: '#4b4d52', [ACCENT_ORANGE]: '#3d3f44', '#dcfce7': '#2e2a1d',
