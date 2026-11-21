@@ -3414,6 +3414,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   if (pioneer) {
     mapped.unsyncedName = { ...mapped.unsyncedName, color: '#7fb4d6' };
     mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2e2f33' };
+    mapped.runnerRow = { ...mapped.runnerRow, backgroundColor: '#4c4e53' };
     mapped.thumbUp = { ...mapped.thumbUp, backgroundColor: '#3a3220', borderColor: '#c49a52' };
     mapped.thumbDown = { ...mapped.thumbDown, backgroundColor: '#3a2222', borderColor: '#a8554a' };
   }
