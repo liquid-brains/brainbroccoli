@@ -73,6 +73,19 @@ import {
   renameRunnerFolder,
   toggleRunnerFolder,
 } from './src/core/runner';
+import {
+  addFileFolder,
+  emptyFileFolders,
+  folderOfFile,
+  moveFileToFolder,
+  parseFileFolders,
+  removeFileFolder,
+  removeFolderFile,
+  renameFileFolder,
+  renameFolderFile,
+  toggleFileFolder,
+} from './src/core/fileFolders';
+import type { FileFolderState } from './src/core/fileFolders';
 import type { JournalEntry, JournalSort, JournalStatus, RunnerData, RunnerItem, RunnerState, SequenceStep } from './src/core/runner';
 import { readProtocolArchive } from './src/core/protocol-archive';
 import type { ProtocolFile } from './src/core/protocol-archive';
@@ -109,7 +122,7 @@ export default function App() {
   const [activeBatchStage, setActiveBatchStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ '.vnp0': true });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchDraftName, setBatchDraftName] = useState('My_Batch');
   const [batchDraftStages, setBatchDraftStages] = useState<string[]>(Array(batchStageCount).fill(''));
@@ -144,6 +157,13 @@ export default function App() {
   const touchDrag = useRef<{ id: string; rows: { id: string; top: number; bottom: number }[]; zones: { key: string; top: number; bottom: number }[]; row?: { id: string; after: boolean } | undefined; zone?: string | undefined } | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
+  const [fileFolders, setFileFolders] = useState<FileFolderState>(emptyFileFolders);
+  const [fileFoldersLoaded, setFileFoldersLoaded] = useState(false);
+  const [fileFolderPrompt, setFileFolderPrompt] = useState<string | null>(null);
+  const [newFileFolderName, setNewFileFolderName] = useState('');
+  const [moveFilePrompt, setMoveFilePrompt] = useState<string | null>(null);
+  const [fileDropTarget, setFileDropTarget] = useState<string | undefined>(undefined);
+  const fileDrag = useRef<string | undefined>(undefined);
   const [sequenceDraft, setSequenceDraft] = useState<{ id?: string; name: string; description: string; steps: SequenceStep[]; next: string; rest: string } | null>(null);
   const [journalExpanded, setJournalExpanded] = useState(false);
   const [journalSort, setJournalSort] = useState<JournalSort>('date-desc');
@@ -222,6 +242,19 @@ export default function App() {
       void persistSynced(syncedFiles);
     }
   }, [syncedFiles, filesLoaded]);
+
+  useEffect(() => {
+    void loadStoredFileFolders().then((saved) => {
+      setFileFolders((current) => (current.folders.length > 0 ? current : { ...saved, folders: saved.folders.map((folder) => ({ ...folder, collapsed: true })) }));
+      setFileFoldersLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (fileFoldersLoaded) {
+      void persistFileFolders(fileFolders);
+    }
+  }, [fileFolders, fileFoldersLoaded]);
 
   useEffect(() => {
     void loadStoredRunner().then((saved) => {
@@ -484,6 +517,7 @@ export default function App() {
     setCurrentFileName(unique);
     setProtocol(renamed);
     setRunnerData((current) => ({ ...current, runner: renameRunnerFile(current.runner, oldName, unique) }));
+    setFileFolders((current) => renameFolderFile(current, oldName, unique));
   }
 
   async function readAssetBytes(asset: DocumentPicker.DocumentPickerAsset): Promise<Uint8Array> {
@@ -631,6 +665,36 @@ export default function App() {
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to save this protocol.');
+    }
+  }
+
+  // Zips a folder's protocols plus any stage files its batches reference.
+  async function downloadFolder(folderName: string, names: string[]): Promise<void> {
+    setError('');
+    try {
+      const archive = new JSZip();
+      const included = new Set<string>();
+      const add = (name: string) => {
+        const value = files[name];
+        if (value === undefined || included.has(name)) {
+          return;
+        }
+        included.add(name);
+        const prepared = preparedForSave(name, value);
+        archive.file(prepared.name, JSON.stringify(prepared.protocol, null, 2));
+      };
+      names.forEach((name) => {
+        add(name);
+        (files[name]?.filenames ?? []).forEach((stage) => add(stage));
+      });
+      const baseName = stripFileNameChars(folderName) || 'folder';
+      if (Platform.OS === 'android') {
+        await saveToAndroidStorage(`${baseName}.zip`, await archive.generateAsync({ type: 'base64' }), 'application/zip', FileSystem.EncodingType.Base64);
+        return;
+      }
+      await shareArchive(archive, `${baseName}.zip`, 'Save folder');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to download this folder.');
     }
   }
 
@@ -801,6 +865,7 @@ export default function App() {
       return remaining;
     });
     setRunnerData((current) => ({ ...current, runner: removeFromRunner(current.runner, name) }));
+    setFileFolders((current) => removeFolderFile(current, name));
     if (currentFileName === name) {
       setCurrentFileName('');
       setProtocol(createEmptyProtocol());
@@ -1348,6 +1413,98 @@ export default function App() {
     );
   }
 
+  function renderFileRow(name: string): React.JSX.Element {
+    const row = (
+      <View key={name} style={styles.fileRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (appMode === 'runner') {
+              toggleStar(name);
+              return;
+            }
+            const selected = files[name];
+            if (selected) {
+              loadProtocol(name, selected);
+            }
+          }}
+          style={[styles.fileButton, appMode === 'editor' && currentFileName === name && styles.selectedFile]}
+        >
+          <Text accessibilityLabel={isUnsynced(name) ? `${displayName(name)}, not synced to the controller` : displayName(name)} numberOfLines={1} style={[styles.fileName, isUnsynced(name) && styles.unsyncedName]}>{isUnsynced(name) ? '● ' : ''}{displayName(name)}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isStarred(name) ? `Remove ${displayName(name)} from the runner` : `Add ${displayName(name)} to the runner`}
+          onPress={() => toggleStar(name)}
+        >
+          <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
+        </Pressable>
+        {appMode === 'runner' ? null : isReadOnlyFile(name) ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)} to an editable copy`} onPress={() => copyToEditable(name)}>
+            <Text style={styles.copyText}>⧉</Text>
+          </Pressable>
+        ) : (
+          <>
+            {fileFolders.folders.some((folder) => name.toLowerCase().endsWith(folder.extension)) && (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(name)} to a folder`} onPress={() => setMoveFilePrompt(name)}>
+                <Text style={styles.copyText}>📁</Text>
+              </Pressable>
+            )}
+            <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)}`} onPress={() => copyUserFile(name)}>
+              <Text style={styles.copyText}>⧉</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${displayName(name)}`} onPress={() => requestDelete(name)}>
+              <Text style={styles.deleteText}>✕</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+    );
+    if (Platform.OS !== 'web' || appMode === 'runner' || isReadOnlyFile(name)) {
+      return row;
+    }
+    return createElement('div', {
+      key: name,
+      draggable: true,
+      style: { cursor: 'grab' },
+      onDragStart: (event: DragEvent) => {
+        event.dataTransfer?.setData('text/plain', name);
+        fileDrag.current = name;
+      },
+      onDragEnd: () => { fileDrag.current = undefined; setFileDropTarget(undefined); },
+    }, row);
+  }
+
+  // Dropping on a folder (or on the section itself, for folderId undefined) files the dragged protocol there.
+  function fileDropProps(extension: string, folderId: string | undefined): Record<string, unknown> {
+    if (Platform.OS !== 'web') {
+      return {};
+    }
+    const key = `${extension}:${folderId ?? ''}`;
+    return {
+      onDragOver: (event: DragEvent) => {
+        if (fileDrag.current !== undefined && fileDrag.current.toLowerCase().endsWith(extension)) {
+          event.preventDefault();
+          event.stopPropagation();
+          setFileDropTarget(key);
+        }
+      },
+      onDrop: (event: DragEvent) => {
+        const moving = fileDrag.current;
+        fileDrag.current = undefined;
+        setFileDropTarget(undefined);
+        if (moving !== undefined) {
+          event.preventDefault();
+          event.stopPropagation();
+          setFileFolders((current) => moveFileToFolder(current, moving, folderId));
+          if (folderId !== undefined) {
+            setFileFolders((current) => ({ ...current, folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, collapsed: false } : folder)) }));
+          }
+        }
+      },
+    };
+  }
+
   function renderFileList(): React.JSX.Element {
     return (
       <View style={styles.fileList}>
@@ -1355,60 +1512,75 @@ export default function App() {
           const names = Object.keys(files)
             .filter((name) => name.toLowerCase().endsWith(group.extension))
             .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
-          if (names.length === 0) {
+          const organizable = appMode === 'editor' && (group.extension === '.vnp0' || group.extension === '.vnp4');
+          const groupFolders = fileFolders.folders.filter((folder) => folder.extension === group.extension);
+          if (names.length === 0 && !(organizable && groupFolders.length > 0)) {
             return null;
           }
           const expanded = expandedGroups[group.extension] === true;
-          return (
-            <View key={group.extension} style={styles.fileGroup}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded }}
-                onPress={() => setExpandedGroups((current) => ({ ...current, [group.extension]: !expanded }))}
-              >
-                <Text style={styles.groupTitle}>{expanded ? '▼' : '▶'} {group.label}</Text>
-              </Pressable>
-              {expanded && names.map((name) => (
-                <View key={name} style={styles.fileRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      if (appMode === 'runner') {
-                        toggleStar(name);
-                        return;
-                      }
-                      const selected = files[name];
-                      if (selected) {
-                        loadProtocol(name, selected);
-                      }
-                    }}
-                    style={[styles.fileButton, appMode === 'editor' && currentFileName === name && styles.selectedFile]}
-                  >
-                    <Text accessibilityLabel={isUnsynced(name) ? `${displayName(name)}, not synced to the controller` : displayName(name)} numberOfLines={1} style={[styles.fileName, isUnsynced(name) && styles.unsyncedName]}>{isUnsynced(name) ? '● ' : ''}{displayName(name)}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={isStarred(name) ? `Remove ${displayName(name)} from the runner` : `Add ${displayName(name)} to the runner`}
-                    onPress={() => toggleStar(name)}
-                  >
-                    <Text style={styles.copyText}>{isStarred(name) ? '★' : '☆'}</Text>
-                  </Pressable>
-                  {appMode === 'runner' ? null : isReadOnlyFile(name) ? (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)} to an editable copy`} onPress={() => copyToEditable(name)}>
-                      <Text style={styles.copyText}>⧉</Text>
-                    </Pressable>
-                  ) : (
-                    <>
-                      <Pressable accessibilityRole="button" accessibilityLabel={`Copy ${displayName(name)}`} onPress={() => copyUserFile(name)}>
-                        <Text style={styles.copyText}>⧉</Text>
+          const folderOf = (name: string) => folderOfFile(fileFolders, name, group.extension);
+          const dropStyle = (folderId: string | undefined) => fileDropTarget === `${group.extension}:${folderId ?? ''}` && styles.selectedFile;
+          const body = (
+            <>
+              {groupFolders.map((folder) => {
+                const inside = names.filter((name) => folderOf(name)?.id === folder.id);
+                const folderView = (
+                  <View key={folder.id} style={[styles.fileFolder, dropStyle(folder.id)]}>
+                    <View style={styles.fileFolderHeader}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${folder.collapsed === true ? 'Expand' : 'Collapse'} folder ${folder.name}`}
+                        accessibilityState={{ expanded: folder.collapsed !== true }}
+                        onPress={() => setFileFolders((current) => toggleFileFolder(current, folder.id))}
+                      >
+                        <Text style={styles.fileFolderTitle}>{folder.collapsed === true ? '▶' : '▼'} 📁</Text>
                       </Pressable>
-                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${displayName(name)}`} onPress={() => requestDelete(name)}>
+                      <TextInput
+                        accessibilityLabel={`Folder name, ${folder.name}`}
+                        value={folder.name}
+                        onChangeText={(text) => setFileFolders((current) => renameFileFolder(current, folder.id, text))}
+                        style={styles.fileFolderName}
+                      />
+                      <Text style={styles.fileFolderCount}>{inside.length}</Text>
+                      {inside.length > 0 && (
+                        <Pressable accessibilityRole="button" accessibilityLabel={`Download folder ${folder.name} as a zip`} onPress={() => void downloadFolder(folder.name, inside)}>
+                          <Text style={styles.copyText}>⬇</Text>
+                        </Pressable>
+                      )}
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => setFileFolders((current) => removeFileFolder(current, folder.id))}>
                         <Text style={styles.deleteText}>✕</Text>
                       </Pressable>
-                    </>
-                  )}
-                </View>
-              ))}
+                    </View>
+                    {folder.collapsed !== true && inside.map((name) => renderFileRow(name))}
+                  </View>
+                );
+                return Platform.OS === 'web' ? createElement('div', { key: folder.id, ...fileDropProps(group.extension, folder.id) }, folderView) : folderView;
+              })}
+              {names.filter((name) => !organizable || folderOf(name) === undefined).map((name) => renderFileRow(name))}
+            </>
+          );
+          return (
+            <View key={group.extension} style={styles.fileGroup}>
+              <View style={styles.groupHeader}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded }}
+                  onPress={() => setExpandedGroups((current) => ({ ...current, [group.extension]: !expanded }))}
+                  style={styles.groupHeaderTitle}
+                >
+                  <Text style={styles.groupTitle}>{expanded ? '▼' : '▶'} {group.label}</Text>
+                </Pressable>
+                {organizable && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`New folder in ${group.label}`}
+                    onPress={() => { setNewFileFolderName(''); setFileFolderPrompt(group.extension); }}
+                  >
+                    <Text style={styles.groupAction}>＋📁</Text>
+                  </Pressable>
+                )}
+              </View>
+              {expanded && (Platform.OS === 'web' && organizable ? createElement('div', { style: { minHeight: 8 }, ...fileDropProps(group.extension, undefined) }, body) : body)}
             </View>
           );
         })}
@@ -2231,6 +2403,72 @@ export default function App() {
     );
   }
 
+  function createFileFolder(): void {
+    if (fileFolderPrompt !== null && newFileFolderName.trim() !== '') {
+      setFileFolders((current) => addFileFolder(current, fileFolderPrompt, newFileFolderName));
+      setExpandedGroups((current) => ({ ...current, [fileFolderPrompt]: true }));
+    }
+    setFileFolderPrompt(null);
+  }
+
+  function renderFileFolderDialogs(): React.JSX.Element {
+    const extension = moveFilePrompt === null ? undefined : fileGroups.find((group) => moveFilePrompt.toLowerCase().endsWith(group.extension))?.extension;
+    const choices = fileFolders.folders.filter((folder) => folder.extension === extension);
+    const move = (folderId: string | undefined) => {
+      if (moveFilePrompt !== null) {
+        setFileFolders((current) => moveFileToFolder(current, moveFilePrompt, folderId));
+      }
+      setMoveFilePrompt(null);
+    };
+    return (
+      <>
+        <Modal transparent animationType="fade" visible={fileFolderPrompt !== null} onRequestClose={() => setFileFolderPrompt(null)}>
+          <View style={styles.dialogRoot}>
+            <View style={styles.dialog}>
+              <Text style={styles.dialogTitle}>New folder</Text>
+              <TextInput
+                accessibilityLabel="Folder name"
+                autoFocus
+                placeholder="Folder name"
+                placeholderTextColor="#94a3b8"
+                value={newFileFolderName}
+                onChangeText={setNewFileFolderName}
+                onSubmitEditing={createFileFolder}
+                style={styles.textInput}
+              />
+              <View style={styles.deleteButtons}>
+                <Pressable accessibilityRole="button" disabled={newFileFolderName.trim() === ''} onPress={createFileFolder} style={[styles.backButton, newFileFolderName.trim() === '' && styles.fieldDisabled]}>
+                  <Text style={styles.backButtonText}>CREATE</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setFileFolderPrompt(null)} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>CANCEL</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal transparent animationType="fade" visible={moveFilePrompt !== null} onRequestClose={() => setMoveFilePrompt(null)}>
+          <View style={styles.dialogRoot}>
+            <View style={styles.dialog}>
+              <Text style={styles.dialogTitle}>Move {moveFilePrompt === null ? '' : displayName(moveFilePrompt)} to</Text>
+              {choices.map((folder) => (
+                <Pressable key={folder.id} accessibilityRole="button" onPress={() => move(folder.id)} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>📁 {folder.name}</Text>
+                </Pressable>
+              ))}
+              <Pressable accessibilityRole="button" onPress={() => move(undefined)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>NO FOLDER</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setMoveFilePrompt(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </>
+    );
+  }
+
   function renderDownloadDialog(): React.JSX.Element {
     return (
       <Modal transparent animationType="fade" visible={downloadPromptOpen} onRequestClose={() => setDownloadPromptOpen(false)}>
@@ -2540,6 +2778,7 @@ export default function App() {
           {renderDownloadDialog()}
           {renderExtendedDialog()}
           {renderFolderDialog()}
+          {renderFileFolderDialogs()}
           {renderSequenceDialog()}
           {renderJournalEntryDialog()}
           {renderJournalViewDialog()}
@@ -2755,7 +2994,15 @@ const styleDefs = {
   fileScroll: { flex: 1 },
   fileList: { gap: 8, paddingHorizontal: 12, paddingBottom: 16 },
   fileGroup: { backgroundColor: '#f0fdf4', borderColor: '#f9a01b', borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
-  groupTitle: { backgroundColor: '#7bc043', color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.4, padding: 10, textTransform: 'uppercase' },
+  groupTitle: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.4, padding: 10, textTransform: 'uppercase' },
+  groupHeader: { alignItems: 'center', backgroundColor: '#7bc043', flexDirection: 'row' },
+  groupHeaderTitle: { flex: 1 },
+  groupAction: { color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 10 },
+  fileFolder: { borderColor: '#cbd5e1', borderLeftWidth: 3, marginLeft: 6, marginVertical: 2 },
+  fileFolderHeader: { alignItems: 'center', backgroundColor: '#f1f5f9', flexDirection: 'row', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  fileFolderTitle: { color: '#334155', fontSize: 12, fontWeight: '800' },
+  fileFolderName: { color: '#334155', flex: 1, minWidth: 0, fontSize: 13, fontWeight: '700', paddingVertical: 2 },
+  fileFolderCount: { color: '#64748b', fontSize: 11 },
   fileRow: { alignItems: 'center', borderBottomColor: '#f1f5f9', borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 8 },
   fileButton: { flex: 1, paddingVertical: 10, paddingHorizontal: 5 },
   selectedFile: { backgroundColor: '#dcfce7', borderColor: '#f9a01b', borderWidth: 1 },
@@ -3221,12 +3468,42 @@ function DropZone({ props, zoneKey, zones, active, children }: { props: Record<s
 async function eraseStoredData(): Promise<void> {
   try {
     if (Platform.OS === 'web') {
-      [settingsKey, filesKey, syncedKey, runnerKey].forEach((key) => window.localStorage.removeItem(key));
+      [settingsKey, filesKey, syncedKey, runnerKey, fileFoldersKey].forEach((key) => window.localStorage.removeItem(key));
     } else {
-      await Promise.all([settingsPath, filesPath, syncedPath, runnerPath].filter((path) => path !== '').map((path) => FileSystem.deleteAsync(path, { idempotent: true })));
+      await Promise.all([settingsPath, filesPath, syncedPath, runnerPath, fileFoldersPath].filter((path) => path !== '').map((path) => FileSystem.deleteAsync(path, { idempotent: true })));
     }
   } catch {
     // Nothing more can be done if storage is unavailable.
+  }
+}
+
+const fileFoldersKey = 'brainbroccoli.fileFolders';
+const fileFoldersPath = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}file-folders.json` : '';
+
+async function loadStoredFileFolders(): Promise<FileFolderState> {
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      raw = window.localStorage.getItem(fileFoldersKey);
+    } else if (fileFoldersPath && (await FileSystem.getInfoAsync(fileFoldersPath)).exists) {
+      raw = await FileSystem.readAsStringAsync(fileFoldersPath);
+    }
+    return raw ? parseFileFolders(JSON.parse(raw) as unknown) : emptyFileFolders;
+  } catch {
+    return emptyFileFolders;
+  }
+}
+
+async function persistFileFolders(data: FileFolderState): Promise<void> {
+  try {
+    const raw = JSON.stringify(data);
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(fileFoldersKey, raw);
+    } else if (fileFoldersPath) {
+      await FileSystem.writeAsStringAsync(fileFoldersPath, raw);
+    }
+  } catch {
+    // Folders are a convenience; failing to save should not interrupt editing.
   }
 }
 
