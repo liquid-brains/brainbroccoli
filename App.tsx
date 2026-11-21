@@ -165,6 +165,7 @@ export default function App() {
   const [fileFolderPrompt, setFileFolderPrompt] = useState<string | null>(null);
   const [newFileFolderName, setNewFileFolderName] = useState('');
   const [moveFilePrompt, setMoveFilePrompt] = useState<string | null>(null);
+  const [moveRunnerPrompt, setMoveRunnerPrompt] = useState<string | null>(null);
   const [fileDropTarget, setFileDropTarget] = useState<string | undefined>(undefined);
   const fileDrag = useRef<string | undefined>(undefined);
   const [sequenceDraft, setSequenceDraft] = useState<{ id?: string; name: string; description: string; steps: SequenceStep[]; next: string; rest: string } | null>(null);
@@ -272,7 +273,7 @@ export default function App() {
 
   useEffect(() => {
     void loadStoredRunner().then((saved) => {
-      setRunnerData((current) => (current.runner.items.length > 0 || current.journal.length > 0 ? current : saved));
+      setRunnerData((current) => (current.runner.items.length > 0 || current.journal.length > 0 ? current : { ...saved, runner: { ...saved.runner, folders: saved.runner.folders.map((folder) => ({ ...folder, collapsed: true })) } }));
       setRunnerLoaded(true);
     });
   }, []);
@@ -1201,6 +1202,11 @@ export default function App() {
         <Text style={styles.runnerTitle}>{Platform.OS === 'web' ? '⠿ ' : ''}{displayName(item.file)}</Text>
         <Text style={styles.runnerMeta}>{describeRunnerItem(item)}</Text>
         <View style={styles.runnerButtons}>
+          {runnerData.runner.folders.length > 0 && (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${displayName(item.file)} to a folder`} onPress={() => setMoveRunnerPrompt(item.id)} style={styles.actionButton}>
+              <Text style={styles.actionText}>📁</Text>
+            </Pressable>
+          )}
           <Pressable accessibilityRole="button" accessibilityLabel={`Run ${item.file}`} disabled={!canRun} onPress={() => { void startRun(item); }} style={[styles.actionButton, !canRun && styles.fieldDisabled]}>
             <Text style={styles.actionText}>▶ RUN</Text>
           </Pressable>
@@ -1332,25 +1338,29 @@ export default function App() {
               )}
               {runner.folders.map((folder) => (
                 <DropZone key={folder.id} zoneKey={folder.id} zones={zoneViews.current} active={zoneHint === folder.id} props={folderDropProps(folder.id)}>
-                <View style={styles.runnerFolder}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))} style={styles.cardClose}>
-                    <Text style={styles.cardCloseText}>✕</Text>
-                  </Pressable>
-                  <View style={[styles.runnerButtons, { paddingRight: 28 }]}>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`${folder.collapsed === true ? 'Expand' : 'Collapse'} folder ${folder.name}`} accessibilityState={{ expanded: folder.collapsed !== true }} onPress={() => updateRunner((state) => toggleRunnerFolder(state, folder.id))} style={styles.thumbButton}>
-                      <Text style={styles.runnerButtonText}>{folder.collapsed === true ? '▶' : '▼'}</Text>
+                <View style={styles.fileFolder}>
+                  <View style={styles.fileFolderHeader}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${folder.collapsed === true ? 'Expand' : 'Collapse'} folder ${folder.name}`}
+                      accessibilityState={{ expanded: folder.collapsed !== true }}
+                      onPress={() => updateRunner((state) => toggleRunnerFolder(state, folder.id))}
+                    >
+                      <Text style={styles.fileFolderTitle}>{folder.collapsed === true ? '▶' : '▼'} 📁</Text>
                     </Pressable>
                     <TextInput
-                      accessibilityLabel="Folder name"
+                      accessibilityLabel={`Folder name, ${folder.name}`}
                       value={folder.name}
                       onChangeText={(text) => updateRunner((state) => renameRunnerFolder(state, folder.id, text))}
-                      style={[styles.textInput, styles.runnerInput]}
+                      style={styles.fileFolderName}
                     />
+                    <Text style={styles.fileFolderCount}>{runner.items.filter((item) => item.folderId === folder.id).length}</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Delete folder ${folder.name}`} onPress={() => updateRunner((state) => removeRunnerFolder(state, folder.id))}>
+                      <Text style={styles.deleteText}>✕</Text>
+                    </Pressable>
                   </View>
-                  {folder.collapsed === true
-                    ? <Text style={styles.runnerMeta}>{runner.items.filter((item) => item.folderId === folder.id).length} protocol(s) hidden</Text>
-                    : runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
-                  {folder.collapsed !== true && runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Drag a protocol here (press and hold a protocol, then move it).</Text>}
+                  {folder.collapsed !== true && runner.items.filter((item) => item.folderId === folder.id).map((item) => renderRunnerItem(item))}
+                  {folder.collapsed !== true && runner.items.every((item) => item.folderId !== folder.id) && <Text style={styles.runnerMeta}>Empty folder. Use 📁 on a protocol to move it here, or drag it in.</Text>}
                 </View>
                 </DropZone>
               ))}
@@ -2439,6 +2449,12 @@ export default function App() {
       }
       setMoveFilePrompt(null);
     };
+    const moveRunnerTo = (folderId: string | undefined) => {
+      if (moveRunnerPrompt !== null) {
+        updateRunner((state) => moveRunnerItemToFolderEnd(state, moveRunnerPrompt, folderId));
+      }
+      setMoveRunnerPrompt(null);
+    };
     return (
       <>
         <Modal transparent animationType="fade" visible={fileFolderPrompt !== null} onRequestClose={() => setFileFolderPrompt(null)}>
@@ -2479,6 +2495,24 @@ export default function App() {
                 <Text style={styles.backButtonText}>NO FOLDER</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => setMoveFilePrompt(null)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>CANCEL</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+        <Modal transparent animationType="fade" visible={moveRunnerPrompt !== null} onRequestClose={() => setMoveRunnerPrompt(null)}>
+          <View style={styles.dialogRoot}>
+            <View style={styles.dialog}>
+              <Text style={styles.dialogTitle}>Move {displayName(runnerData.runner.items.find((item) => item.id === moveRunnerPrompt)?.file ?? '')} to</Text>
+              {runnerData.runner.folders.map((folder) => (
+                <Pressable key={folder.id} accessibilityRole="button" onPress={() => moveRunnerTo(folder.id)} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>📁 {folder.name}</Text>
+                </Pressable>
+              ))}
+              <Pressable accessibilityRole="button" onPress={() => moveRunnerTo(undefined)} style={styles.backButton}>
+                <Text style={styles.backButtonText}>NO FOLDER</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setMoveRunnerPrompt(null)} style={styles.backButton}>
                 <Text style={styles.backButtonText}>CANCEL</Text>
               </Pressable>
             </View>
