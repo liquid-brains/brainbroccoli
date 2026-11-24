@@ -2734,7 +2734,7 @@ export default function App() {
                     <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
                 )}
-                <Text numberOfLines={1} style={styles.currentFile}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `Editing: ${displayName(currentFileName)}` : 'No File Loaded'}</Text>
+                <Text numberOfLines={1} style={[styles.currentFile, !wideSidebar && { fontSize: 14 }]}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `${wideSidebar ? 'Editing: ' : ''}${displayName(currentFileName)}` : 'No File Loaded'}</Text>
                 <View accessibilityRole="tablist" style={styles.modeToggle}>
                   {(['editor', 'runner'] as const).map((value) => (
                     <Pressable
