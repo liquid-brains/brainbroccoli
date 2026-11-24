@@ -1992,7 +1992,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
-              const onDark = tileInactive ? scheme === 'pioneer' || scheme === 'brand' : isDarkColor(tint);
+              const onDark = tileInactive ? scheme !== 'light' : isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
@@ -2734,7 +2734,7 @@ export default function App() {
                     <Text style={styles.actionText}>☰ Files</Text>
                   </Pressable>
                 )}
-                <Text numberOfLines={1} style={styles.currentFile}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `Editing: ${displayName(currentFileName)}` : 'No File Loaded'}</Text>
+                <Text numberOfLines={1} style={[styles.currentFile, !wideSidebar && { fontSize: 14 }]}>{appMode === 'runner' ? 'Protocol Runner' : currentFileName ? `${wideSidebar ? 'Editing: ' : ''}${displayName(currentFileName)}` : 'No File Loaded'}</Text>
                 <View accessibilityRole="tablist" style={styles.modeToggle}>
                   {(['editor', 'runner'] as const).map((value) => (
                     <Pressable
@@ -3387,6 +3387,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
+  if (scheme === 'dark') mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2a3c3e' };
   if (pioneer) {
     const gold = brand ? '#d9a24a' : '#d3aa62';
     mapped.unsyncedName = { ...mapped.unsyncedName, color: brand ? '#d6c196' : '#b9a3dc' };
