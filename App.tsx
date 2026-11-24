@@ -1992,7 +1992,7 @@ export default function App() {
               const crossApplied = module.active !== false && module.applyCross === true && source.cross?.active !== false;
               const tileInactive = module.active === false || modulePower(source, module) <= 0;
               const tint = tintColor(currentPhase === 'B' ? theme.phaseB : theme.phaseA, deliveredSaturation(source, module, maxRun));
-              const onDark = tileInactive ? scheme === 'pioneer' || scheme === 'brand' : isDarkColor(tint);
+              const onDark = tileInactive ? scheme !== 'light' : isDarkColor(tint);
               return (
                 <Pressable
                   key={number}
