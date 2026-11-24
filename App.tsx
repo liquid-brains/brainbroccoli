@@ -3387,6 +3387,7 @@ function buildTheme(scheme: Scheme, fontsLoaded = false): Theme {
   mapped.thumbUp = { ...mapped.thumbUp, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#dcfce7'] ?? '#dcfce7' };
   mapped.thumbDown = { ...mapped.thumbDown, borderColor: mapped.thumbButton?.borderColor, backgroundColor: palette.fill['#fee2e2'] ?? '#fee2e2' };
   mapped.runnerEmpty = mapped.emptyList as Record<string, unknown>;
+  if (scheme === 'dark') mapped.unsyncedName = { ...mapped.unsyncedName, color: '#2de0d0' };
   if (scheme === 'dark') mapped.inactiveTile = { ...mapped.inactiveTile, backgroundColor: '#2a3c3e' };
   if (pioneer) {
     const gold = brand ? '#d9a24a' : '#d3aa62';
